@@ -44,7 +44,7 @@
 
 | Multi-Body Assembly Tree (`T`) | Smart Snapping & Pitch Measurement (`M`) |
 | :---: | :---: |
-| ![Model Tree Preview](docs/images/preview_tree.jpg) | ![Smart Measure Preview](docs/images/preview_measure.png) |
+| ![Model Tree Preview](docs/images/preview_tree.png) | ![Smart Measure Preview](docs/images/preview_measure.png) |
 
 | Mass Properties & Material Density (`P`) | Metric & Imperial Live Toggle (`U`) |
 | :---: | :---: |
