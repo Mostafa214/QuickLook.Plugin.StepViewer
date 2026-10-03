@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <OutputType>Library</OutputType>
+    <AssemblyName>QuickLook.Plugin.StepViewer</AssemblyName>
+    <RootNamespace>QuickLook.Plugin.StepViewer</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Enables building net48 using modern .NET 8 SDK -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="All" />
+    <!-- WebView2 runtime for CAD WebGL rendering -->
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2592.51" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Reference QuickLook.Common without copying to output -->
+    <Reference Include="QuickLook.Common">
+      <HintPath>lib\QuickLook.Common.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Automatically copy web assets to build output directory -->
+    <None Update="Assets\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="QuickLook.Plugin.Metadata.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Exclude release staging directory from root project compilation -->
+    <Compile Remove="StepViewer-Release-Staging\**" />
+    <None Remove="StepViewer-Release-Staging\**" />
+    <Page Remove="StepViewer-Release-Staging\**" />
+  </ItemGroup>
+
+</Project>

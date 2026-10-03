@@ -1,0 +1,36 @@
+# Build & Output Directories
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# QuickLook Plugin Release Archive (distributed via GitHub Releases)
+*.qlplugin
+
+# Packaging & Local Staging
+StepViewer-Release-Staging/
+
+# Test & Diagnostic Scripts / Scratch Logs
+VerifyPhase*.ps1
+test_*.ps1
+diagnose_*.ps1
+reproduce_issue.ps1
+trace_request.ps1
+render_hybrid_screenshot.ps1
+screenshot_manshor.ps1
+stream_test.log
+test_artifacts/
+docs/superpowers/
+
+# Private CAD Test Models
+Hosieni - Nar.stp
+2-1.STEP
+
+# IDE & OS Files
+.vs/
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini

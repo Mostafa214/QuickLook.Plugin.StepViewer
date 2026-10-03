@@ -1,0 +1,4729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QuickLook STEP 3D Viewer</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    body {
+      background: radial-gradient(circle at 50% 40%, #1e2229 0%, #131519 100%);
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #9da5b4;
+      width: 100vw;
+      height: 100vh;
+    }
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+
+    /* Minimalist Technical HUD Badge (Top-Left, Responsive Relocates to Bottom-Left) */
+    .hud-badge {
+      position: absolute;
+      top: 14px;
+      left: 16px;
+      background: rgba(24, 27, 34, 0.90);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(14px);
+      padding: 6px 12px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+      z-index: 1000;
+      pointer-events: none;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      max-width: calc(50vw - 180px);
+    }
+    .badge-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #f1f5f9;
+      letter-spacing: 0.2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .hud-divider {
+      width: 1px;
+      height: 14px;
+      background: rgba(255, 255, 255, 0.12);
+    }
+    .badge-dim {
+      font-size: 11px;
+      font-family: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, monospace;
+      color: #94a3b8;
+      white-space: nowrap;
+    }
+    .badge-sub {
+      font-size: 11px;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .spinner {
+      display: inline-block;
+      width: 11px;
+      height: 11px;
+      border: 2px solid rgba(255, 255, 255, 0.20);
+      border-radius: 50%;
+      border-top-color: #94a3b8;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .progress-track {
+      display: none;
+      width: 100%;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.10);
+      border-radius: 2px;
+      overflow: hidden;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+    }
+    .progress-fill {
+      width: 50%;
+      height: 100%;
+      background: #94a3b8;
+      animation: pulseBar 1.4s infinite ease-in-out;
+    }
+    @keyframes pulseBar {
+      0% { transform: translateX(-100%); }
+      50% { transform: translateX(20%); }
+      100% { transform: translateX(100%); }
+    }
+
+    /* Floating Segmented Engineering Toolbar (Option 1 Toolset + Option 3 Palette) */
+    .toolbar {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(26, 29, 36, 0.94);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(16px);
+      padding: 4px 6px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+      z-index: 1000;
+    }
+
+    .tool-group {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: #9da5b4;
+      padding: 5px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .btn svg {
+      width: 19px;
+      height: 19px;
+      stroke: currentColor;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: #f1f5f9;
+    }
+    /* Active (Selected) button matching user's image */
+    .btn.active {
+      background: #16181f;
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
+    }
+    .btn span {
+      font-size: 10px;
+      letter-spacing: 0.1px;
+    }
+
+    .separator {
+      width: 1px;
+      height: 24px;
+      background: rgba(255, 255, 255, 0.08);
+      margin: 0 2px;
+    }
+
+    /* Floating Section Control Panel */
+    .section-panel {
+      position: absolute;
+      top: 66px;
+      right: 16px;
+      background: rgba(26, 29, 36, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(16px);
+      padding: 6px 12px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+      z-index: 1000;
+      animation: fadeIn 0.2s ease;
+    }
+    .sec-slider {
+      width: 130px;
+      height: 4px;
+      accent-color: #cbd5e1;
+      cursor: pointer;
+    }
+    .btn-sm {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid transparent;
+      color: #9da5b4;
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 500;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-sm:hover {
+      background: rgba(255, 255, 255, 0.10);
+      color: #ffffff;
+    }
+    .btn-sm.active {
+      background: #16181f;
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Floating Measure Info Card */
+    .measure-card {
+      position: absolute;
+      top: 66px;
+      left: 16px;
+      background: rgba(20, 24, 33, 0.96);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      backdrop-filter: blur(16px);
+      padding: 12px 16px;
+      border-radius: 8px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+      z-index: 1000;
+      min-width: 250px;
+      max-width: 380px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      animation: fadeIn 0.2s ease;
+    }
+    .measure-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #38bdf8;
+    }
+    .btn-copy {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #94a3b8;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-copy:hover {
+      background: rgba(56, 189, 248, 0.18);
+      color: #38bdf8;
+      border-color: rgba(56, 189, 248, 0.4);
+    }
+    .measure-main {
+      font-size: 18px;
+      font-weight: 700;
+      color: #f8fafc;
+      letter-spacing: -0.2px;
+    }
+    .measure-sub {
+      font-size: 12px;
+      color: #cbd5e1;
+      font-family: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, monospace;
+      line-height: 1.5;
+    }
+    .measure-tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(15, 23, 42, 0.94);
+      border: 1px solid rgba(56, 189, 248, 0.6);
+      color: #38bdf8;
+      font-family: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, monospace;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 9px;
+      border-radius: 5px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+      z-index: 2000;
+      white-space: nowrap;
+      transition: opacity 0.1s ease;
+    }
+    #btn-clear-measure {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      color: #cbd5e1;
+      padding: 5px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      margin-top: 6px;
+      width: 100%;
+      transition: all 0.15s ease;
+    }
+    #btn-clear-measure:hover {
+      background: rgba(255, 255, 255, 0.14);
+      color: #ffffff;
+    }
+
+    /* Materials Library & Search */
+    .mat-search-input {
+      width: 100%;
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #f1f5f9;
+      padding: 5px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      outline: none;
+      box-sizing: border-box;
+      transition: border-color 0.15s ease;
+    }
+    .mat-search-input:focus {
+      border-color: #38bdf8;
+    }
+    .mat-list-container {
+      max-height: 160px;
+      overflow-y: auto;
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding-right: 2px;
+    }
+    .mat-list-container::-webkit-scrollbar {
+      width: 4px;
+    }
+    .mat-list-container::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 2px;
+    }
+    .mat-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 7px;
+      border-radius: 4px;
+      background: rgba(30, 41, 59, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      cursor: pointer;
+      transition: all 0.12s ease;
+      font-size: 11px;
+    }
+    .mat-item:hover {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: rgba(56, 189, 248, 0.3);
+    }
+    .mat-item.active {
+      background: rgba(56, 189, 248, 0.22);
+      border-color: #38bdf8;
+    }
+    .mat-item-info {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      overflow: hidden;
+    }
+    .mat-item-name {
+      font-weight: 600;
+      color: #f1f5f9;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .mat-item-std {
+      font-size: 9px;
+      color: #64748b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mat-item-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .mat-item-weight {
+      font-weight: 700;
+      color: #38bdf8;
+      font-size: 11px;
+      text-align: right;
+    }
+    .mat-tag-custom {
+      font-size: 8px;
+      padding: 1px 4px;
+      background: rgba(245, 158, 11, 0.2);
+      color: #f59e0b;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      border-radius: 3px;
+    }
+    .btn-mat-del {
+      background: none;
+      border: none;
+      color: #ef4444;
+      font-size: 11px;
+      cursor: pointer;
+      padding: 2px 4px;
+      opacity: 0.6;
+      transition: opacity 0.15s ease;
+    }
+    .btn-mat-del:hover {
+      opacity: 1.0;
+    }
+    .toast-notification {
+      position: absolute;
+      bottom: 42px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      color: #f1f5f9;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      z-index: 2000;
+      pointer-events: none;
+      animation: fadeIn 0.2s ease;
+    }
+
+    /* CAD Assembly / Model Tree Styling (Studio Graphite) */
+    .tree-panel {
+      position: absolute;
+      left: 16px;
+      top: 68px;
+      width: 290px;
+      max-height: calc(100vh - 120px);
+      background: rgba(20, 24, 33, 0.92);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
+      display: flex;
+      flex-direction: column;
+      z-index: 1000;
+      overflow: hidden;
+      animation: fadeIn 0.2s ease;
+      color: #f1f5f9;
+      font-size: 11px;
+    }
+    .tree-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .tree-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #38bdf8;
+    }
+    .tree-count-badge {
+      background: rgba(56, 189, 248, 0.16);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 1px 6px;
+      border-radius: 10px;
+      font-size: 9px;
+      font-weight: 700;
+    }
+    .tree-batch-bar {
+      display: flex;
+      gap: 4px;
+      padding: 6px 10px;
+      background: rgba(15, 23, 42, 0.5);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .tree-batch-btn {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #94a3b8;
+      border-radius: 4px;
+      padding: 3px 0;
+      font-size: 10px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: center;
+    }
+    .tree-batch-btn:hover {
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border-color: rgba(56, 189, 248, 0.3);
+    }
+    .tree-content {
+      overflow-y: auto;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: calc(100vh - 210px);
+    }
+    .tree-content::-webkit-scrollbar {
+      width: 4px;
+    }
+    .tree-content::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    .tree-content::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 2px;
+    }
+    .tree-node {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 7px;
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+    .tree-node:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(56, 189, 248, 0.3);
+    }
+    .tree-node.isolated {
+      border-color: #f59e0b;
+      background: rgba(245, 158, 11, 0.08);
+    }
+    .tree-node.active-body {
+      border-left: 3px solid #00f0ff !important;
+      background: rgba(56, 189, 248, 0.16) !important;
+      box-shadow: inset 0 0 12px rgba(0, 240, 255, 0.15) !important;
+    }
+    .tree-node.active-body .tree-node-name {
+      color: #ffffff !important;
+      font-weight: 600 !important;
+      text-shadow: 0 0 8px rgba(56, 189, 248, 0.6) !important;
+    }
+    .tree-node.hidden-body {
+      opacity: 0.55;
+      filter: grayscale(0.5);
+    }
+    .tree-node-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    .tree-node-info {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow: hidden;
+      cursor: pointer;
+      flex: 1;
+    }
+    .tree-color-swatch {
+      width: 11px;
+      height: 11px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    .tree-node-name {
+      font-weight: 600;
+      color: #f1f5f9;
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tree-node-actions {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      flex-shrink: 0;
+    }
+    .btn-tree-action {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #94a3b8;
+      border-radius: 3px;
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      padding: 0;
+    }
+    .btn-tree-action:hover {
+      background: rgba(56, 189, 248, 0.18);
+      color: #38bdf8;
+      border-color: rgba(56, 189, 248, 0.4);
+    }
+    .btn-tree-action.active {
+      background: rgba(56, 189, 248, 0.25);
+      color: #38bdf8;
+      border-color: #38bdf8;
+    }
+    .tree-node-meta {
+      font-size: 9.5px;
+      color: #64748b;
+      display: flex;
+      gap: 8px;
+      padding-left: 17px;
+      font-family: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, monospace;
+    }
+    .tree-faces-toggle {
+      cursor: pointer;
+      color: #94a3b8;
+      font-size: 9.5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      margin-top: 2px;
+      padding-left: 17px;
+      transition: color 0.15s ease;
+    }
+    .tree-faces-toggle:hover {
+      color: #38bdf8;
+    }
+    .tree-faces-list {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding-left: 18px;
+      margin-top: 4px;
+      border-left: 1px dashed rgba(255, 255, 255, 0.12);
+    }
+    .tree-face-item {
+      font-size: 9.5px;
+      color: #94a3b8;
+      padding: 3px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+      border-left: 2px solid transparent;
+      user-select: none;
+    }
+    .tree-face-item:hover {
+      background: rgba(56, 189, 248, 0.18);
+      color: #38bdf8;
+      border-left-color: #38bdf8;
+      padding-left: 8px;
+    }
+    .tree-face-item.active {
+      background: rgba(56, 189, 248, 0.28);
+      color: #ffffff;
+      font-weight: 600;
+      border-left: 2px solid #00f0ff;
+      box-shadow: inset 0 0 10px rgba(0, 240, 255, 0.18);
+      padding-left: 8px;
+    }
+    .tree-face-item.active span:first-child {
+      color: #38bdf8;
+      text-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+    }
+    .tree-face-item.active span:last-child {
+      color: #e2e8f0 !important;
+    }
+    .isolate-banner {
+      position: absolute;
+      bottom: 48px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(245, 158, 11, 0.25);
+      border: 1px solid rgba(245, 158, 11, 0.55);
+      color: #fbbf24;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      backdrop-filter: blur(12px);
+      z-index: 1500;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      animation: fadeIn 0.2s ease;
+    }
+    .isolate-banner button {
+      background: rgba(245, 158, 11, 0.35);
+      border: 1px solid rgba(245, 158, 11, 0.7);
+      color: #ffffff;
+      border-radius: 12px;
+      padding: 2px 8px;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .isolate-banner button:hover {
+      background: rgba(245, 158, 11, 0.6);
+    }
+
+    /* Responsive Adaptation */
+    @media (max-width: 1080px) {
+      .btn span {
+        display: none;
+      }
+      .btn {
+        padding: 6px 7px;
+      }
+      .separator {
+        height: 18px;
+      }
+      .badge-sub {
+        display: none !important;
+      }
+    }
+
+    @media (max-width: 780px) {
+      .hud-badge {
+        top: auto;
+        bottom: 14px;
+        left: 14px;
+        max-width: calc(100vw - 28px);
+      }
+      /* Prevent collision with bottom-left HUD badge */
+      .hints {
+        display: none;
+      }
+      .badge-sub {
+        display: none !important;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .section-panel {
+        top: 56px;
+        right: 10px;
+        left: 10px;
+        justify-content: center;
+      }
+      .sec-slider {
+        width: 100px;
+      }
+      .measure-card {
+        top: 56px;
+        left: 10px;
+        right: 10px;
+        min-width: auto;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .toolbar {
+        top: 10px;
+        padding: 3px 4px;
+        gap: 2px;
+      }
+      .btn {
+        padding: 5px 5px;
+      }
+      .btn svg {
+        width: 16px;
+        height: 16px;
+      }
+      .separator {
+        margin: 0 1px;
+      }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Bottom Hints */
+    .hints {
+      position: absolute;
+      bottom: 14px;
+      right: 16px;
+      font-size: 11px;
+      color: #64748b;
+      background: rgba(18, 20, 26, 0.7);
+      padding: 4px 10px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    /* Error Overlay */
+    #error-container {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(30, 20, 20, 0.95);
+      border: 1px solid #ef4444;
+      padding: 20px 28px;
+      border-radius: 10px;
+      color: #fca5a5;
+      font-size: 14px;
+      text-align: center;
+      max-width: 450px;
+      backdrop-filter: blur(14px);
+      z-index: 2000;
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <!-- Minimalist Technical HUD Badge -->
+  <div class="hud-badge" id="info-badge">
+    <div class="badge-title" id="badge-filename">Loading STEP Model...</div>
+    <div class="hud-divider"></div>
+    <div class="badge-dim" id="badge-dim" style="display: none;">
+      <span id="dim-text"></span>
+    </div>
+    <div class="badge-sub" id="badge-status">
+      <span class="spinner" id="spinner"></span>
+      <span id="status-text">Initializing CAD Kernel...</span>
+    </div>
+    <div class="progress-track" id="loading-progress-bar">
+      <div class="progress-fill"></div>
+    </div>
+  </div>
+
+  <!-- Floating Segmented Engineering Toolbar (Option 1 Toolset + Option 3 Palette) -->
+  <div class="toolbar">
+    <!-- Visual Modes -->
+    <div class="tool-group">
+      <button class="btn active" id="btn-edges" title="Shaded with Edges [E]">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" fill="#2d323c" stroke="#e2e8f0" stroke-width="1.6" stroke-linejoin="round"/>
+          <path d="M12 22V12" stroke="#e2e8f0" stroke-width="1.6"/>
+          <path d="M21 7l-9 5-9-5" stroke="#e2e8f0" stroke-width="1.6"/>
+          <polygon points="12 2 21 7 12 12 3 7" fill="#444b58"/>
+          <polygon points="3 7 12 12 12 22 3 17" fill="#2b303a"/>
+          <polygon points="12 12 21 7 21 17 12 22" fill="#363d4a"/>
+        </svg>
+        <span>Edges</span>
+      </button>
+      <button class="btn" id="btn-wireframe" title="Wireframe Mesh [W]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+          <polygon points="12 2 21 7 12 12 3 7"/>
+          <polyline points="3 7 3 17 12 22 21 17 21 7"/>
+          <line x1="12" y1="12" x2="12" y2="22"/>
+          <line x1="3" y1="7" x2="12" y2="12" stroke-dasharray="2,2"/>
+          <line x1="21" y1="7" x2="12" y2="12" stroke-dasharray="2,2"/>
+          <line x1="12" y1="2" x2="12" y2="12" stroke-dasharray="2,2"/>
+        </svg>
+        <span>Wire</span>
+      </button>
+      <button class="btn" id="btn-autorotate" title="Toggle Auto-Rotation">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="4" y="4" width="16" height="16" rx="2"/>
+          <line x1="4" y1="12" x2="20" y2="12" stroke-dasharray="2,2"/>
+        </svg>
+        <span>Rotate</span>
+      </button>
+    </div>
+
+    <div class="separator"></div>
+
+    <!-- Standard Views Segment -->
+    <div class="tool-group">
+      <button class="btn active" id="btn-view-iso" title="Isometric View [1] (Click to flip)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z"/>
+          <path d="M12 22V12"/>
+          <path d="M21 7l-9 5-9-5"/>
+        </svg>
+        <span>Iso</span>
+      </button>
+      <button class="btn" id="btn-view-top" title="Top View [2] (Click for Bottom)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="9"/>
+          <circle cx="12" cy="12" r="4"/>
+        </svg>
+        <span>Top</span>
+      </button>
+      <button class="btn" id="btn-view-front" title="Front View [3] (Click for Back)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M4 19h16M6 19v-4h3V7h6v8h3v4"/>
+        </svg>
+        <span>Front</span>
+      </button>
+      <button class="btn" id="btn-view-right" title="Right View [4] (Click for Left)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M6 5v14h12v-5h-7V5H6z"/>
+        </svg>
+        <span>Right</span>
+      </button>
+    </div>
+
+    <div class="separator"></div>
+
+    <!-- CAD Inspection Tools -->
+    <div class="tool-group">
+      <button class="btn" id="btn-tree" title="Model & Assembly Tree [T]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M4 6h16M4 12h10M4 18h14M8 6v12"/>
+        </svg>
+        <span>Tree</span>
+      </button>
+      <button class="btn" id="btn-measure" title="Smart Measure Points & Distances [M]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+          <circle cx="12" cy="4" r="2"/>
+          <line x1="12" y1="2" x2="12" y2="3"/>
+          <path d="M11 6L5 21"/>
+          <path d="M13 6l6 15"/>
+          <path d="M7.5 15a9 9 0 0 1 9 0"/>
+        </svg>
+        <span>Measure</span>
+      </button>
+      <button class="btn" id="btn-section" title="Cross-Section Cut View [S]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+          <rect x="5" y="3" width="10" height="18" rx="1"/>
+          <line x1="7" y1="6" x2="13" y2="12"/>
+          <line x1="7" y1="10" x2="13" y2="16"/>
+          <line x1="7" y1="14" x2="11" y2="18"/>
+          <path d="M17 7l4 4-4 4"/>
+        </svg>
+        <span>Section</span>
+      </button>
+      <button class="btn" id="btn-props" title="Physical Properties & Weight Estimator [P]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M12 3v18M6 8l6-5 6 5M4 14l2-6 2 6a4 4 0 0 1-4 0zM16 14l2-6 2 6a4 4 0 0 1-4 0z"/>
+        </svg>
+        <span>Mass</span>
+      </button>
+      <button class="btn" id="btn-units" title="Toggle Units (mm / in) [U]">
+        <span style="font-weight:700; font-size:12px; letter-spacing:0.5px; color:#38bdf8;">mm</span>
+      </button>
+    </div>
+
+    <div class="separator"></div>
+
+    <!-- Utility -->
+    <div class="tool-group">
+      <button class="btn" id="btn-reset" title="Zoom to Fit [F] / Reset [R]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"/>
+          <line x1="21" y1="21" x2="16.5" y2="16.5"/>
+          <line x1="11" y1="8" x2="11" y2="14"/>
+          <line x1="8" y1="11" x2="14" y2="11"/>
+        </svg>
+        <span>Fit</span>
+      </button>
+      <button class="btn" id="btn-snapshot" title="Snapshot Viewport to Clipboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+        <span>Snap</span>
+      </button>
+      <button class="btn" id="btn-clearcache" title="Clear All Cached Models">
+        <svg viewBox="0 0 24 24" id="clearcache-icon" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+        </svg>
+        <span id="clearcache-text">Cache</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Floating CAD Assembly / Model Tree Dock -->
+  <div id="tree-panel" class="tree-panel" style="display: none;">
+    <div class="tree-header">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="font-size: 13px;">🌳</span>
+        <span class="tree-title">Model Tree</span>
+        <span id="tree-body-count" class="tree-count-badge">0 Bodies</span>
+      </div>
+      <button id="btn-close-tree" class="btn-copy" style="font-size: 11px; padding: 1px 6px;">✕</button>
+    </div>
+
+    <!-- Batch Control Bar -->
+    <div class="tree-batch-bar">
+      <button id="btn-tree-showall" class="tree-batch-btn" title="Show all bodies">👁️ Show All</button>
+      <button id="btn-tree-solidall" class="tree-batch-btn" title="Make all bodies solid">👻 Solid All</button>
+      <button id="btn-tree-resetiso" class="tree-batch-btn" title="Reset isolation">🎯 All</button>
+    </div>
+
+    <!-- Tree Node Scroll List -->
+    <div id="tree-content" class="tree-content"></div>
+  </div>
+
+  <!-- Floating Section View Controls -->
+  <div id="section-panel" class="section-panel" style="display: none;">
+    <div class="tool-group">
+      <button class="btn-sm active" id="btn-sec-x" title="Cut along X Plane">X</button>
+      <button class="btn-sm" id="btn-sec-y" title="Cut along Y Plane">Y</button>
+      <button class="btn-sm" id="btn-sec-z" title="Cut along Z Plane">Z</button>
+      <button class="btn-sm" id="btn-sec-flip" title="Flip Cut Direction">⇄ Flip</button>
+    </div>
+    <input type="range" id="sec-slider" min="0" max="100" value="50" class="sec-slider" title="Slice Position" />
+  </div>
+
+  <!-- Floating Measure Card -->
+  <div id="measure-card" class="measure-card" style="display: none;">
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+      <div class="measure-title" id="measure-card-title">📐 Smart Measure</div>
+      <button id="btn-copy-measure" class="btn-copy" title="Copy dimension to clipboard">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        <span id="copy-text">Copy</span>
+      </button>
+    </div>
+    <div class="measure-main" id="measure-dist">Select Edge or Point</div>
+    <div class="measure-sub" id="measure-deltas">Hover over edges or holes for auto-detect</div>
+    <div class="measure-sub" id="measure-extra" style="display: none;"></div>
+    <div class="measure-sub" id="measure-angle" style="display: none;">Angle: 0.0°</div>
+    <button id="btn-clear-measure">Clear [Esc]</button>
+  </div>
+
+  <!-- Floating Physical Properties & Materials Modal -->
+  <div id="props-card" class="measure-card" style="display: none; width: 310px; max-height: calc(100vh - 120px);">
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+      <div class="measure-title">⚖️ Physical Properties & Mass</div>
+      <button id="btn-close-props" class="btn-copy" style="font-size:12px; padding: 2px 7px;">✕</button>
+    </div>
+    <div style="background: rgba(15, 23, 42, 0.6); padding: 8px 10px; border-radius: 6px; margin: 8px 0; font-size: 11px; line-height: 1.7;">
+      <div><span style="color:#64748b;">Volume:</span> <strong id="prop-vol" style="color:#f1f5f9;">-</strong></div>
+      <div><span style="color:#64748b;">Surface Area:</span> <strong id="prop-area" style="color:#f1f5f9;">-</strong></div>
+      <div><span style="color:#64748b;">Bounding Box:</span> <strong id="prop-bbox" style="color:#f1f5f9;">-</strong></div>
+    </div>
+
+    <!-- Multi-Body Selector in Mass Modal -->
+    <div id="props-body-row" style="display: none; margin: 0 0 8px;">
+      <label style="font-size: 9.5px; color: #94a3b8; font-weight: 600; display: block; margin-bottom: 3px;">SELECTED SOLID / BODY:</label>
+      <select id="props-body-select" class="mat-search-input" style="padding: 4px 6px; font-size: 11px; cursor: pointer;"></select>
+    </div>
+
+    <!-- Active Material Summary Banner -->
+    <div id="active-mat-banner" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 6px; padding: 7px 10px; margin-bottom: 6px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span id="active-mat-name" style="font-weight: 600; color: #f1f5f9; font-size: 12px;">Aluminum 6061-T6</span>
+        <span id="active-mat-density" style="font-size: 10px; color: #94a3b8;">2.70 g/cm³</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 3px;">
+        <span style="font-size: 10px; color: #64748b; text-transform: uppercase;">Total Mass:</span>
+        <strong id="active-mat-weight" style="font-size: 15px; color: #38bdf8; font-weight: 700;">-</strong>
+      </div>
+    </div>
+
+    <!-- Search & Add Custom Button -->
+    <div style="display: flex; gap: 6px; align-items: center;">
+      <input type="text" id="mat-search" class="mat-search-input" placeholder="🔍 Search material (e.g. 6061, Steel, Delrin)..." />
+      <button id="btn-toggle-custom" class="btn-copy" style="white-space: nowrap; font-size: 10px; padding: 5px 8px;" title="Add Custom Material">+ Custom</button>
+    </div>
+
+    <!-- Add Custom Material Form -->
+    <div id="custom-mat-form" style="display: none; background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; padding: 8px; margin-top: 6px;">
+      <div style="font-size: 10px; font-weight: 600; color: #38bdf8; margin-bottom: 5px;">Create Custom Material</div>
+      <input type="text" id="custom-mat-name" class="mat-search-input" placeholder="Material Name (e.g. Inconel 718)" style="margin-bottom: 5px;" />
+      <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+        <input type="number" id="custom-mat-density" class="mat-search-input" placeholder="Density (g/cm³)" step="0.01" min="0.01" />
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 6px;">
+        <button id="btn-cancel-custom" class="btn-copy" style="font-size: 10px;">Cancel</button>
+        <button id="btn-save-custom" class="btn-copy" style="font-size: 10px; background: #0284c7; color: white; border-color: #0284c7;">Save</button>
+      </div>
+    </div>
+
+    <!-- Materials Scroll List -->
+    <div id="mat-list" class="mat-list-container"></div>
+  </div>
+
+  <!-- Isolate Banner -->
+  <div id="isolate-banner" class="isolate-banner" style="display: none;">
+    <span>⚠️ Isolated: <strong id="isolate-body-name">Body 1</strong></span>
+    <button id="btn-exit-isolate">Show All [Exit]</button>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast-notify" class="toast-notification" style="display: none;"></div>
+
+  <!-- Smart Cursor Tooltip for Edge Detection -->
+  <div id="measure-tooltip" class="measure-tooltip" style="display: none;"></div>
+
+  <div id="triad-container" style="position: absolute; bottom: 14px; left: 16px; width: 70px; height: 70px; pointer-events: none; z-index: 999;">
+    <canvas id="triad-canvas" width="70" height="70"></canvas>
+  </div>
+
+  <div class="hints" id="hints-bar">Scroll: Zoom | Middle: Rotate | Right: Pan | T: Tree | M: Measure | S: Section | P: Mass | U: Units | F: Fit</div>
+  <div id="error-container"></div>
+
+  <!-- Scripts -->
+  <script src="three.min.js"></script>
+  <script src="OrbitControls.js"></script>
+
+  <script>
+    let scene, camera, renderer, controls;
+    let modelGroup = new THREE.Group();
+    let gridHelper = null;
+    let currentWorker = null;
+    let workerReady = false;
+    let pendingFileBuffer = null;
+    let pendingFileName = '';
+    let isWireframeActive = false;
+    let isAutoRotateActive = false;
+    let isEdgesActive = true; // SolidWorks Shaded with Edges (Default ON)
+    let currentModelCenter = new THREE.Vector3();
+    let currentModelDistance = 100;
+    let initialCameraState = { position: new THREE.Vector3(), target: new THREE.Vector3() };
+    let loadTimer = null;
+
+    // Section View State
+    let isSectionActive = false;
+    let sectionAxis = 'x';
+    let sectionFlipped = false;
+    let sectionPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
+    let sectionBox = new THREE.Box3();
+
+    // Smart Measure State
+    let isMeasureActive = false;
+    let measurePoints = [];
+    let measureGroup = new THREE.Group();
+    let snapIndicator = null;
+    let rubberbandLine = null;
+    let modelEdgeFeatures = [];
+    let modelCadVertices = [];
+    let hoverEdgeMesh = null;
+    let currentHoverTarget = null;
+    let selectedCadEntities = [];
+    let currentMeasuredValue = '';
+    let isPropsActive = false;
+    let currentUnit = 'mm'; // 'mm' | 'in'
+    let modelPhysicalProps = null;
+
+    // Multi-Body Assembly & Model Tree State
+    let modelBodies = [];
+    let isolatedBodyId = null;
+    let isTreeActive = false;
+    let selectedBodyForProps = -1; // -1: Combined assembly, >=0: individual body ID
+    let faceHighlightMesh = null; // Legacy alias
+    let previewFaceGroup = null;
+    let selectedFaceGroup = null;
+    let selectedFaceInfo = null; // { bodyId, faceId }
+    let selectedBodyId = null;
+    let previewBodyId = null;
+
+    // 1. Initialize Three.js Viewport
+    function initViewport() {
+      const container = document.getElementById('canvas-container');
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x191c22); // Option 3 Deep Matte Slate CAD Background
+      scene.add(modelGroup);
+      scene.add(measureGroup);
+
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 50000);
+      camera.position.set(100, 100, 100);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: true });
+      renderer.setPixelRatio(window.devicePixelRatio || 1);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.05;
+      renderer.localClippingEnabled = true; // Enable Hardware GPU Cross-Section Cutting
+      container.appendChild(renderer.domElement);
+
+      // Snap Indicator for Smart Measurement
+      const snapGeom = new THREE.SphereGeometry(1, 16, 16);
+      const snapMat = new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.85, depthTest: false });
+      snapIndicator = new THREE.Mesh(snapGeom, snapMat);
+      snapIndicator.visible = false;
+      snapIndicator.renderOrder = 999;
+      measureGroup.add(snapIndicator);
+
+      // Hover Edge Highlight Object
+      const hoverGeom = new THREE.BufferGeometry();
+      const hoverMat = new THREE.LineBasicMaterial({
+        color: 0xf59e0b,
+        linewidth: 3,
+        depthTest: false,
+        transparent: true,
+        opacity: 0.95
+      });
+      hoverEdgeMesh = new THREE.Line(hoverGeom, hoverMat);
+      hoverEdgeMesh.visible = false;
+      hoverEdgeMesh.renderOrder = 999;
+      measureGroup.add(hoverEdgeMesh);
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.screenSpacePanning = true;
+
+      // CAD Industry-Standard Navigation Controls
+      controls.mouseButtons = {
+        LEFT: THREE.MOUSE.ROTATE,
+        MIDDLE: THREE.MOUSE.ROTATE,
+        RIGHT: THREE.MOUSE.PAN
+      };
+
+      // Prevent browser context menu on right-click pan
+      window.addEventListener('contextmenu', (e) => e.preventDefault());
+
+      // Technical Studio 4-Point Lighting
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.70);
+      scene.add(ambientLight);
+
+      const keyLight = new THREE.DirectionalLight(0xffffff, 0.85);
+      keyLight.position.set(1.2, 2.0, 1.5).normalize();
+      scene.add(keyLight);
+
+      const fillLight = new THREE.DirectionalLight(0x94a3b8, 0.45);
+      fillLight.position.set(-1.5, -0.6, -1.2).normalize();
+      scene.add(fillLight);
+
+      const topLight = new THREE.DirectionalLight(0xffffff, 0.35);
+      topLight.position.set(0, 1, 0);
+      scene.add(topLight);
+
+      const bottomBounceLight = new THREE.DirectionalLight(0x475569, 0.30);
+      bottomBounceLight.position.set(0, -1, 0);
+      scene.add(bottomBounceLight);
+
+      window.addEventListener('resize', onResize);
+      setupToolbar();
+      initWorker();
+      animate();
+
+      notifyHost({ type: 'VIEWPORT_READY' });
+    }
+
+    // Smooth CAD View Interpolation (60 FPS)
+    function tweenCamera(targetPos, targetLookAt, targetUp = new THREE.Vector3(0, 1, 0), duration = 350) {
+      if (!camera || !controls) return;
+      const startPos = camera.position.clone();
+      const startLookAt = controls.target.clone();
+      const startUp = camera.up.clone();
+      const startTime = performance.now();
+
+      function step(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1.0);
+        // Smooth cubic ease out
+        const ease = 1 - Math.pow(1 - progress, 3);
+
+        camera.position.lerpVectors(startPos, targetPos, ease);
+        controls.target.lerpVectors(startLookAt, targetLookAt, ease);
+        camera.up.lerpVectors(startUp, targetUp, ease);
+        if (camera.up.lengthSq() > 0.001) {
+          camera.up.normalize();
+        } else {
+          camera.up.copy(targetUp);
+        }
+        controls.update();
+
+        if (progress < 1.0) {
+          requestAnimationFrame(step);
+        }
+      }
+      requestAnimationFrame(step);
+    }
+
+    function onResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setPixelRatio(window.devicePixelRatio || 1);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function updateScreenSpaceAnnotations() {
+      if (!measureGroup || !camera) return;
+      const vFovRad = THREE.MathUtils.degToRad(camera.fov);
+      const tanHalf = Math.tan(vFovRad / 2);
+      const h = window.innerHeight || 800;
+
+      measureGroup.traverse(obj => {
+        if (obj.userData && obj.userData.isScreenScaled) {
+          const dist = camera.position.distanceTo(obj.position);
+          const worldPerPx = (2 * tanHalf * dist) / h;
+          const r = Math.max(worldPerPx * (obj.userData.screenPixelRadius || 7.5), 0.0001);
+          obj.scale.set(r, r, r);
+        } else if (obj.userData && obj.userData.isScreenScaledSprite) {
+          const dist = camera.position.distanceTo(obj.position);
+          const worldPerPx = (2 * tanHalf * dist) / h;
+          const sh = Math.max(worldPerPx * (obj.userData.pixelHeight || 34), 0.0001);
+          const sw = sh * (obj.userData.aspect || 4.0);
+          obj.scale.set(sw, sh, 1);
+        }
+      });
+
+      if (snapIndicator && snapIndicator.visible) {
+        const dist = camera.position.distanceTo(snapIndicator.position);
+        const worldPerPx = (2 * tanHalf * dist) / h;
+        const r = Math.max(worldPerPx * 7.0, 0.0001);
+        snapIndicator.scale.set(r, r, r);
+      }
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      if (isAutoRotateActive && controls) {
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 2.0;
+      } else if (controls) {
+        controls.autoRotate = false;
+      }
+      controls.update();
+      updateScreenSpaceAnnotations();
+      renderer.render(scene, camera);
+      drawTriad();
+    }
+
+    // 3D Triad Orientation Indicator in Corner
+    function drawTriad() {
+      const canvas = document.getElementById('triad-canvas');
+      if (!canvas || !camera) return;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, 70, 70);
+      const cx = 35, cy = 35, r = 22;
+
+      const rotMatrix = new THREE.Matrix4().extractRotation(camera.matrixWorldInverse);
+
+      const axes = [
+        { dir: new THREE.Vector3(1, 0, 0), label: 'X', color: '#e05656' },
+        { dir: new THREE.Vector3(0, 1, 0), label: 'Y', color: '#3eb86f' },
+        { dir: new THREE.Vector3(0, 0, 1), label: 'Z', color: '#4a9eed' }
+      ];
+
+      axes.forEach(a => { a.proj = a.dir.clone().applyMatrix4(rotMatrix); });
+      axes.sort((a, b) => a.proj.z - b.proj.z);
+
+      axes.forEach(a => {
+        const px = cx + a.proj.x * r;
+        const py = cy - a.proj.y * r;
+
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(px, py);
+        ctx.strokeStyle = a.color;
+        ctx.lineWidth = 2.0;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(px, py, 5.0, 0, Math.PI * 2);
+        ctx.fillStyle = a.color;
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 7px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(a.label, px, py);
+      });
+    }
+
+    // 2. Web Worker Management
+    function initWorker() {
+      if (currentWorker) {
+        currentWorker.terminate();
+      }
+
+      currentWorker = new Worker('stepWorker.js');
+      workerReady = false;
+
+      currentWorker.onmessage = function (e) {
+        const msg = e.data;
+        if (!msg) return;
+
+        if (msg.type === 'READY') {
+          workerReady = true;
+          document.getElementById('status-text').innerText = 'Ready for CAD files';
+          document.getElementById('spinner').style.display = 'none';
+
+          if (pendingFileBuffer) {
+            startTessellation(pendingFileBuffer, pendingFileName);
+            pendingFileBuffer = null;
+          }
+        } else if (msg.type === 'PARSE_SUCCESS') {
+          onTessellationComplete(msg);
+          if (msg.cacheKey && msg.meshes) {
+            saveCachedModel(msg.cacheKey, msg, msg.bufferSize || 0);
+          }
+        } else if (msg.type === 'PARSE_ERROR') {
+          showError('CAD Parse Error: ' + (msg.message || 'Unknown error'));
+        }
+      };
+
+      currentWorker.onerror = function (err) {
+        showError('Worker Error: ' + (err.message || 'Failed to execute worker'));
+      };
+
+      currentWorker.postMessage({ type: 'INIT' });
+    }
+
+    // =============================================================
+    // Smart Auto-Purging LRU Cache for Instant Previews (<0.02s)
+    // Strictly limited to Max 60 models or 300MB total space.
+    // =============================================================
+    const DB_NAME = 'QuickLook_StepCache';
+    const DB_VERSION = 1;
+    const STORE_NAME = 'models';
+    const MAX_CACHE_ENTRIES = 60;
+    const MAX_CACHE_BYTES = 300 * 1024 * 1024; // 300 MB cap
+
+    function openCacheDB() {
+      return new Promise((resolve) => {
+        if (!window.indexedDB) { resolve(null); return; }
+        try {
+          const req = indexedDB.open(DB_NAME, DB_VERSION);
+          req.onupgradeneeded = function (e) {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+              const store = db.createObjectStore(STORE_NAME, { keyPath: 'key' });
+              store.createIndex('timestamp', 'timestamp', { unique: false });
+            }
+          };
+          req.onsuccess = function (e) { resolve(e.target.result); };
+          req.onerror = function () { resolve(null); };
+        } catch (e) {
+          resolve(null);
+        }
+      });
+    }
+
+    async function getCachedModel(key) {
+      try {
+        const db = await openCacheDB();
+        if (!db) return null;
+        return new Promise((resolve) => {
+          const tx = db.transaction(STORE_NAME, 'readonly');
+          const store = tx.objectStore(STORE_NAME);
+          const req = store.get(key);
+          req.onsuccess = function () {
+            const result = req.result;
+            if (result && result.meshes) {
+              updateCacheTimestamp(db, key);
+              resolve(result);
+            } else {
+              resolve(null);
+            }
+          };
+          req.onerror = function () { resolve(null); };
+        });
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function updateCacheTimestamp(db, key) {
+      try {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.get(key);
+        req.onsuccess = function () {
+          if (req.result) {
+            req.result.timestamp = Date.now();
+            store.put(req.result);
+          }
+        };
+      } catch (e) {}
+    }
+
+    async function saveCachedModel(key, modelData, byteLength) {
+      try {
+        const db = await openCacheDB();
+        if (!db) return;
+        await pruneCache(db);
+
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        store.put({
+          key: key,
+          meshes: modelData.meshes,
+          meshCount: modelData.meshCount,
+          size: byteLength,
+          timestamp: Date.now()
+        });
+      } catch (e) {}
+    }
+
+    function pruneCache(db) {
+      return new Promise((resolve) => {
+        try {
+          const tx = db.transaction(STORE_NAME, 'readwrite');
+          const store = tx.objectStore(STORE_NAME);
+          const index = store.index('timestamp');
+          const req = index.getAll();
+          req.onsuccess = function () {
+            const items = req.result || [];
+            items.sort((a, b) => a.timestamp - b.timestamp);
+
+            let totalBytes = items.reduce((sum, item) => sum + (item.size || 0), 0);
+
+            // Evict oldest items if exceeding model count (60) or byte size (300 MB)
+            while (items.length >= MAX_CACHE_ENTRIES || totalBytes > MAX_CACHE_BYTES) {
+              const oldest = items.shift();
+              if (!oldest) break;
+              store.delete(oldest.key);
+              totalBytes -= (oldest.size || 0);
+            }
+            resolve();
+          };
+          req.onerror = function () { resolve(); };
+        } catch (e) {
+          resolve();
+        }
+      });
+    }
+
+    function clearAllCache() {
+      return new Promise((resolve) => {
+        openCacheDB().then((db) => {
+          if (!db) { resolve(false); return; }
+          try {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.clear();
+            req.onsuccess = function () { resolve(true); };
+            req.onerror = function () { resolve(false); };
+          } catch (e) {
+            resolve(false);
+          }
+        });
+      });
+    }
+
+    // 3. Start CAD Tessellation (With Instant Cache & Live Progress Feedback)
+    async function startTessellation(buffer, fileName) {
+      if (loadTimer) {
+        clearInterval(loadTimer);
+        loadTimer = null;
+      }
+
+      const bufferMB = buffer.byteLength / (1024 * 1024);
+      const sizeFormatted = bufferMB >= 1 ? `${bufferMB.toFixed(1)} MB` : `${Math.round(buffer.byteLength / 1024)} KB`;
+      document.getElementById('badge-filename').innerText = `${fileName || 'STEP Model'} (${sizeFormatted})`;
+      document.getElementById('spinner').style.display = 'inline-block';
+      hideError();
+
+      // Clear previous models
+      clearModel();
+
+      const cacheKey = (fileName || 'model') + '_' + buffer.byteLength + '_v4';
+
+      // 1. Check instant cache first (<15ms)
+      try {
+        const cached = await getCachedModel(cacheKey);
+        if (cached && cached.meshes && cached.meshes.length > 0) {
+          onTessellationComplete({
+            meshes: cached.meshes,
+            meshCount: cached.meshCount,
+            elapsedMs: 12,
+            isCached: true
+          });
+          return;
+        }
+      } catch (e) {}
+
+      const statusEl = document.getElementById('status-text');
+      const progressBar = document.getElementById('loading-progress-bar');
+      if (progressBar) progressBar.style.display = 'block';
+
+      let elapsedSec = 0;
+      statusEl.innerText = 'Processing CAD geometry... (0s)';
+      loadTimer = setInterval(() => {
+        elapsedSec++;
+        if (elapsedSec < 3) {
+          statusEl.innerText = `Reading STEP entity stream... (${elapsedSec}s)`;
+        } else if (elapsedSec < 15) {
+          statusEl.innerText = `Resolving CAD topology & B-Rep curves... (${elapsedSec}s)`;
+        } else if (elapsedSec < 26) {
+          statusEl.innerText = `Sewing solid faces & healing entities... (${elapsedSec}s)`;
+        } else {
+          statusEl.innerText = `Tessellating 3D surface mesh... (${elapsedSec}s)`;
+        }
+      }, 1000);
+
+      if (!workerReady) {
+        pendingFileBuffer = buffer;
+        pendingFileName = fileName;
+        return;
+      }
+
+      // Default null params for optimal Open CASCADE internal fast-path (skips bounding box pass)
+      currentWorker.postMessage({
+        type: 'PARSE',
+        buffer: buffer,
+        fileName: fileName,
+        cacheKey: cacheKey,
+        bufferSize: buffer.byteLength,
+        params: null
+      }, [buffer]);
+    }
+
+    function onTessellationComplete(data) {
+      if (loadTimer) {
+        clearInterval(loadTimer);
+        loadTimer = null;
+      }
+      const progressBar = document.getElementById('loading-progress-bar');
+      if (progressBar) progressBar.style.display = 'none';
+
+      const speedLabel = data.isCached ? '⚡ Instant Cache (12ms)' : `Parsed in ${(data.elapsedMs / 1000).toFixed(1)}s`;
+      document.getElementById('status-text').innerText = `${speedLabel} (${data.meshCount} solids)`;
+      document.getElementById('spinner').style.display = 'none';
+
+      clearModel();
+
+      modelEdgeFeatures = [];
+      if (data.meshes) {
+        for (let i = 0; i < data.meshes.length; i++) {
+          if (data.meshes[i].edgeFeatures && data.meshes[i].edgeFeatures.length > 0) {
+            modelEdgeFeatures.push(...data.meshes[i].edgeFeatures);
+          }
+        }
+      }
+      indexModelVertices();
+
+      if (!data.meshes || data.meshes.length === 0) {
+        showError('The STEP file was parsed, but contains no 3D solid geometry.');
+        return;
+      }
+
+      let totalTriangles = 0;
+      let totalAreaMm2 = 0;
+      let totalVolMm3 = 0;
+
+      for (let i = 0; i < data.meshes.length; i++) {
+        const m = data.meshes[i];
+        const geometry = new THREE.BufferGeometry();
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(m.position), 3));
+
+        if (m.normal) {
+          geometry.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(m.normal), 3));
+        } else {
+          geometry.computeVertexNormals();
+        }
+
+        if (m.index) {
+          geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(m.index), 1));
+          const numTris = m.index.length / 3;
+          totalTriangles += numTris;
+
+          // Compute surface area and signed tetrahedron volume
+          const pos = m.position;
+          const idx = m.index;
+          for (let t = 0; t < numTris; t++) {
+            const i0 = idx[t * 3] * 3;
+            const i1 = idx[t * 3 + 1] * 3;
+            const i2 = idx[t * 3 + 2] * 3;
+
+            const ax = pos[i0], ay = pos[i0 + 1], az = pos[i0 + 2];
+            const bx = pos[i1], by = pos[i1 + 1], bz = pos[i1 + 2];
+            const cx = pos[i2], cy = pos[i2 + 1], cz = pos[i2 + 2];
+
+            const abx = bx - ax, aby = by - ay, abz = bz - az;
+            const acx = cx - ax, acy = cy - ay, acz = cz - az;
+            const crossX = aby * acz - abz * acy;
+            const crossY = abz * acx - abx * acz;
+            const crossZ = abx * acy - aby * acx;
+            totalAreaMm2 += 0.5 * Math.hypot(crossX, crossY, crossZ);
+
+            totalVolMm3 += (ax * (by * cz - bz * cy) + ay * (bz * cx - bx * cz) + az * (bx * cy - by * cx)) / 6.0;
+          }
+        } else {
+          totalTriangles += m.position.length / 9;
+        }
+
+        // Color handling
+        let meshColor = new THREE.Color(0xa0a8b4);
+        if (m.color && Array.isArray(m.color) && m.color.length >= 3) {
+          const r = m.color[0] > 1 ? m.color[0] / 255 : m.color[0];
+          const g = m.color[1] > 1 ? m.color[1] / 255 : m.color[1];
+          const b = m.color[2] > 1 ? m.color[2] / 255 : m.color[2];
+          meshColor = new THREE.Color(r, g, b);
+        }
+
+        const material = new THREE.MeshStandardMaterial({
+          color: meshColor,
+          metalness: 0.28,
+          roughness: 0.42,
+          side: THREE.DoubleSide,
+          wireframe: isWireframeActive,
+          polygonOffset: true,
+          polygonOffsetFactor: 1,
+          polygonOffsetUnits: 1,
+          clippingPlanes: isSectionActive ? [sectionPlane] : []
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.name = m.name;
+        mesh.userData = {
+          bodyId: i,
+          name: m.name,
+          originalColor: meshColor.clone(),
+          isGhosted: false,
+          isHidden: false,
+          brepFaces: m.brepFaces || [],
+          volumeMm3: m.volumeMm3 || 0,
+          areaMm2: m.areaMm2 || 0
+        };
+
+        // SolidWorks-style Mechanical Feature Edges (True B-Rep Topological Boundaries)
+        let edgesMat = null;
+        let edgeLines = null;
+        try {
+          edgesMat = new THREE.LineBasicMaterial({
+            color: 0x14171d,
+            linewidth: 1,
+            transparent: true,
+            opacity: 0.85,
+            clippingPlanes: isSectionActive ? [sectionPlane] : []
+          });
+
+          if (m.edgeIndices && m.edgeIndices.length > 0) {
+            // True CAD B-Rep boundaries (eliminates internal mesh chord zigzags in fillets/slots)
+            const edgesGeom = new THREE.BufferGeometry();
+            edgesGeom.setAttribute('position', geometry.attributes.position);
+            edgesGeom.setIndex(new THREE.BufferAttribute(new Uint32Array(m.edgeIndices), 1));
+            edgeLines = new THREE.LineSegments(edgesGeom, edgesMat);
+          } else {
+            // Fallback dihedral angle if topological data not present
+            const edgesGeom = new THREE.EdgesGeometry(geometry, 28);
+            edgeLines = new THREE.LineSegments(edgesGeom, edgesMat);
+          }
+
+          if (edgeLines) {
+            edgeLines.name = 'solidworks_edges';
+            edgeLines.visible = isEdgesActive && !isWireframeActive;
+            mesh.add(edgeLines);
+          }
+        } catch (e) {
+          console.warn('Edges generation skipped:', e);
+        }
+
+        modelGroup.add(mesh);
+
+        modelBodies.push({
+          id: i,
+          name: m.name,
+          mesh: mesh,
+          edgeMesh: edgeLines,
+          data: m,
+          isGhosted: false,
+          isHidden: false,
+          material: material,
+          edgesMat: edgesMat
+        });
+      }
+
+      modelPhysicalProps = {
+        volumeMm3: Math.abs(totalVolMm3),
+        areaMm2: totalAreaMm2,
+        bbox: null
+      };
+
+      // Auto-fit Camera & Grid
+      autoFitCamera();
+
+      // Build Model Tree & Multi-Body Assembly UI
+      buildModelTree(data.meshes);
+      updatePropsBodySelect();
+
+      // Reveal tree dock automatically if multi-body
+      if (data.meshCount > 1) {
+        toggleTreePanel(true);
+      } else {
+        toggleTreePanel(false);
+      }
+
+      const timeDisplay = data.isCached ? '⚡ 12ms (Cache)' : (data.elapsedMs >= 1000 ? `${(data.elapsedMs / 1000).toFixed(1)}s` : `${data.elapsedMs}ms`);
+      document.getElementById('badge-status').innerHTML =
+        `<span style="color:#94a3b8;">✓</span> ${data.meshCount} Part(s) • ${Math.round(totalTriangles).toLocaleString()} Triangles • ${timeDisplay}`;
+
+      notifyHost({
+        type: 'LOADED',
+        meshCount: data.meshCount,
+        triangles: totalTriangles,
+        elapsedMs: data.elapsedMs
+      });
+    }
+
+    function updateBoundingBoxBadge() {
+      if (!modelPhysicalProps || !modelPhysicalProps.bbox) return;
+      const size = modelPhysicalProps.bbox;
+      const dimX = currentUnit === 'mm' ? size.x.toFixed(1) : (size.x / 25.4).toFixed(2);
+      const dimY = currentUnit === 'mm' ? size.y.toFixed(1) : (size.y / 25.4).toFixed(2);
+      const dimZ = currentUnit === 'mm' ? size.z.toFixed(1) : (size.z / 25.4).toFixed(2);
+      const unitLabel = currentUnit;
+      const dimEl = document.getElementById('badge-dim');
+      const dimText = document.getElementById('dim-text');
+      if (dimEl && dimText) {
+        dimText.innerText = `${dimX} × ${dimY} × ${dimZ} ${unitLabel}`;
+        dimEl.style.display = 'block';
+      }
+    }
+
+    function autoFitCamera() {
+      const box = new THREE.Box3().setFromObject(modelGroup);
+      if (box.isEmpty()) return;
+
+      sectionBox.copy(box);
+      updateSectionPlane();
+
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+
+      if (modelPhysicalProps) {
+        modelPhysicalProps.bbox = { x: size.x, y: size.y, z: size.z };
+        updatePhysicalPropertiesCard();
+      }
+      updateBoundingBoxBadge();
+
+      const fov = camera.fov * (Math.PI / 180);
+      let cameraDistance = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.5;
+      cameraDistance = Math.max(cameraDistance, 10);
+
+      currentModelCenter.copy(center);
+      currentModelDistance = cameraDistance;
+
+      camera.near = cameraDistance / 100;
+      camera.far = cameraDistance * 100;
+      camera.updateProjectionMatrix();
+
+      // Isometric view angle
+      const targetPos = new THREE.Vector3(
+        center.x + cameraDistance * 0.7,
+        center.y + cameraDistance * 0.6,
+        center.z + cameraDistance * 0.7
+      );
+
+      camera.position.copy(targetPos);
+      camera.lookAt(center);
+      controls.target.copy(center);
+
+      initialCameraState.position.copy(targetPos);
+      initialCameraState.target.copy(center);
+
+      // Create or adjust ground grid
+      if (gridHelper) scene.remove(gridHelper);
+      const gridSize = Math.max(maxDim * 2.5, 20);
+      gridHelper = new THREE.GridHelper(gridSize, 20, 0x2d3340, 0x1f232c);
+      gridHelper.position.set(center.x, box.min.y, center.z);
+      scene.add(gridHelper);
+    }
+
+    function clearModel() {
+      deselectFace();
+      deselectBody();
+      if (faceHighlightMesh) {
+        scene.remove(faceHighlightMesh);
+        if (faceHighlightMesh.geometry) faceHighlightMesh.geometry.dispose();
+        if (faceHighlightMesh.material) faceHighlightMesh.material.dispose();
+        faceHighlightMesh = null;
+      }
+      hideIsolateBanner();
+      modelBodies.forEach(b => {
+        if (b.material) b.material.dispose();
+        if (b.edgesMat) b.edgesMat.dispose();
+      });
+      modelBodies = [];
+      isolatedBodyId = null;
+      selectedBodyForProps = -1;
+      const treeContainer = document.getElementById('tree-content');
+      if (treeContainer) treeContainer.innerHTML = '';
+      const treeCount = document.getElementById('tree-body-count');
+      if (treeCount) treeCount.innerText = '0 Bodies';
+      const bodySelect = document.getElementById('props-body-select');
+      if (bodySelect) bodySelect.innerHTML = '';
+      const bodyRow = document.getElementById('props-body-row');
+      if (bodyRow) bodyRow.style.display = 'none';
+
+      modelPhysicalProps = null;
+      togglePropsModal(false);
+      modelEdgeFeatures = [];
+      modelCadVertices = [];
+      selectedCadEntities = [];
+      currentHoverTarget = null;
+      clearMeasurement(true);
+      const dimEl = document.getElementById('badge-dim');
+      if (dimEl) dimEl.style.display = 'none';
+
+      while (modelGroup.children.length > 0) {
+        const obj = modelGroup.children[0];
+        obj.traverse((child) => {
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) {
+            if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+            else child.material.dispose();
+          }
+        });
+        modelGroup.remove(obj);
+      }
+      if (gridHelper) {
+        scene.remove(gridHelper);
+        gridHelper = null;
+      }
+    }
+
+    // =============================================================
+    // CAD Assembly Tree & Multi-Body Controller (Studio Graphite)
+    // =============================================================
+    function toggleTreePanel(enable) {
+      isTreeActive = (enable !== undefined) ? enable : !isTreeActive;
+      const panel = document.getElementById('tree-panel');
+      const btn = document.getElementById('btn-tree');
+      if (panel) panel.style.display = isTreeActive ? 'flex' : 'none';
+      if (btn) btn.classList.toggle('active', isTreeActive);
+    }
+
+    function buildModelTree(meshes) {
+      const container = document.getElementById('tree-content');
+      const countBadge = document.getElementById('tree-body-count');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const bodyCount = modelBodies.length;
+      if (countBadge) {
+        countBadge.innerText = `${bodyCount} ${bodyCount === 1 ? 'Solid' : 'Bodies'}`;
+      }
+
+      if (bodyCount === 0) {
+        container.innerHTML = '<div style="color:#64748b; font-size:11px; text-align:center; padding:16px;">No 3D solids in model</div>';
+        return;
+      }
+
+      modelBodies.forEach((b) => {
+        const node = document.createElement('div');
+        node.className = `tree-node ${b.isHidden ? 'hidden-body' : ''} ${isolatedBodyId === b.id ? 'isolated' : ''}`;
+        node.id = `tree-node-${b.id}`;
+
+        const colorHex = '#' + b.mesh.material.color.getHexString();
+        const volVal = b.data.volumeMm3 || 0;
+        const volCm3 = (volVal / 1000.0).toFixed(1);
+        const facesCount = (b.data.brepFaces && b.data.brepFaces.length) || 0;
+        const triCount = b.data.index ? Math.round(b.data.index.length / 3).toLocaleString() : '0';
+
+        node.innerHTML = `
+          <div class="tree-node-top">
+            <div class="tree-node-info" title="Double-click to Zoom, Click to Highlight">
+              <span class="tree-color-swatch" style="background-color: ${colorHex};" title="Body Color"></span>
+              <span class="tree-node-name">${b.name}</span>
+            </div>
+            <div class="tree-node-actions">
+              <button class="btn-tree-action btn-tree-vis ${b.isHidden ? '' : 'active'}" title="Toggle Visibility [👁️]" data-id="${b.id}">
+                ${b.isHidden ? '🚫' : '👁️'}
+              </button>
+              <button class="btn-tree-action btn-tree-ghost ${b.isGhosted ? 'active' : ''}" title="Toggle Transparent X-Ray [👻]" data-id="${b.id}">
+                👻
+              </button>
+              <button class="btn-tree-action btn-tree-isolate ${isolatedBodyId === b.id ? 'active' : ''}" title="Isolate Body [🎯]" data-id="${b.id}">
+                🎯
+              </button>
+            </div>
+          </div>
+          <div class="tree-node-meta">
+            <span>${volCm3} cm³</span>
+            <span>•</span>
+            <span>${facesCount} Faces</span>
+            <span>•</span>
+            <span>${triCount} Tri</span>
+          </div>
+          ${facesCount > 0 ? `
+            <div class="tree-faces-toggle" data-id="${b.id}">
+              <span class="tree-chevron">▶</span> <span>B-Rep Faces (${facesCount})</span>
+            </div>
+            <div class="tree-faces-list" id="tree-faces-${b.id}" style="display: none;"></div>
+          ` : ''}
+        `;
+
+        const topEl = node.querySelector('.tree-node-top');
+        if (topEl) {
+          topEl.addEventListener('mouseenter', () => previewBodyInScene(b.id));
+          topEl.addEventListener('mouseleave', () => clearBodyPreview());
+          topEl.addEventListener('click', (e) => {
+            if (e.target.closest('.tree-node-actions') || e.target.closest('button')) return;
+            e.stopPropagation();
+            selectAndFocusBody(b.id);
+          });
+        }
+
+        const btnVis = node.querySelector('.btn-tree-vis');
+        if (btnVis) {
+          btnVis.addEventListener('click', (e) => {
+            e.stopPropagation();
+            setBodyVisibility(b.id);
+          });
+        }
+
+        const btnGhost = node.querySelector('.btn-tree-ghost');
+        if (btnGhost) {
+          btnGhost.addEventListener('click', (e) => {
+            e.stopPropagation();
+            setBodyGhostMode(b.id);
+          });
+        }
+
+        const btnIso = node.querySelector('.btn-tree-isolate');
+        if (btnIso) {
+          btnIso.addEventListener('click', (e) => {
+            e.stopPropagation();
+            isolateBody(b.id);
+          });
+        }
+
+        const facesToggle = node.querySelector('.tree-faces-toggle');
+        if (facesToggle) {
+          facesToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const facesList = node.querySelector(`#tree-faces-${b.id}`);
+            const chevron = facesToggle.querySelector('.tree-chevron');
+            if (!facesList) return;
+            const isExp = facesList.style.display !== 'none';
+            if (isExp) {
+              facesList.style.display = 'none';
+              if (chevron) chevron.innerText = '▶';
+            } else {
+              facesList.style.display = 'flex';
+              if (chevron) chevron.innerText = '▼';
+              if (facesList.children.length === 0) {
+                renderFacesSubList(b.id, facesList);
+              }
+            }
+          });
+        }
+
+        container.appendChild(node);
+      });
+    }
+
+    function renderFacesSubList(bodyId, container) {
+      const b = modelBodies.find(item => item.id === bodyId);
+      if (!b || !b.data.brepFaces) return;
+      const faces = b.data.brepFaces;
+      const maxInitial = 25;
+      const listToRender = faces.slice(0, maxInitial);
+
+      function createFaceItem(face) {
+        const fItem = document.createElement('div');
+        fItem.className = 'tree-face-item';
+        fItem.dataset.bodyId = bodyId;
+        fItem.dataset.faceId = face.id;
+        if (selectedFaceInfo && selectedFaceInfo.bodyId === bodyId && selectedFaceInfo.faceId === face.id) {
+          fItem.classList.add('active');
+        }
+        const areaStr = formatArea(face.areaMm2);
+        fItem.innerHTML = `<span>Face #${face.id}</span> <span style="color:#64748b;">${areaStr}</span>`;
+
+        fItem.addEventListener('mouseenter', () => {
+          previewFaceInScene(bodyId, face);
+        });
+        fItem.addEventListener('mouseleave', () => {
+          clearFacePreview();
+        });
+        fItem.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (selectedFaceInfo && selectedFaceInfo.bodyId === bodyId && selectedFaceInfo.faceId === face.id) {
+            deselectFace();
+            showToast(`Deselected Face #${face.id}`);
+          } else {
+            selectAndFocusFace(bodyId, face, fItem);
+          }
+        });
+        return fItem;
+      }
+
+      listToRender.forEach(face => {
+        container.appendChild(createFaceItem(face));
+      });
+
+      if (faces.length > maxInitial) {
+        const moreItem = document.createElement('div');
+        moreItem.className = 'tree-face-item';
+        moreItem.style.color = '#38bdf8';
+        moreItem.style.fontWeight = '600';
+        moreItem.innerText = `+ ${faces.length - maxInitial} more faces...`;
+        moreItem.addEventListener('click', (e) => {
+          e.stopPropagation();
+          moreItem.remove();
+          faces.slice(maxInitial).forEach(face => {
+            container.appendChild(createFaceItem(face));
+          });
+        });
+        container.appendChild(moreItem);
+      }
+    }
+
+    function setBodyVisibility(bodyId, visible) {
+      const b = modelBodies.find(item => item.id === bodyId);
+      if (!b) return;
+      b.isHidden = (visible !== undefined) ? !visible : !b.isHidden;
+      if (isolatedBodyId === null) {
+        b.mesh.visible = !b.isHidden;
+      }
+      updateTreeItemState(bodyId);
+    }
+
+    function setBodyGhostMode(bodyId, enableGhost) {
+      const b = modelBodies.find(item => item.id === bodyId);
+      if (!b) return;
+      b.isGhosted = (enableGhost !== undefined) ? enableGhost : !b.isGhosted;
+
+      if (b.isGhosted) {
+        b.material.transparent = true;
+        b.material.opacity = 0.22;
+        b.material.depthWrite = false;
+        b.mesh.renderOrder = 10;
+        if (b.edgeMesh && b.edgesMat) {
+          b.edgesMat.opacity = 0.45;
+        }
+      } else {
+        b.material.transparent = false;
+        b.material.opacity = 1.0;
+        b.material.depthWrite = true;
+        b.mesh.renderOrder = 0;
+        if (b.edgeMesh && b.edgesMat) {
+          b.edgesMat.opacity = 0.85;
+        }
+      }
+      b.material.needsUpdate = true;
+      updateTreeItemState(bodyId);
+    }
+
+    function isolateBody(bodyId) {
+      if (isolatedBodyId === bodyId) {
+        resetBodyIsolation();
+        return;
+      }
+      isolatedBodyId = bodyId;
+      modelBodies.forEach(b => {
+        b.mesh.visible = (b.id === bodyId);
+      });
+      zoomToBody(bodyId);
+      showIsolateBanner(bodyId);
+      updateAllTreeNodes();
+    }
+
+    function resetBodyIsolation() {
+      isolatedBodyId = null;
+      modelBodies.forEach(b => {
+        b.mesh.visible = !b.isHidden;
+      });
+      hideIsolateBanner();
+      updateAllTreeNodes();
+    }
+
+    function zoomToBody(bodyId) {
+      const b = modelBodies.find(item => item.id === bodyId);
+      if (!b || !b.mesh) return;
+      const box = new THREE.Box3().setFromObject(b.mesh);
+      if (box.isEmpty()) return;
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const vFovRad = THREE.MathUtils.degToRad(camera.fov);
+      let dist = (maxDim / 2) / Math.tan(vFovRad / 2);
+      dist = Math.max(dist * 1.6, 5);
+
+      const dir = camera.position.clone().sub(controls.target).normalize();
+      if (dir.lengthSq() < 0.1) dir.set(1, 1, 1).normalize();
+      const newPos = center.clone().add(dir.multiplyScalar(dist));
+      tweenCamera(newPos, center, camera.up, 350);
+    }
+
+    function previewBodyInScene(bodyId) {
+      if (selectedBodyId === bodyId) return;
+      clearBodyPreview();
+      const b = modelBodies.find(item => item.id === bodyId);
+      if (!b || !b.material) return;
+      previewBodyId = bodyId;
+      b.material.emissive = new THREE.Color(0x004466);
+      if (b.edgesMat) {
+        b.edgesMat.color = new THREE.Color(0x00f0ff);
+        b.edgesMat.opacity = 1.0;
+      }
+    }
+
+    function clearBodyPreview() {
+      if (previewBodyId !== null) {
+        const b = modelBodies.find(item => item.id === previewBodyId);
+        if (b && b.material && selectedBodyId !== previewBodyId) {
+          b.material.emissive = new THREE.Color(0x000000);
+          if (b.edgesMat) {
+            b.edgesMat.color = new THREE.Color(0x14171d);
+            b.edgesMat.opacity = b.isGhosted ? 0.45 : 0.85;
+          }
+        }
+        previewBodyId = null;
+      }
+    }
+
+    function selectAndFocusBody(bodyId) {
+      clearBodyPreview();
+
+      // Toggle off if already selected
+      if (selectedBodyId === bodyId) {
+        deselectBody();
+        const b = modelBodies.find(item => item.id === bodyId);
+        showToast(`Deselected ${b ? b.name : 'Body'}`);
+        return;
+      }
+
+      // Clear previous body or face selection
+      deselectFace();
+      deselectBody();
+
+      const b = modelBodies.find(item => item.id === bodyId);
+      if (!b || !b.material) return;
+
+      if (b.isHidden) {
+        setBodyVisibility(bodyId, true);
+      }
+
+      selectedBodyId = bodyId;
+      b.material.emissive = new THREE.Color(0x004d73);
+      if (b.edgesMat) {
+        b.edgesMat.color = new THREE.Color(0x00f0ff);
+        b.edgesMat.opacity = 1.0;
+      }
+
+      // Update tree node active class
+      document.querySelectorAll('.tree-node.active-body').forEach(el => el.classList.remove('active-body'));
+      const node = document.getElementById(`tree-node-${bodyId}`);
+      if (node) node.classList.add('active-body');
+
+      const volVal = b.data.volumeMm3 || 0;
+      const volCm3 = (volVal / 1000.0).toFixed(1);
+      const facesCount = (b.data.brepFaces && b.data.brepFaces.length) || 0;
+      showToast(`Selected Body: ${b.name} | ${volCm3} cm³ (${facesCount} Faces)`);
+
+      zoomToBody(bodyId);
+    }
+
+    function deselectBody() {
+      if (selectedBodyId !== null) {
+        const b = modelBodies.find(item => item.id === selectedBodyId);
+        if (b && b.material) {
+          b.material.emissive = new THREE.Color(0x000000);
+          if (b.edgesMat) {
+            b.edgesMat.color = new THREE.Color(0x14171d);
+            b.edgesMat.opacity = b.isGhosted ? 0.45 : 0.85;
+          }
+        }
+        selectedBodyId = null;
+      }
+      clearBodyPreview();
+      document.querySelectorAll('.tree-node.active-body').forEach(el => el.classList.remove('active-body'));
+    }
+
+    function highlightBodyInScene(bodyId, enable) {
+      if (enable) previewBodyInScene(bodyId);
+      else clearBodyPreview();
+    }
+
+    function disposeHighlightGroup(group) {
+      if (!group) return;
+      scene.remove(group);
+      group.traverse(child => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+          else child.material.dispose();
+        }
+      });
+    }
+
+    function createFaceHighlightGroup(bodyId, face, isPersistent) {
+      const b = modelBodies.find(item => item.id === bodyId);
+      if (!b || !b.mesh) return null;
+
+      const fullGeom = b.mesh.geometry;
+      const posAttr = fullGeom.attributes.position;
+      const idxAttr = fullGeom.index;
+      if (!posAttr || !idxAttr) return null;
+
+      const numTris = idxAttr.count / 3;
+      const subIdx = [];
+      const edgeMap = new Map();
+
+      function addFaceEdge(v0, v1) {
+        const min = v0 < v1 ? v0 : v1;
+        const max = v0 < v1 ? v1 : v0;
+        const key = `${min}_${max}`;
+        const entry = edgeMap.get(key);
+        if (entry) {
+          entry.count++;
+        } else {
+          edgeMap.set(key, { a: min, b: max, count: 1 });
+        }
+      }
+
+      for (let t = face.first; t <= face.last && t < numTris; t++) {
+        const i0 = idxAttr.getX(t * 3);
+        const i1 = idxAttr.getX(t * 3 + 1);
+        const i2 = idxAttr.getX(t * 3 + 2);
+        subIdx.push(i0, i1, i2);
+
+        addFaceEdge(i0, i1);
+        addFaceEdge(i1, i2);
+        addFaceEdge(i2, i0);
+      }
+      if (subIdx.length === 0) return null;
+
+      const group = new THREE.Group();
+      group.name = isPersistent ? 'selected_face_highlight' : 'preview_face_highlight';
+
+      // 1. Surface Mesh (Luminous electric cyan / sky cyan)
+      const hGeom = new THREE.BufferGeometry();
+      hGeom.setAttribute('position', posAttr);
+      hGeom.setIndex(new THREE.BufferAttribute(new Uint32Array(subIdx), 1));
+
+      const fillColor = isPersistent ? 0x00f0ff : 0x38bdf8;
+      const fillMat = new THREE.MeshBasicMaterial({
+        color: fillColor,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: isPersistent ? 0.65 : 0.45,
+        depthTest: true,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -2
+      });
+      const faceMesh = new THREE.Mesh(hGeom, fillMat);
+      faceMesh.renderOrder = 998;
+      group.add(faceMesh);
+
+      // 2. Perimeter Boundary Contour (Edges that belong to only 1 triangle in this face)
+      const boundaryIndices = [];
+      for (const edge of edgeMap.values()) {
+        if (edge.count === 1) {
+          boundaryIndices.push(edge.a, edge.b);
+        }
+      }
+
+      if (boundaryIndices.length > 0) {
+        const edgeGeom = new THREE.BufferGeometry();
+        edgeGeom.setAttribute('position', posAttr);
+        edgeGeom.setIndex(new THREE.BufferAttribute(new Uint32Array(boundaryIndices), 1));
+
+        // Sharp depth-tested contour line
+        const edgeMat = new THREE.LineBasicMaterial({
+          color: 0x00ffff,
+          linewidth: 2,
+          transparent: true,
+          opacity: 0.95,
+          depthTest: true,
+          depthWrite: false,
+          polygonOffset: true,
+          polygonOffsetFactor: -4,
+          polygonOffsetUnits: -4
+        });
+        const edgeLines = new THREE.LineSegments(edgeGeom, edgeMat);
+        edgeLines.renderOrder = 999;
+        group.add(edgeLines);
+
+        // Faint X-ray pass for occluded edges so the contour is visible from any angle
+        const ghostMat = new THREE.LineBasicMaterial({
+          color: 0x00ffff,
+          transparent: true,
+          opacity: 0.25,
+          depthTest: false
+        });
+        const ghostLines = new THREE.LineSegments(edgeGeom, ghostMat);
+        ghostLines.renderOrder = 997;
+        group.add(ghostLines);
+      }
+
+      // Sync transform with body mesh
+      b.mesh.updateWorldMatrix(true, false);
+      group.matrix.copy(b.mesh.matrixWorld);
+      group.matrixAutoUpdate = false;
+
+      return group;
+    }
+
+    function previewFaceInScene(bodyId, face) {
+      if (selectedFaceInfo && selectedFaceInfo.bodyId === bodyId && selectedFaceInfo.faceId === face.id) {
+        return; // Already selected and prominently visible
+      }
+      clearFacePreview();
+      previewFaceGroup = createFaceHighlightGroup(bodyId, face, false);
+      if (previewFaceGroup) {
+        scene.add(previewFaceGroup);
+      }
+    }
+
+    function clearFacePreview() {
+      if (previewFaceGroup) {
+        disposeHighlightGroup(previewFaceGroup);
+        previewFaceGroup = null;
+      }
+    }
+
+    function deselectFace() {
+      if (selectedFaceGroup) {
+        disposeHighlightGroup(selectedFaceGroup);
+        selectedFaceGroup = null;
+      }
+      if (previewFaceGroup) {
+        disposeHighlightGroup(previewFaceGroup);
+        previewFaceGroup = null;
+      }
+      selectedFaceInfo = null;
+      document.querySelectorAll('.tree-face-item.active').forEach(el => el.classList.remove('active'));
+    }
+
+    function selectAndFocusFace(bodyId, face, fItem) {
+      clearFacePreview();
+      deselectBody();
+
+      const b = modelBodies.find(item => item.id === bodyId);
+      if (b && b.isHidden) {
+        setBodyVisibility(bodyId, true);
+      }
+
+      if (selectedFaceGroup) {
+        disposeHighlightGroup(selectedFaceGroup);
+        selectedFaceGroup = null;
+      }
+
+      selectedFaceInfo = { bodyId, faceId: face.id };
+      selectedFaceGroup = createFaceHighlightGroup(bodyId, face, true);
+      if (selectedFaceGroup) {
+        scene.add(selectedFaceGroup);
+      }
+
+      document.querySelectorAll('.tree-face-item.active').forEach(el => el.classList.remove('active'));
+      if (fItem) {
+        fItem.classList.add('active');
+      } else {
+        const target = document.querySelector(`.tree-face-item[data-body-id="${bodyId}"][data-face-id="${face.id}"]`);
+        if (target) target.classList.add('active');
+      }
+
+      const faceAreaStr = formatArea(face.areaMm2);
+      showToast(`Selected Face #${face.id} | ${faceAreaStr} (${face.triangleCount} Tri)`);
+
+      focusOnFace(bodyId, face);
+    }
+
+    function highlightFaceInScene(bodyId, face) {
+      selectAndFocusFace(bodyId, face, null);
+    }
+
+    function focusOnFace(bodyId, face) {
+      const b = modelBodies.find(item => item.id === bodyId);
+      if (!b || !b.mesh) return;
+
+      const fullGeom = b.mesh.geometry;
+      const posAttr = fullGeom.attributes.position;
+      const idxAttr = fullGeom.index;
+      if (!posAttr || !idxAttr) return;
+
+      const numTris = idxAttr.count / 3;
+      let totalArea = 0;
+      const centroidSum = new THREE.Vector3();
+      const normalSum = new THREE.Vector3();
+      const vA = new THREE.Vector3();
+      const vB = new THREE.Vector3();
+      const vC = new THREE.Vector3();
+      const edgeAB = new THREE.Vector3();
+      const edgeAC = new THREE.Vector3();
+      const triNormal = new THREE.Vector3();
+      const faceVertices = [];
+
+      for (let t = face.first; t <= face.last && t < numTris; t++) {
+        const i0 = idxAttr.getX(t * 3);
+        const i1 = idxAttr.getX(t * 3 + 1);
+        const i2 = idxAttr.getX(t * 3 + 2);
+
+        vA.fromBufferAttribute(posAttr, i0);
+        vB.fromBufferAttribute(posAttr, i1);
+        vC.fromBufferAttribute(posAttr, i2);
+
+        faceVertices.push(vA.clone(), vB.clone(), vC.clone());
+
+        edgeAB.subVectors(vB, vA);
+        edgeAC.subVectors(vC, vA);
+        triNormal.crossVectors(edgeAB, edgeAC);
+        const doubleArea = triNormal.length();
+
+        if (doubleArea > 1e-10) {
+          const area = doubleArea * 0.5;
+          totalArea += area;
+          normalSum.add(triNormal); // weighted by area
+          const triCenter = vA.clone().add(vB).add(vC).multiplyScalar(1 / 3);
+          centroidSum.add(triCenter.multiplyScalar(area));
+        }
+      }
+
+      let faceCenterLocal = new THREE.Vector3();
+      if (totalArea > 1e-10) {
+        faceCenterLocal.copy(centroidSum).multiplyScalar(1 / totalArea);
+      } else if (faceVertices.length > 0) {
+        faceVertices.forEach(v => faceCenterLocal.add(v));
+        faceCenterLocal.multiplyScalar(1 / faceVertices.length);
+      }
+
+      let faceNormalLocal = new THREE.Vector3(0, 1, 0);
+      if (normalSum.lengthSq() > 1e-10) {
+        faceNormalLocal.copy(normalSum).normalize();
+      } else if (faceVertices.length >= 3) {
+        edgeAB.subVectors(faceVertices[1], faceVertices[0]);
+        edgeAC.subVectors(faceVertices[2], faceVertices[0]);
+        faceNormalLocal.crossVectors(edgeAB, edgeAC).normalize();
+      }
+
+      b.mesh.updateWorldMatrix(true, false);
+      const worldCenter = faceCenterLocal.clone().applyMatrix4(b.mesh.matrixWorld);
+      const worldNormal = faceNormalLocal.clone().transformDirection(b.mesh.matrixWorld).normalize();
+
+      // Calculate maximum bounding radius from centroid in world space
+      let maxRadius = 0;
+      for (let i = 0; i < faceVertices.length; i++) {
+        const wv = faceVertices[i].clone().applyMatrix4(b.mesh.matrixWorld);
+        const dist = wv.distanceTo(worldCenter);
+        if (dist > maxRadius) maxRadius = dist;
+      }
+      maxRadius = Math.max(maxRadius, 2.0); // minimum 2mm radius
+
+      // Framing distance: fit face nicely within camera FOV
+      const vFovRad = THREE.MathUtils.degToRad(camera.fov || 45);
+      const aspect = camera.aspect || (window.innerWidth / window.innerHeight) || 1.0;
+      const tanHalfFov = Math.tan(vFovRad / 2);
+      const effectiveTan = Math.min(tanHalfFov, tanHalfFov * aspect);
+      let dist = (maxRadius / effectiveTan) * 1.75;
+      dist = Math.max(dist, 12.0);
+      if (typeof currentModelDistance === 'number' && currentModelDistance > 0) {
+        dist = Math.min(dist, currentModelDistance * 2.0);
+      }
+
+      // Camera target position along normal vector
+      let targetPos;
+      if (worldNormal.lengthSq() > 0.5) {
+        targetPos = worldCenter.clone().add(worldNormal.clone().multiplyScalar(dist));
+      } else {
+        const dir = camera.position.clone().sub(controls.target).normalize();
+        if (dir.lengthSq() < 0.1) dir.set(1, 1, 1).normalize();
+        targetPos = worldCenter.clone().add(dir.multiplyScalar(dist));
+      }
+
+      // Compute natural CAD Up vector
+      let targetUp = new THREE.Vector3(0, 1, 0);
+      if (Math.abs(worldNormal.y) > 0.90) {
+        // Face normal is aligned with vertical Y axis (e.g. Top / Bottom view)
+        targetUp = worldNormal.y > 0 ? new THREE.Vector3(0, 0, -1) : new THREE.Vector3(0, 0, 1);
+      } else {
+        // Project global Y onto normal plane to maintain upright camera
+        targetUp.sub(worldNormal.clone().multiplyScalar(worldNormal.dot(targetUp))).normalize();
+        if (targetUp.lengthSq() < 0.1) {
+          targetUp.set(0, 1, 0);
+        }
+      }
+
+      tweenCamera(targetPos, worldCenter, targetUp, 450);
+    }
+
+    function updateTreeItemState(bodyId) {
+      const b = modelBodies.find(item => item.id === bodyId);
+      if (!b) return;
+      const node = document.getElementById(`tree-node-${bodyId}`);
+      if (!node) return;
+
+      node.classList.toggle('hidden-body', b.isHidden);
+      node.classList.toggle('isolated', isolatedBodyId === b.id);
+
+      const btnVis = node.querySelector('.btn-tree-vis');
+      if (btnVis) {
+        btnVis.innerText = b.isHidden ? '🚫' : '👁️';
+        btnVis.classList.toggle('active', !b.isHidden);
+      }
+
+      const btnGhost = node.querySelector('.btn-tree-ghost');
+      if (btnGhost) {
+        btnGhost.classList.toggle('active', b.isGhosted);
+      }
+
+      const btnIso = node.querySelector('.btn-tree-isolate');
+      if (btnIso) {
+        btnIso.classList.toggle('active', isolatedBodyId === b.id);
+      }
+    }
+
+    function updateAllTreeNodes() {
+      modelBodies.forEach(b => updateTreeItemState(b.id));
+    }
+
+    function showIsolateBanner(bodyId) {
+      const banner = document.getElementById('isolate-banner');
+      const nameEl = document.getElementById('isolate-body-name');
+      const b = modelBodies.find(item => item.id === bodyId);
+      if (banner && nameEl && b) {
+        nameEl.innerText = b.name;
+        banner.style.display = 'flex';
+      }
+    }
+
+    function hideIsolateBanner() {
+      const banner = document.getElementById('isolate-banner');
+      if (banner) banner.style.display = 'none';
+    }
+
+    function updatePropsBodySelect() {
+      const row = document.getElementById('props-body-row');
+      const select = document.getElementById('props-body-select');
+      if (!row || !select) return;
+
+      if (modelBodies.length <= 1) {
+        row.style.display = 'none';
+        selectedBodyForProps = -1;
+        return;
+      }
+
+      row.style.display = 'block';
+      let html = `<option value="-1">Entire Assembly (Combined ${modelBodies.length} Bodies)</option>`;
+      modelBodies.forEach((b) => {
+        const volVal = b.data.volumeMm3 || 0;
+        const volCm3 = (volVal / 1000.0).toFixed(1);
+        html += `<option value="${b.id}">${b.name} (${volCm3} cm³)</option>`;
+      });
+      select.innerHTML = html;
+      select.value = String(selectedBodyForProps);
+
+      select.onchange = function () {
+        selectedBodyForProps = parseInt(select.value, 10);
+        updatePhysicalPropertiesCard();
+      };
+    }
+
+    // =============================================================
+    // Phase 2: Cross-Section View Functions
+    // =============================================================
+    function updateSectionPlane() {
+      if (sectionBox.isEmpty()) return;
+      const min = sectionBox.min;
+      const max = sectionBox.max;
+      const slider = document.getElementById('sec-slider');
+      const val = slider ? (parseFloat(slider.value) / 100) : 0.5;
+
+      const normal = new THREE.Vector3();
+      let pos = 0;
+
+      if (sectionAxis === 'x') {
+        pos = min.x + (max.x - min.x) * val;
+        if (!sectionFlipped) {
+          normal.set(-1, 0, 0);
+          sectionPlane.constant = pos;
+        } else {
+          normal.set(1, 0, 0);
+          sectionPlane.constant = -pos;
+        }
+      } else if (sectionAxis === 'y') {
+        pos = min.y + (max.y - min.y) * val;
+        if (!sectionFlipped) {
+          normal.set(0, -1, 0);
+          sectionPlane.constant = pos;
+        } else {
+          normal.set(0, 1, 0);
+          sectionPlane.constant = -pos;
+        }
+      } else if (sectionAxis === 'z') {
+        pos = min.z + (max.z - min.z) * val;
+        if (!sectionFlipped) {
+          normal.set(0, 0, -1);
+          sectionPlane.constant = pos;
+        } else {
+          normal.set(0, 0, 1);
+          sectionPlane.constant = -pos;
+        }
+      }
+      sectionPlane.normal.copy(normal);
+    }
+
+    function toggleSectionView(enable) {
+      isSectionActive = (enable !== undefined) ? enable : !isSectionActive;
+      const btn = document.getElementById('btn-section');
+      const panel = document.getElementById('section-panel');
+
+      if (isSectionActive) {
+        if (btn) btn.classList.add('active');
+        if (panel) panel.style.display = 'flex';
+        updateSectionPlane();
+      } else {
+        if (btn) btn.classList.remove('active');
+        if (panel) panel.style.display = 'none';
+      }
+
+      modelGroup.traverse((child) => {
+        if (child.material) {
+          child.material.clippingPlanes = isSectionActive ? [sectionPlane] : [];
+          child.material.needsUpdate = true;
+        }
+      });
+    }
+
+    // =============================================================
+    // Phase 3: Physical Properties & Unit Switching
+    // =============================================================
+    function formatDim(mmVal) {
+      if (typeof mmVal !== 'number' || isNaN(mmVal)) return '0.00 mm';
+      if (currentUnit === 'in') {
+        return `${(mmVal / 25.4).toFixed(3)} in`;
+      }
+      return `${mmVal.toFixed(2)} mm`;
+    }
+    const formatLength = formatDim;
+
+    function formatCoord(mmVal) {
+      if (typeof mmVal !== 'number' || isNaN(mmVal)) return '0.00';
+      if (currentUnit === 'in') {
+        return (mmVal / 25.4).toFixed(3);
+      }
+      return mmVal.toFixed(2);
+    }
+
+    function formatCircleDim(diameter, radius) {
+      const d = (typeof diameter === 'number' && !isNaN(diameter)) ? diameter : 0;
+      const r = (typeof radius === 'number' && !isNaN(radius)) ? radius : (d / 2);
+      if (currentUnit === 'in') {
+        return `Ø ${(d / 25.4).toFixed(3)} in (R ${(r / 25.4).toFixed(3)})`;
+      }
+      return `Ø ${d.toFixed(2)} mm (R ${r.toFixed(2)})`;
+    }
+
+    function formatArea(areaMm2) {
+      if (typeof areaMm2 !== 'number' || isNaN(areaMm2) || areaMm2 <= 0) return '0.00 mm²';
+      if (currentUnit === 'in') {
+        return `${(areaMm2 / 645.16).toFixed(3)} in²`;
+      }
+      if (areaMm2 >= 100) {
+        return `${areaMm2.toFixed(1)} mm² (${(areaMm2 / 100).toFixed(2)} cm²)`;
+      }
+      return `${areaMm2.toFixed(2)} mm²`;
+    }
+
+    // =============================================================
+    // Engineering Materials Library & Mass Estimation System
+    // =============================================================
+    const standardMaterials = [
+      // Steels & Ferrous Metals (ASTM / AISI / ISO verified)
+      { id: 'steel_1018', name: 'Carbon Steel 1018', std: 'AISI 1018 / ASTM A108', density: 7.85, category: 'Steel' },
+      { id: 'steel_a36', name: 'Structural Steel A36', std: 'ASTM A36', density: 7.85, category: 'Steel' },
+      { id: 'steel_4140', name: 'Alloy Steel 4140', std: 'AISI 4140 (Cr-Mo)', density: 7.85, category: 'Steel' },
+      { id: 'ss_304', name: 'Stainless Steel 304', std: 'AISI 304 / 1.4301', density: 8.00, category: 'Steel' },
+      { id: 'ss_316', name: 'Stainless Steel 316L', std: 'AISI 316L / 1.4404', density: 8.00, category: 'Steel' },
+      { id: 'tool_d2', name: 'Tool Steel D2', std: 'ASTM A681', density: 7.70, category: 'Steel' },
+      { id: 'cast_iron_gray', name: 'Gray Cast Iron', std: 'ASTM A48 Class 30', density: 7.15, category: 'Steel' },
+      { id: 'cast_iron_ductile', name: 'Ductile Iron', std: 'ASTM A536 65-45-12', density: 7.10, category: 'Steel' },
+
+      // Aluminum & Light Alloys
+      { id: 'al_6061', name: 'Aluminum 6061-T6', std: 'ASTM B221', density: 2.70, category: 'Aluminum' },
+      { id: 'al_7075', name: 'Aluminum 7075-T6', std: 'ASTM B209 (Aerospace)', density: 2.81, category: 'Aluminum' },
+      { id: 'al_5052', name: 'Aluminum 5052-H32', std: 'ASTM B209 (Marine)', density: 2.68, category: 'Aluminum' },
+      { id: 'al_2024', name: 'Aluminum 2024-T3', std: 'ASTM B209', density: 2.78, category: 'Aluminum' },
+      { id: 'al_cast_a380', name: 'Cast Aluminum A380', std: 'ASTM B85', density: 2.71, category: 'Aluminum' },
+      { id: 'ti_gr5', name: 'Titanium Ti-6Al-4V', std: 'Grade 5 / ASTM B348', density: 4.43, category: 'Light Alloy' },
+      { id: 'ti_gr2', name: 'Titanium Pure Gr 2', std: 'Grade 2 / ASTM B348', density: 4.51, category: 'Light Alloy' },
+      { id: 'mg_az31b', name: 'Magnesium AZ31B', std: 'ASTM B107', density: 1.77, category: 'Light Alloy' },
+
+      // Copper & Brass
+      { id: 'cu_c11000', name: 'Copper Pure C11000', std: 'ASTM B152 (ETP)', density: 8.96, category: 'Copper/Brass' },
+      { id: 'brass_c360', name: 'Free-Cutting Brass', std: 'C36000 / ASTM B16', density: 8.50, category: 'Copper/Brass' },
+      { id: 'bronze_c510', name: 'Phosphor Bronze C510', std: 'ASTM B103', density: 8.80, category: 'Copper/Brass' },
+
+      // Engineering Plastics & Polymers
+      { id: 'pla', name: 'PLA (3D Printing)', std: 'Polylactic Acid', density: 1.24, category: 'Plastic' },
+      { id: 'abs', name: 'ABS Polymer', std: 'ISO 2580', density: 1.04, category: 'Plastic' },
+      { id: 'petg', name: 'PETG Glycol Copolyester', std: 'ASTM D5227', density: 1.27, category: 'Plastic' },
+      { id: 'nylon_pa6', name: 'Nylon 6 (PA 6)', std: 'ISO 1874', density: 1.14, category: 'Plastic' },
+      { id: 'pom_delrin', name: 'POM / Delrin / Acetal', std: 'ISO 9988', density: 1.41, category: 'Plastic' },
+      { id: 'pc_lexan', name: 'Polycarbonate (PC)', std: 'Lexan / ISO 7391', density: 1.20, category: 'Plastic' },
+      { id: 'peek', name: 'PEEK (High-Temp)', std: 'Polyether ether ketone', density: 1.30, category: 'Plastic' },
+      { id: 'ptfe_teflon', name: 'PTFE / Teflon', std: 'ASTM D4894', density: 2.20, category: 'Plastic' },
+      { id: 'pp', name: 'Polypropylene (PP)', std: 'ISO 19069', density: 0.90, category: 'Plastic' },
+      { id: 'hdpe', name: 'HDPE Polyethylene', std: 'ASTM D4976', density: 0.95, category: 'Plastic' },
+      { id: 'pmma_acrylic', name: 'Acrylic / PMMA', std: 'Plexiglass / ISO 8257', density: 1.18, category: 'Plastic' },
+
+      // Composites & Elastomers
+      { id: 'cfrp', name: 'Carbon Fiber (CFRP)', std: 'Quasi-isotropic laminate', density: 1.55, category: 'Composite' },
+      { id: 'fiberglass_g10', name: 'Fiberglass G10 / FR4', std: 'NEMA G10', density: 1.85, category: 'Composite' },
+      { id: 'nbr_rubber', name: 'Nitrile Rubber (NBR)', std: 'ASTM D2000', density: 1.20, category: 'Elastomer' },
+      { id: 'silicone', name: 'Silicone Rubber', std: 'FDA 21 CFR 177.2600', density: 1.25, category: 'Elastomer' }
+    ];
+
+    let selectedMaterialId = 'al_6061';
+    let customMaterials = [];
+    let isMaterialsInitialized = false;
+
+    function initMaterialsSystem() {
+      if (isMaterialsInitialized) return;
+      isMaterialsInitialized = true;
+      try {
+        const raw = localStorage.getItem('stepviewer_custom_materials');
+        if (raw) customMaterials = JSON.parse(raw);
+        const savedMat = localStorage.getItem('stepviewer_selected_material');
+        if (savedMat) selectedMaterialId = savedMat;
+      } catch (e) {
+        customMaterials = [];
+      }
+
+      const searchInput = document.getElementById('mat-search');
+      if (searchInput) {
+        searchInput.addEventListener('input', () => {
+          if (modelPhysicalProps) {
+            renderMaterialsUI((modelPhysicalProps.volumeMm3 || 0) / 1000.0);
+          }
+        });
+      }
+
+      const btnToggle = document.getElementById('btn-toggle-custom');
+      const customForm = document.getElementById('custom-mat-form');
+      if (btnToggle && customForm) {
+        btnToggle.addEventListener('click', () => {
+          customForm.style.display = (customForm.style.display === 'none' || !customForm.style.display) ? 'block' : 'none';
+        });
+      }
+
+      const btnCancel = document.getElementById('btn-cancel-custom');
+      if (btnCancel && customForm) {
+        btnCancel.addEventListener('click', () => { customForm.style.display = 'none'; });
+      }
+
+      const btnSave = document.getElementById('btn-save-custom');
+      if (btnSave && customForm) {
+        btnSave.addEventListener('click', () => {
+          const nameInput = document.getElementById('custom-mat-name');
+          const densInput = document.getElementById('custom-mat-density');
+          const name = nameInput ? nameInput.value.trim() : '';
+          const dens = densInput ? parseFloat(densInput.value) : 0;
+
+          if (!name || isNaN(dens) || dens <= 0) {
+            alert('Please enter a valid material name and positive density in g/cm³.');
+            return;
+          }
+
+          const newMat = {
+            id: 'custom_' + Date.now(),
+            name: name,
+            std: 'Custom User Defined',
+            density: dens,
+            isCustom: true
+          };
+
+          customMaterials.unshift(newMat);
+          try {
+            localStorage.setItem('stepviewer_custom_materials', JSON.stringify(customMaterials));
+          } catch(e) {}
+
+          selectedMaterialId = newMat.id;
+          try {
+            localStorage.setItem('stepviewer_selected_material', newMat.id);
+          } catch(e) {}
+
+          if (nameInput) nameInput.value = '';
+          if (densInput) densInput.value = '';
+          customForm.style.display = 'none';
+
+          if (modelPhysicalProps) {
+            renderMaterialsUI((modelPhysicalProps.volumeMm3 || 0) / 1000.0);
+          }
+        });
+      }
+    }
+
+    function getAllMaterials() {
+      return [...customMaterials, ...standardMaterials];
+    }
+
+    function getSelectedMaterial() {
+      const all = getAllMaterials();
+      return all.find(m => m.id === selectedMaterialId) || all[0];
+    }
+
+    function formatWeightValue(grams) {
+      if (currentUnit === 'mm') {
+        return grams >= 1000 ? `${(grams / 1000).toFixed(3)} kg` : `${grams.toFixed(1)} g`;
+      } else {
+        const lb = grams * 0.00220462;
+        return lb < 1.0 ? `${(lb * 16).toFixed(2)} oz` : `${lb.toFixed(2)} lb`;
+      }
+    }
+
+    function formatDensityValue(gPerCm3) {
+      if (currentUnit === 'mm') {
+        return `${gPerCm3.toFixed(2)} g/cm³`;
+      } else {
+        const lbPerCuIn = gPerCm3 * 0.036127;
+        return `${lbPerCuIn.toFixed(3)} lb/in³`;
+      }
+    }
+
+    function renderMaterialsUI(volCm3) {
+      initMaterialsSystem();
+
+      const activeMat = getSelectedMaterial();
+      const bannerName = document.getElementById('active-mat-name');
+      const bannerDens = document.getElementById('active-mat-density');
+      const bannerWeight = document.getElementById('active-mat-weight');
+
+      if (activeMat && bannerName && bannerDens && bannerWeight) {
+        bannerName.innerText = activeMat.name;
+        bannerDens.innerText = formatDensityValue(activeMat.density);
+        const massG = volCm3 * activeMat.density;
+        bannerWeight.innerText = formatWeightValue(massG);
+      }
+
+      const searchInput = document.getElementById('mat-search');
+      const term = (searchInput ? searchInput.value : '').toLowerCase().trim();
+      const listEl = document.getElementById('mat-list');
+      if (!listEl) return;
+
+      const all = getAllMaterials();
+      const filtered = all.filter(m => 
+        m.name.toLowerCase().includes(term) || 
+        (m.std && m.std.toLowerCase().includes(term)) || 
+        (m.category && m.category.toLowerCase().includes(term))
+      );
+
+      let html = '';
+      filtered.forEach(m => {
+        const massG = volCm3 * m.density;
+        const wtStr = formatWeightValue(massG);
+        const isActive = (m.id === selectedMaterialId);
+        const customBadge = m.isCustom ? '<span class="mat-tag-custom">Custom</span>' : '';
+        const delBtn = m.isCustom ? `<button class="btn-mat-del" onclick="deleteCustomMaterial('${m.id}', event)" title="Delete Custom Material">✕</button>` : '';
+
+        html += `
+          <div class="mat-item ${isActive ? 'active' : ''}" onclick="selectMaterial('${m.id}')">
+            <div class="mat-item-info">
+              <div class="mat-item-name">${m.name} ${customBadge}</div>
+              <div class="mat-item-std">${m.std} &bull; ${formatDensityValue(m.density)}</div>
+            </div>
+            <div class="mat-item-right">
+              <div class="mat-item-weight">${wtStr}</div>
+              ${delBtn}
+            </div>
+          </div>
+        `;
+      });
+
+      if (filtered.length === 0) {
+        html = '<div style="color:#64748b; font-size:11px; text-align:center; padding:12px;">No matching materials found</div>';
+      }
+
+      listEl.innerHTML = html;
+    }
+
+    function selectMaterial(id) {
+      selectedMaterialId = id;
+      try { localStorage.setItem('stepviewer_selected_material', id); } catch(e) {}
+      if (modelPhysicalProps) {
+        const volCm3 = (modelPhysicalProps.volumeMm3 || 0) / 1000.0;
+        renderMaterialsUI(volCm3);
+      }
+    }
+    window.selectMaterial = selectMaterial;
+
+    function deleteCustomMaterial(id, e) {
+      if (e) e.stopPropagation();
+      customMaterials = customMaterials.filter(m => m.id !== id);
+      try { localStorage.setItem('stepviewer_custom_materials', JSON.stringify(customMaterials)); } catch(e) {}
+      if (selectedMaterialId === id) {
+        selectedMaterialId = 'al_6061';
+      }
+      if (modelPhysicalProps) {
+        const volCm3 = (modelPhysicalProps.volumeMm3 || 0) / 1000.0;
+        renderMaterialsUI(volCm3);
+      }
+    }
+    window.deleteCustomMaterial = deleteCustomMaterial;
+
+    function updatePhysicalPropertiesCard() {
+      if (!modelPhysicalProps) return;
+      const volEl = document.getElementById('prop-vol');
+      const areaEl = document.getElementById('prop-area');
+      const bboxEl = document.getElementById('prop-bbox');
+
+      let volMm3 = modelPhysicalProps.volumeMm3 || 0;
+      let areaMm2 = modelPhysicalProps.areaMm2 || 0;
+      let bb = modelPhysicalProps.bbox || { x: 0, y: 0, z: 0 };
+
+      if (selectedBodyForProps >= 0) {
+        const targetBody = modelBodies.find(b => b.id === selectedBodyForProps);
+        if (targetBody && targetBody.data) {
+          volMm3 = targetBody.data.volumeMm3 || 0;
+          areaMm2 = targetBody.data.areaMm2 || 0;
+          if (targetBody.data.bbox && targetBody.data.bbox.size) {
+            bb = { x: targetBody.data.bbox.size[0], y: targetBody.data.bbox.size[1], z: targetBody.data.bbox.size[2] };
+          }
+        }
+      }
+
+      const volCm3 = volMm3 / 1000.0;
+      const areaCm2 = areaMm2 / 100.0;
+
+      if (currentUnit === 'mm') {
+        if (volEl) volEl.innerText = `${volCm3.toFixed(2)} cm³ (${Math.round(volMm3).toLocaleString()} mm³)`;
+        if (areaEl) areaEl.innerText = `${areaCm2.toFixed(1)} cm² (${Math.round(areaMm2).toLocaleString()} mm²)`;
+        if (bboxEl) bboxEl.innerText = `${bb.x.toFixed(1)} × ${bb.y.toFixed(1)} × ${bb.z.toFixed(1)} mm`;
+      } else {
+        const inX = bb.x / 25.4;
+        const inY = bb.y / 25.4;
+        const inZ = bb.z / 25.4;
+        const volCuIn = volMm3 / 16387.064;
+        const areaSqIn = areaMm2 / 645.16;
+
+        if (volEl) volEl.innerText = `${volCuIn.toFixed(2)} in³`;
+        if (areaEl) areaEl.innerText = `${areaSqIn.toFixed(2)} in²`;
+        if (bboxEl) bboxEl.innerText = `${inX.toFixed(2)} × ${inY.toFixed(2)} × ${inZ.toFixed(2)} in`;
+      }
+
+      renderMaterialsUI(volCm3);
+    }
+
+    function togglePropsModal(enable) {
+      isPropsActive = (enable !== undefined) ? enable : !isPropsActive;
+      const card = document.getElementById('props-card');
+      const btn = document.getElementById('btn-props');
+      if (isPropsActive) {
+        if (card) card.style.display = 'flex';
+        if (btn) btn.classList.add('active');
+        updatePhysicalPropertiesCard();
+      } else {
+        if (card) card.style.display = 'none';
+        if (btn) btn.classList.remove('active');
+      }
+    }
+
+    function toggleUnits() {
+      currentUnit = (currentUnit === 'mm') ? 'in' : 'mm';
+      const btn = document.getElementById('btn-units');
+      if (btn) {
+        const span = btn.querySelector('span');
+        if (span) {
+          span.innerText = currentUnit;
+          span.style.color = currentUnit === 'mm' ? '#38bdf8' : '#f59e0b';
+        }
+      }
+      updateBoundingBoxBadge();
+      updatePhysicalPropertiesCard();
+      if (selectedCadEntities.length > 0) {
+        const ents = [...selectedCadEntities];
+        clearMeasurement(false);
+        ents.forEach(e => handleUnifiedClick(e));
+      }
+    }
+
+    // =============================================================
+    // Phase 2: Smart Measurement Tool Functions
+    // =============================================================
+    function createTextSprite(text) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+
+      // Rounded pill background - Dark Studio graphite with crisp cyan border
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.96)';
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.8)';
+      ctx.lineWidth = 4;
+      const r = 24, w = 496, h = 112, x = 8, y = 8;
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Text label - sharp, bold, legible
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 42px "Segoe UI", -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, 256, 64);
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.minFilter = THREE.LinearFilter;
+      const spriteMat = new THREE.SpriteMaterial({ map: texture, depthTest: false });
+      const sprite = new THREE.Sprite(spriteMat);
+      sprite.userData = { isScreenScaledSprite: true, pixelHeight: 34, aspect: 4.0 };
+      
+      const vFovRad = THREE.MathUtils.degToRad(camera.fov);
+      const worldPerPx = (2 * Math.tan(vFovRad / 2) * Math.max(currentModelDistance, 10)) / (window.innerHeight || 800);
+      const sh = worldPerPx * 34;
+      sprite.scale.set(sh * 4.0, sh, 1);
+      return sprite;
+    }
+
+    function indexModelVertices() {
+      modelCadVertices = [];
+      const seen = new Set();
+      function addVertex(pt, type, label, feat) {
+        if (!pt) return;
+        const k = `${Math.round(pt.x * 100)}_${Math.round(pt.y * 100)}_${Math.round(pt.z * 100)}`;
+        if (seen.has(k)) return;
+        seen.add(k);
+        modelCadVertices.push({
+          type: 'point',
+          subType: type, // 'corner' | 'midpoint' | 'center'
+          point: pt.clone(),
+          label: label,
+          feature: feat
+        });
+      }
+
+      for (let i = 0; i < modelEdgeFeatures.length; i++) {
+        const feat = modelEdgeFeatures[i];
+        if (feat.type === 'line') {
+          const p1 = new THREE.Vector3(...feat.start);
+          const p2 = new THREE.Vector3(...feat.end);
+          addVertex(p1, 'corner', 'Corner / Endpoint', feat);
+          addVertex(p2, 'corner', 'Corner / Endpoint', feat);
+          const pMid = p1.clone().add(p2).multiplyScalar(0.5);
+          addVertex(pMid, 'midpoint', 'Midpoint', feat);
+        } else if (feat.type === 'circle') {
+          const c = new THREE.Vector3(...feat.center);
+          addVertex(c, 'center', 'Hole Center', feat);
+        }
+      }
+    }
+
+    function computeCoplanarArea(mesh, hitFaceIndex, localNormal, hitPoint) {
+      if (!mesh || !mesh.geometry || !localNormal) return 0;
+      const geom = mesh.geometry;
+      const pos = geom.attributes.position;
+      if (!pos) return 0;
+      const idx = geom.index;
+      const count = idx ? idx.count : pos.count;
+      
+      const vA = new THREE.Vector3(), vB = new THREE.Vector3(), vC = new THREE.Vector3();
+      const cb = new THREE.Vector3(), ab = new THREE.Vector3();
+      const triNorm = new THREE.Vector3();
+      
+      let totalArea = 0;
+      const normalTolerance = 0.12; // ~7 degrees
+      
+      // Determine exact plane offset D = -normal . point
+      let planeD = 0;
+      if (hitPoint) {
+        const localHit = mesh.worldToLocal(hitPoint.clone());
+        planeD = -localNormal.dot(localHit);
+      } else {
+        const hitTriIdx = (hitFaceIndex !== undefined ? hitFaceIndex : 0) * 3;
+        let p0 = new THREE.Vector3();
+        if (idx && hitTriIdx < idx.count) {
+          p0.fromBufferAttribute(pos, idx.getX(hitTriIdx));
+        } else if (hitTriIdx < pos.count) {
+          p0.fromBufferAttribute(pos, hitTriIdx);
+        }
+        planeD = -localNormal.dot(p0);
+      }
+
+      let hitTriArea = 0;
+      const triCount = Math.floor(count / 3);
+      for (let i = 0; i < triCount; i++) {
+        const i3 = i * 3;
+        if (idx) {
+          vA.fromBufferAttribute(pos, idx.getX(i3));
+          vB.fromBufferAttribute(pos, idx.getX(i3 + 1));
+          vC.fromBufferAttribute(pos, idx.getX(i3 + 2));
+        } else {
+          vA.fromBufferAttribute(pos, i3);
+          vB.fromBufferAttribute(pos, i3 + 1);
+          vC.fromBufferAttribute(pos, i3 + 2);
+        }
+        
+        cb.subVectors(vC, vB);
+        ab.subVectors(vA, vB);
+        cb.cross(ab);
+        const triArea = cb.length() * 0.5;
+        if (triArea < 1e-7) continue;
+
+        if (i === hitFaceIndex) {
+          hitTriArea = triArea;
+        }
+        
+        triNorm.copy(cb).normalize();
+        
+        if (Math.abs(triNorm.dot(localNormal) - 1.0) < normalTolerance) {
+          const distToPlane = Math.abs(localNormal.dot(vA) + planeD);
+          if (distToPlane < 0.8) {
+            totalArea += triArea;
+          }
+        }
+      }
+      
+      return totalArea > 0 ? totalArea : hitTriArea;
+    }
+
+    function findSurfaceTarget(e) {
+      if (!modelGroup || modelGroup.children.length === 0) return null;
+      const rect = renderer.domElement.getBoundingClientRect();
+      const mouseX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      const mouseY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      const ray = new THREE.Raycaster();
+      ray.setFromCamera(new THREE.Vector2(mouseX, mouseY), camera);
+
+      const meshes = [];
+      modelGroup.traverse(child => {
+        if (child.isMesh && child.name !== 'solidworks_edges' && child.visible) meshes.push(child);
+      });
+
+      const intersects = ray.intersectObjects(meshes, false);
+      if (!intersects || intersects.length === 0) return null;
+
+      const hit = intersects[0];
+      const localNormal = hit.face ? hit.face.normal.clone() : new THREE.Vector3(0, 1, 0);
+      const worldNormal = localNormal.clone().transformDirection(hit.object.matrixWorld).normalize();
+
+      let areaMm2 = 0;
+      if (hit.face && hit.object && hit.faceIndex !== undefined) {
+        areaMm2 = computeCoplanarArea(hit.object, hit.faceIndex, localNormal, hit.point);
+      }
+
+      return { 
+        point: hit.point, 
+        normal: worldNormal, 
+        areaMm2: areaMm2, 
+        faceIndex: hit.faceIndex, 
+        mesh: hit.object 
+      };
+    }
+
+    function isPointOccluded(point) {
+      if (!modelGroup || modelGroup.children.length === 0) return false;
+      const origin = camera.position.clone();
+      const dir = point.clone().sub(origin);
+      const targetDist = dir.length();
+      if (targetDist < 0.05) return false;
+      dir.normalize();
+
+      const ray = new THREE.Raycaster(origin, dir, camera.near, Math.max(0.1, targetDist - 0.25));
+      const meshes = [];
+      modelGroup.traverse(child => {
+        if (child.isMesh && child.name !== 'solidworks_edges' && child.visible && (!child.material || !child.material.transparent)) {
+          meshes.push(child);
+        }
+      });
+
+      const hits = ray.intersectObjects(meshes, false);
+      return hits && hits.length > 0;
+    }
+
+    function findSnapTarget(e) {
+      if (!isMeasureActive || !modelGroup || modelGroup.children.length === 0) return null;
+      const rect = renderer.domElement.getBoundingClientRect();
+      const mouseX = e.clientX;
+      const mouseY = e.clientY;
+
+      // 1. Priority 1: Check CAD Vertex / Endpoint / Corner / Center (within 12px)
+      let bestVertex = null;
+      let minVertexDist = 12;
+
+      for (let i = 0; i < modelCadVertices.length; i++) {
+        const v = modelCadVertices[i];
+        const proj = v.point.clone().project(camera);
+        if (proj.z > 1) continue; // Behind camera
+        const px = (proj.x * 0.5 + 0.5) * rect.width + rect.left;
+        const py = (-proj.y * 0.5 + 0.5) * rect.height + rect.top;
+        const dist = Math.hypot(mouseX - px, mouseY - py);
+        if (dist < minVertexDist) {
+          if (!isPointOccluded(v.point)) {
+            minVertexDist = dist;
+            bestVertex = v;
+          }
+        }
+      }
+
+      if (bestVertex) {
+        return {
+          type: 'point',
+          subType: bestVertex.type,
+          point: bestVertex.point.clone(),
+          label: bestVertex.label,
+          feature: bestVertex.feature
+        };
+      }
+
+      // 2. Priority 2: Check CAD Edge or Circle Perimeter (within 15px)
+      let bestFeature = null;
+      let minEdgeDist = 15;
+      let bestEdgePoint = null;
+
+      for (let i = 0; i < modelEdgeFeatures.length; i++) {
+        const feat = modelEdgeFeatures[i];
+        if (feat.type === 'circle') {
+          const cProj = new THREE.Vector3(...feat.center).project(camera);
+          if (cProj.z > 1) continue;
+          const cPx = (cProj.x * 0.5 + 0.5) * rect.width + rect.left;
+          const cPy = (-cProj.y * 0.5 + 0.5) * rect.height + rect.top;
+
+          let screenR = 10;
+          if (feat.points && feat.points.length >= 3) {
+            const p0 = new THREE.Vector3(feat.points[0], feat.points[1], feat.points[2]).project(camera);
+            const p0x = (p0.x * 0.5 + 0.5) * rect.width + rect.left;
+            const p0y = (-p0.y * 0.5 + 0.5) * rect.height + rect.top;
+            screenR = Math.hypot(p0x - cPx, p0y - cPy);
+          }
+
+          const mouseDistToCenter = Math.hypot(mouseX - cPx, mouseY - cPy);
+          const distToPerimeter = Math.abs(mouseDistToCenter - screenR);
+
+          if (distToPerimeter < minEdgeDist) {
+            const centerPt = new THREE.Vector3(...feat.center);
+            if (!isPointOccluded(centerPt)) {
+              minEdgeDist = distToPerimeter;
+              bestFeature = feat;
+              bestEdgePoint = centerPt;
+            }
+          }
+        } else if (feat.type === 'line') {
+          const pA = new THREE.Vector3(...feat.start).project(camera);
+          const pB = new THREE.Vector3(...feat.end).project(camera);
+          if (pA.z > 1 && pB.z > 1) continue;
+
+          const ax = (pA.x * 0.5 + 0.5) * rect.width + rect.left;
+          const ay = (-pA.y * 0.5 + 0.5) * rect.height + rect.top;
+          const bx = (pB.x * 0.5 + 0.5) * rect.width + rect.left;
+          const by = (-pB.y * 0.5 + 0.5) * rect.height + rect.top;
+
+          const l2 = (bx - ax) * (bx - ax) + (by - ay) * (by - ay);
+          let dist = 0;
+          let t = 0;
+          if (l2 === 0) {
+            dist = Math.hypot(mouseX - ax, mouseY - ay);
+          } else {
+            t = Math.max(0, Math.min(1, ((mouseX - ax) * (bx - ax) + (mouseY - ay) * (by - ay)) / l2));
+            const projX = ax + t * (bx - ax);
+            const projY = ay + t * (by - ay);
+            dist = Math.hypot(mouseX - projX, mouseY - projY);
+          }
+
+          if (dist < minEdgeDist) {
+            const edgePt = new THREE.Vector3(
+              feat.start[0] + t * (feat.end[0] - feat.start[0]),
+              feat.start[1] + t * (feat.end[1] - feat.start[1]),
+              feat.start[2] + t * (feat.end[2] - feat.start[2])
+            );
+            if (!isPointOccluded(edgePt)) {
+              minEdgeDist = dist;
+              bestFeature = feat;
+              bestEdgePoint = edgePt;
+            }
+          }
+        }
+      }
+
+      if (bestFeature) {
+        return {
+          type: bestFeature.type, // 'line' | 'circle'
+          feature: bestFeature,
+          point: bestEdgePoint
+        };
+      }
+
+      // 3. Priority 3: Fallback Surface Raycast
+      const snapSurface = findSurfaceTarget(e);
+      if (snapSurface) {
+        return {
+          type: 'point',
+          subType: 'surface',
+          point: snapSurface.point.clone(),
+          normal: snapSurface.normal,
+          areaMm2: snapSurface.areaMm2,
+          faceIndex: snapSurface.faceIndex,
+          mesh: snapSurface.mesh,
+          label: 'Planar Face'
+        };
+      }
+
+      return null;
+    }
+
+    function updateHoverEdgeGeometry(feat) {
+      if (!hoverEdgeMesh) return;
+      if (!feat || !feat.points || feat.points.length === 0) {
+        hoverEdgeMesh.visible = false;
+        return;
+      }
+      const pts = [];
+      const pCount = feat.points.length / 3;
+      for (let i = 0; i < pCount; i++) {
+        pts.push(new THREE.Vector3(feat.points[i * 3], feat.points[i * 3 + 1], feat.points[i * 3 + 2]));
+      }
+      if (feat.type === 'circle' && pts.length > 1) {
+        pts.push(pts[0].clone());
+      }
+      if (hoverEdgeMesh.geometry) hoverEdgeMesh.geometry.dispose();
+      hoverEdgeMesh.geometry = new THREE.BufferGeometry().setFromPoints(pts);
+      hoverEdgeMesh.visible = true;
+    }
+
+    function drawCircleRing(feat, colorHex = 0x38bdf8) {
+      if (!feat || !feat.points || feat.points.length === 0) return null;
+      const pts = [];
+      const pCount = feat.points.length / 3;
+      for (let i = 0; i < pCount; i++) {
+        pts.push(new THREE.Vector3(feat.points[i * 3], feat.points[i * 3 + 1], feat.points[i * 3 + 2]));
+      }
+      if (pts.length > 1) pts.push(pts[0].clone());
+      const geom = new THREE.BufferGeometry().setFromPoints(pts);
+      const mat = new THREE.LineBasicMaterial({ color: colorHex, linewidth: 2, depthTest: false });
+      const line = new THREE.Line(geom, mat);
+      line.renderOrder = 997;
+      line.name = 'measure_element';
+      measureGroup.add(line);
+      return line;
+    }
+
+    function drawPointPin(pt, colorHex = 0x38bdf8) {
+      const p = Array.isArray(pt) ? new THREE.Vector3(...pt) : pt.clone();
+      const geom = new THREE.SphereGeometry(1, 16, 16);
+      const mat = new THREE.MeshBasicMaterial({ color: colorHex, depthTest: false });
+      const pin = new THREE.Mesh(geom, mat);
+      pin.position.copy(p);
+      pin.renderOrder = 999;
+      pin.name = 'measure_element';
+      pin.userData = { isScreenScaled: true, screenPixelRadius: 7.5 };
+
+      const vFovRad = THREE.MathUtils.degToRad(camera.fov);
+      const dist = camera.position.distanceTo(p);
+      const worldPerPx = (2 * Math.tan(vFovRad / 2) * dist) / (window.innerHeight || 800);
+      const r = Math.max(worldPerPx * 7.5, 0.0001);
+      pin.scale.set(r, r, r);
+
+      measureGroup.add(pin);
+      return pin;
+    }
+
+    function drawCADDimensionLine(startPt, endPt, len, label) {
+      const vA = Array.isArray(startPt) ? new THREE.Vector3(...startPt) : startPt.clone();
+      const vB = Array.isArray(endPt) ? new THREE.Vector3(...endPt) : endPt.clone();
+      const lineDir = vB.clone().sub(vA);
+      const lineLen = lineDir.length();
+      if (lineLen < 0.001) return;
+      lineDir.normalize();
+
+      const camDir = camera.position.clone().sub(vA).normalize();
+      let normal = new THREE.Vector3().crossVectors(lineDir, camDir).normalize();
+      if (normal.lengthSq() < 0.1) normal = camera.up.clone().normalize();
+
+      const vFovRad = THREE.MathUtils.degToRad(camera.fov);
+      const distToCam = camera.position.distanceTo(vA);
+      const worldPerPx = (2 * Math.tan(vFovRad / 2) * distToCam) / (window.innerHeight || 800);
+
+      // Adaptive offset: balanced spacing around 24-45px on screen
+      const offsetDist = Math.max(worldPerPx * 24, Math.min(lineLen * 0.38, worldPerPx * 45));
+      const offsetVec = normal.clone().multiplyScalar(offsetDist);
+
+      const dA = vA.clone().add(offsetVec);
+      const dB = vB.clone().add(offsetVec);
+
+      const wA1 = vA.clone().add(offsetVec.clone().multiplyScalar(0.06));
+      const wA2 = dA.clone().add(offsetVec.clone().multiplyScalar(0.15));
+      const wB1 = vB.clone().add(offsetVec.clone().multiplyScalar(0.06));
+      const wB2 = dB.clone().add(offsetVec.clone().multiplyScalar(0.15));
+
+      const points = [
+        wA1, wA2,
+        wB1, wB2,
+        dA, dB
+      ];
+
+      const arrowLen = Math.min(lineLen * 0.25, worldPerPx * 14);
+      const arrowWidth = arrowLen * 0.38;
+      const perpArrow = normal.clone().multiplyScalar(arrowWidth);
+      const dirArrow = lineDir.clone().multiplyScalar(arrowLen);
+
+      points.push(dA, dA.clone().add(dirArrow).add(perpArrow));
+      points.push(dA, dA.clone().add(dirArrow).sub(perpArrow));
+      points.push(dB, dB.clone().sub(dirArrow).add(perpArrow));
+      points.push(dB, dB.clone().sub(dirArrow).sub(perpArrow));
+
+      const lineGeom = new THREE.BufferGeometry().setFromPoints(points);
+      const lineMat = new THREE.LineBasicMaterial({
+        color: 0x38bdf8,
+        linewidth: 2,
+        depthTest: false,
+        transparent: true,
+        opacity: 0.95
+      });
+      const dimLines = new THREE.LineSegments(lineGeom, lineMat);
+      dimLines.renderOrder = 998;
+      dimLines.name = 'measure_element';
+      measureGroup.add(dimLines);
+
+      const edgeGeom = new THREE.BufferGeometry().setFromPoints([vA, vB]);
+      const edgeMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 2, depthTest: false });
+      const edgeLine = new THREE.Line(edgeGeom, edgeMat);
+      edgeLine.renderOrder = 997;
+      edgeLine.name = 'measure_element';
+      measureGroup.add(edgeLine);
+
+      const mid = dA.clone().add(dB).multiplyScalar(0.5);
+      const textToDisplay = label || formatDim(len);
+      const sprite = createTextSprite(textToDisplay);
+      sprite.position.copy(mid).add(offsetVec.clone().multiplyScalar(0.22));
+      sprite.renderOrder = 1000;
+      sprite.name = 'measure_element';
+      measureGroup.add(sprite);
+    }
+
+    function drawCADCircleAnnotation(centerPt, radius, diameter) {
+      const c = Array.isArray(centerPt) ? new THREE.Vector3(...centerPt) : centerPt.clone();
+      const crossSize = Math.max(radius * 1.2, 0.5);
+
+      const points = [
+        c.clone().add(new THREE.Vector3(-crossSize, 0, 0)), c.clone().add(new THREE.Vector3(crossSize, 0, 0)),
+        c.clone().add(new THREE.Vector3(0, -crossSize, 0)), c.clone().add(new THREE.Vector3(0, crossSize, 0))
+      ];
+
+      const vFovRad = THREE.MathUtils.degToRad(camera.fov);
+      const dist = camera.position.distanceTo(c);
+      const worldPerPx = (2 * Math.tan(vFovRad / 2) * dist) / (window.innerHeight || 800);
+
+      const leaderOffset = camera.up.clone().add(new THREE.Vector3(1, 0, 0)).normalize().multiplyScalar(Math.max(radius * 1.4, worldPerPx * 22));
+      const leaderEnd = c.clone().add(leaderOffset);
+      const kneeOffset = new THREE.Vector3(worldPerPx * 26, 0, 0);
+      const leaderKnee = leaderEnd.clone().add(kneeOffset);
+
+      points.push(c, leaderEnd);
+      points.push(leaderEnd, leaderKnee);
+
+      const geom = new THREE.BufferGeometry().setFromPoints(points);
+      const mat = new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 2, depthTest: false });
+      const leaderLine = new THREE.LineSegments(geom, mat);
+      leaderLine.renderOrder = 998;
+      leaderLine.name = 'measure_element';
+      measureGroup.add(leaderLine);
+
+      const sprite = createTextSprite(formatCircleDim(diameter, radius));
+      sprite.position.copy(leaderKnee).add(new THREE.Vector3(0, worldPerPx * 12, 0));
+      sprite.renderOrder = 1000;
+      sprite.name = 'measure_element';
+      measureGroup.add(sprite);
+    }
+
+    function getEntityOriginPoint(entity) {
+      if (!entity) return null;
+      if (entity.type === 'point' && entity.point) return entity.point.clone();
+      if (entity.type === 'line' && entity.feature) {
+        return new THREE.Vector3(...entity.feature.start).add(new THREE.Vector3(...entity.feature.end)).multiplyScalar(0.5);
+      }
+      if (entity.type === 'circle' && entity.feature) {
+        return new THREE.Vector3(...entity.feature.center);
+      }
+      return entity.point ? entity.point.clone() : null;
+    }
+
+    function updateRubberband(p1, currentPt) {
+      removeRubberband();
+      const geom = new THREE.BufferGeometry().setFromPoints([p1, currentPt]);
+      const mat = new THREE.LineDashedMaterial({
+        color: 0xe06c35,
+        dashSize: Math.max(currentModelDistance * 0.02, 1),
+        gapSize: Math.max(currentModelDistance * 0.015, 0.7),
+        depthTest: false
+      });
+      rubberbandLine = new THREE.Line(geom, mat);
+      rubberbandLine.computeLineDistances();
+      rubberbandLine.renderOrder = 996;
+      rubberbandLine.name = 'rubberband';
+      measureGroup.add(rubberbandLine);
+    }
+
+    function removeRubberband() {
+      if (rubberbandLine) {
+        measureGroup.remove(rubberbandLine);
+        if (rubberbandLine.geometry) rubberbandLine.geometry.dispose();
+        if (rubberbandLine.material) rubberbandLine.material.dispose();
+        rubberbandLine = null;
+      }
+    }
+
+    function isSurfaceTarget(t) {
+      return t && (t.type === 'surface' || t.subType === 'surface');
+    }
+
+    function isPurePointTarget(t) {
+      return t && (t.type === 'point' || t.type === 'corner' || t.type === 'midpoint' || t.type === 'center') && t.subType !== 'surface';
+    }
+
+    function isPointTarget(t) {
+      return t && (t.type === 'point' || t.type === 'corner' || t.type === 'midpoint' || t.type === 'center' || t.subType === 'surface' || t.type === 'surface');
+    }
+
+    function handleUnifiedClick(snap) {
+      if (!snap) return;
+      const card = document.getElementById('measure-card');
+      const distEl = document.getElementById('measure-dist');
+      const deltasEl = document.getElementById('measure-deltas');
+      const extraEl = document.getElementById('measure-extra');
+      const angleEl = document.getElementById('measure-angle');
+      const titleEl = document.getElementById('measure-card-title');
+
+      if (card) card.style.display = 'flex';
+
+      if (selectedCadEntities.length === 0) {
+        clearMeasurement(false);
+        selectedCadEntities.push(snap);
+
+        if (snap.type === 'line') {
+          const feat = snap.feature;
+          drawCADDimensionLine(feat.start, feat.end, feat.length);
+          const dx = Math.abs(feat.end[0] - feat.start[0]);
+          const dy = Math.abs(feat.end[1] - feat.start[1]);
+          const dz = Math.abs(feat.end[2] - feat.start[2]);
+
+          if (titleEl) titleEl.innerText = '📏 Straight Edge';
+          if (distEl) distEl.innerText = formatDim(feat.length);
+          if (deltasEl) deltasEl.innerHTML = `<span style="color:#e05656">ΔX:</span> ${formatCoord(dx)} &nbsp;<span style="color:#3eb86f">ΔY:</span> ${formatCoord(dy)} &nbsp;<span style="color:#4a9eed">ΔZ:</span> ${formatCoord(dz)}`;
+          if (extraEl) {
+            extraEl.innerHTML = '<span style="color:#38bdf8; font-weight:600;">👉 Click 2nd Point, Edge, or Hole for dual dimension</span>';
+            extraEl.style.display = 'block';
+          }
+          if (angleEl) angleEl.style.display = 'none';
+          currentMeasuredValue = formatDim(feat.length);
+        } else if (snap.type === 'circle') {
+          const feat = snap.feature;
+          drawCADCircleAnnotation(feat.center, feat.radius, feat.diameter);
+          drawCircleRing(feat);
+
+          if (titleEl) titleEl.innerText = '⭕ Circular Hole / Arc';
+          if (distEl) distEl.innerText = `Ø ${formatDim(feat.diameter)}`;
+          if (deltasEl) deltasEl.innerHTML = `Radius (R): <strong>${formatDim(feat.radius)}</strong>`;
+          if (extraEl) {
+            extraEl.innerHTML = `Center: (${formatCoord(feat.center[0])}, ${formatCoord(feat.center[1])}, ${formatCoord(feat.center[2])})<br><span style="color:#38bdf8; font-weight:600;">👉 Click 2nd Point, Edge, or Hole for dual dimension</span>`;
+            extraEl.style.display = 'block';
+          }
+          if (angleEl) angleEl.style.display = 'none';
+          currentMeasuredValue = `Ø ${formatDim(feat.diameter)} (R ${formatDim(feat.radius)})`;
+        } else if (isPointTarget(snap) || isSurfaceTarget(snap)) {
+          drawPointPin(snap.point, 0x38bdf8);
+
+          if (isSurfaceTarget(snap)) {
+            const n = snap.normal || new THREE.Vector3(0, 1, 0);
+            let orient = '';
+            if (Math.abs(n.z) > 0.85) orient = n.z > 0 ? 'Top (+Z)' : 'Bottom (-Z)';
+            else if (Math.abs(n.y) > 0.85) orient = n.y > 0 ? 'Front (+Y)' : 'Back (-Y)';
+            else if (Math.abs(n.x) > 0.85) orient = n.x > 0 ? 'Right (+X)' : 'Left (-X)';
+            else orient = `[${n.x.toFixed(2)}, ${n.y.toFixed(2)}, ${n.z.toFixed(2)}]`;
+
+            const areaVal = snap.areaMm2 || 0;
+            const areaStr = areaVal > 0.01 ? 
+              (currentUnit === 'mm' ? 
+                `${areaVal.toFixed(1)} mm² (${(areaVal / 100).toFixed(2)} cm²)` : 
+                `${(areaVal / 645.16).toFixed(3)} in²`) : 'Solid Face';
+
+            // Add prominent 3D text sprite directly above the face point
+            const faceBadgeText = areaVal > 0.01 ? 
+              (currentUnit === 'mm' ? `Area: ${areaVal.toFixed(1)} mm²` : `Area: ${(areaVal / 645.16).toFixed(2)} in²`) : 
+              `Face (${orient})`;
+            const faceSprite = createTextSprite(faceBadgeText);
+            const vFovRad = THREE.MathUtils.degToRad(camera.fov);
+            const distToCam = camera.position.distanceTo(snap.point);
+            const worldPerPx = (2 * Math.tan(vFovRad / 2) * distToCam) / (window.innerHeight || 800);
+            faceSprite.position.copy(snap.point).add(n.clone().multiplyScalar(worldPerPx * 26));
+            faceSprite.renderOrder = 1000;
+            faceSprite.name = 'measure_element';
+            measureGroup.add(faceSprite);
+
+            if (titleEl) titleEl.innerText = '🟦 Planar Face Selected';
+            if (distEl) distEl.innerText = areaVal > 0.01 ? `Area: ${areaStr}` : `Planar Surface`;
+            if (deltasEl) deltasEl.innerHTML = `<span style="color:#38bdf8">Orientation:</span> <strong>${orient}</strong> &nbsp;|&nbsp; <span style="color:#94a3b8">Center: (${formatCoord(snap.point.x)}, ${formatCoord(snap.point.y)}, ${formatCoord(snap.point.z)})</span>`;
+            if (extraEl) {
+              extraEl.innerHTML = '<span style="color:#38bdf8; font-weight:600;">👉 Select 2nd entity (Point, Edge, Hole, or Face) to measure distance or angle.</span>';
+              extraEl.style.display = 'block';
+            }
+            if (angleEl) angleEl.style.display = 'none';
+            currentMeasuredValue = `Face Area: ${areaStr} (Orientation: ${orient})`;
+          } else {
+            const sub = snap.subType === 'midpoint' ? 'Midpoint' : (snap.subType === 'center' ? 'Hole Center' : 'Point');
+            if (titleEl) titleEl.innerText = `📍 ${sub} 1 Selected`;
+            if (distEl) distEl.innerText = `(${formatCoord(snap.point.x)}, ${formatCoord(snap.point.y)}, ${formatCoord(snap.point.z)})`;
+            if (deltasEl) deltasEl.innerHTML = '<span style="color:#38bdf8; font-weight:600;">👉 Click 2nd Point, Edge, or Hole to measure distance</span>';
+            if (extraEl) extraEl.style.display = 'none';
+            if (angleEl) angleEl.style.display = 'none';
+            currentMeasuredValue = `(${formatCoord(snap.point.x)}, ${formatCoord(snap.point.y)}, ${formatCoord(snap.point.z)})`;
+          }
+        }
+      } else if (selectedCadEntities.length === 1) {
+        const e1 = selectedCadEntities[0];
+        const e2 = snap;
+
+        // Ignore clicking exact same point/feature
+        if (isPointTarget(e1) && isPointTarget(e2) && e1.point && e2.point && e1.point.distanceTo(e2.point) < 0.001) {
+          return;
+        }
+
+        clearMeasurement(false);
+
+        // Permutation: Surface + Surface
+        if (isSurfaceTarget(e1) && isSurfaceTarget(e2)) {
+          const n1 = e1.normal.clone().normalize();
+          const n2 = e2.normal.clone().normalize();
+          const dot = Math.abs(n1.dot(n2));
+
+          drawPointPin(e1.point, 0x38bdf8);
+          drawPointPin(e2.point, 0x34d399);
+
+          if (dot > 0.96) {
+            // Parallel faces: thickness / gap
+            const diff = e2.point.clone().sub(e1.point);
+            const gap = Math.abs(diff.dot(n1));
+            const proj2 = e2.point.clone().sub(n1.clone().multiplyScalar(diff.dot(n1)));
+            drawCADDimensionLine(e1.point, proj2, gap, `Gap: ${formatDim(gap)}`);
+
+            if (titleEl) titleEl.innerText = '📏 Parallel Faces Distance';
+            if (distEl) distEl.innerText = `Thickness / Gap: ${formatDim(gap)}`;
+            if (deltasEl) deltasEl.innerHTML = `Parallel Planes (Normal Match: ${(dot * 100).toFixed(1)}%)`;
+            if (extraEl) extraEl.style.display = 'none';
+            if (angleEl) angleEl.style.display = 'none';
+            currentMeasuredValue = `Thickness / Gap: ${formatDim(gap)}`;
+          } else {
+            // Non-parallel faces: angle
+            const clamped = Math.max(-1, Math.min(1, n1.dot(n2)));
+            const rad = Math.acos(clamped);
+            const deg = (rad * 180) / Math.PI;
+
+            // Draw 3D dimension line & badge for angle between face points
+            drawCADDimensionLine(e1.point, e2.point, 0, `∠ ${deg.toFixed(1)}°`);
+
+            if (titleEl) titleEl.innerText = '📐 Face-to-Face Angle';
+            if (distEl) distEl.innerText = `Angle: ${deg.toFixed(1)}° (${(180 - deg).toFixed(1)}° suppl)`;
+            if (deltasEl) deltasEl.innerHTML = `Normal 1: [${n1.x.toFixed(2)}, ${n1.y.toFixed(2)}, ${n1.z.toFixed(2)}]<br>Normal 2: [${n2.x.toFixed(2)}, ${n2.y.toFixed(2)}, ${n2.z.toFixed(2)}]`;
+            if (extraEl) extraEl.style.display = 'none';
+            if (angleEl) angleEl.style.display = 'none';
+            currentMeasuredValue = `Angle: ${deg.toFixed(1)}°`;
+          }
+        }
+        // Permutation: Surface + Point (or Point + Surface)
+        else if ((isSurfaceTarget(e1) && isPurePointTarget(e2)) || (isPurePointTarget(e1) && isSurfaceTarget(e2))) {
+          const sEnt = isSurfaceTarget(e1) ? e1 : e2;
+          const pEnt = isSurfaceTarget(e1) ? e2 : e1;
+          const pt = pEnt.point;
+          const sPt = sEnt.point;
+          const n = sEnt.normal.clone().normalize();
+          
+          const diff = pt.clone().sub(sPt);
+          const perpDist = Math.abs(diff.dot(n));
+          const euclidDist = pt.distanceTo(sPt);
+          const projPt = pt.clone().sub(n.clone().multiplyScalar(diff.dot(n)));
+
+          drawPointPin(sPt, 0x38bdf8);
+          drawPointPin(pt, 0x34d399);
+          drawPointPin(projPt, 0xf59e0b);
+          drawCADDimensionLine(projPt, pt, perpDist, `Normal: ${formatDim(perpDist)}`);
+
+          if (titleEl) titleEl.innerText = '📐 Point to Face Measurement';
+          if (distEl) distEl.innerText = `Perpendicular: ${formatDim(perpDist)}`;
+          if (deltasEl) deltasEl.innerHTML = `Direct 3D Distance: <strong>${formatDim(euclidDist)}</strong>`;
+          if (extraEl) {
+            extraEl.innerHTML = `Surface Normal: [${n.x.toFixed(2)}, ${n.y.toFixed(2)}, ${n.z.toFixed(2)}]`;
+            extraEl.style.display = 'block';
+          }
+          if (angleEl) angleEl.style.display = 'none';
+          currentMeasuredValue = `Perpendicular: ${formatDim(perpDist)} (Direct: ${formatDim(euclidDist)})`;
+        }
+        // Permutation: Surface + Line (or Line + Surface)
+        else if ((isSurfaceTarget(e1) && e2.type === 'line') || (e1.type === 'line' && isSurfaceTarget(e2))) {
+          const sEnt = isSurfaceTarget(e1) ? e1 : e2;
+          const lEnt = isSurfaceTarget(e1) ? e2 : e1;
+          const sPt = sEnt.point;
+          const n = sEnt.normal.clone().normalize();
+          const start = new THREE.Vector3(...lEnt.feature.start);
+          const end = new THREE.Vector3(...lEnt.feature.end);
+          const midEdge = start.clone().add(end).multiplyScalar(0.5);
+          
+          const diff = midEdge.clone().sub(sPt);
+          const perpDist = Math.abs(diff.dot(n));
+          const projEdgeMid = midEdge.clone().sub(n.clone().multiplyScalar(diff.dot(n)));
+
+          drawPointPin(sPt, 0x38bdf8);
+          drawPointPin(midEdge, 0x34d399);
+          drawCADDimensionLine(projEdgeMid, midEdge, perpDist, `Normal: ${formatDim(perpDist)}`);
+
+          if (titleEl) titleEl.innerText = '📏 Edge to Face Distance';
+          if (distEl) distEl.innerText = `Distance: ${formatDim(perpDist)}`;
+          if (deltasEl) deltasEl.innerHTML = `Perpendicular distance from Edge to Planar Face`;
+          if (extraEl) extraEl.style.display = 'none';
+          if (angleEl) angleEl.style.display = 'none';
+          currentMeasuredValue = `Edge to Face: ${formatDim(perpDist)}`;
+        }
+        // Permutation: Surface + Circle (or Circle + Surface)
+        else if ((isSurfaceTarget(e1) && e2.type === 'circle') || (e1.type === 'circle' && isSurfaceTarget(e2))) {
+          const sEnt = isSurfaceTarget(e1) ? e1 : e2;
+          const cEnt = isSurfaceTarget(e1) ? e2 : e1;
+          const sPt = sEnt.point;
+          const n = sEnt.normal.clone().normalize();
+          const c = new THREE.Vector3(...cEnt.feature.center);
+          
+          const diff = c.clone().sub(sPt);
+          const perpDist = Math.abs(diff.dot(n));
+          const projCenter = c.clone().sub(n.clone().multiplyScalar(diff.dot(n)));
+
+          drawPointPin(sPt, 0x38bdf8);
+          drawCircleRing(cEnt.feature);
+          drawCADDimensionLine(projCenter, c, perpDist, `Normal: ${formatDim(perpDist)}`);
+
+          if (titleEl) titleEl.innerText = '📏 Hole to Face Distance';
+          if (distEl) distEl.innerText = `Distance: ${formatDim(perpDist)}`;
+          if (deltasEl) deltasEl.innerHTML = `Perpendicular distance from Hole (Ø ${formatDim(cEnt.feature.diameter)}) to Face`;
+          if (extraEl) extraEl.style.display = 'none';
+          if (angleEl) angleEl.style.display = 'none';
+          currentMeasuredValue = `Hole to Face: ${formatDim(perpDist)}`;
+        }
+        // Permutation 1: Pure Point + Pure Point
+        else if (isPurePointTarget(e1) && isPurePointTarget(e2)) {
+          const p1 = e1.point;
+          const p2 = e2.point;
+          const dist = p1.distanceTo(p2);
+          const dx = Math.abs(p2.x - p1.x);
+          const dy = Math.abs(p2.y - p1.y);
+          const dz = Math.abs(p2.z - p1.z);
+
+          drawPointPin(p1, 0x38bdf8);
+          drawPointPin(p2, 0x34d399);
+          drawCADDimensionLine(p1, p2, dist);
+
+          if (titleEl) titleEl.innerText = '📐 Point-to-Point Distance';
+          if (distEl) distEl.innerText = formatDim(dist);
+          if (deltasEl) deltasEl.innerHTML = `<span style="color:#e05656">ΔX:</span> ${formatCoord(dx)} &nbsp;<span style="color:#3eb86f">ΔY:</span> ${formatCoord(dy)} &nbsp;<span style="color:#4a9eed">ΔZ:</span> ${formatCoord(dz)}`;
+          if (extraEl) extraEl.style.display = 'none';
+          if (angleEl) angleEl.style.display = 'none';
+          currentMeasuredValue = `${formatDim(dist)} (ΔX: ${formatCoord(dx)}, ΔY: ${formatCoord(dy)}, ΔZ: ${formatCoord(dz)})`;
+        }
+        // Permutation 2: Pure Point + Line (or Line + Pure Point)
+        else if ((isPurePointTarget(e1) && e2.type === 'line') || (e1.type === 'line' && isPurePointTarget(e2))) {
+          const pEnt = isPurePointTarget(e1) ? e1 : e2;
+          const lEnt = e1.type === 'line' ? e1 : e2;
+          const pt = pEnt.point;
+          const s = new THREE.Vector3(...lEnt.feature.start);
+          const dir = new THREE.Vector3(...lEnt.feature.end).sub(s).normalize();
+          const v = pt.clone().sub(s);
+          const proj = s.clone().add(dir.clone().multiplyScalar(v.dot(dir)));
+          const distToLine = pt.distanceTo(proj);
+
+          drawPointPin(pt, 0x38bdf8);
+          const geom = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(...lEnt.feature.start),
+            new THREE.Vector3(...lEnt.feature.end)
+          ]);
+          const lineMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 2, depthTest: false });
+          const lineMesh = new THREE.Line(geom, lineMat);
+          lineMesh.renderOrder = 997;
+          lineMesh.name = 'measure_element';
+          measureGroup.add(lineMesh);
+
+          drawCADDimensionLine(proj, pt, distToLine, `Dist: ${formatDim(distToLine)}`);
+
+          if (titleEl) titleEl.innerText = '📏 Point to Edge Distance';
+          if (distEl) distEl.innerText = formatDim(distToLine);
+          if (deltasEl) deltasEl.innerText = 'Perpendicular (Normal) distance from Point to Edge';
+          if (extraEl) extraEl.style.display = 'none';
+          if (angleEl) angleEl.style.display = 'none';
+          currentMeasuredValue = formatDim(distToLine);
+        }
+        // Permutation 3: Pure Point + Circle (or Circle + Pure Point)
+        else if ((isPurePointTarget(e1) && e2.type === 'circle') || (e1.type === 'circle' && isPurePointTarget(e2))) {
+          const pEnt = isPurePointTarget(e1) ? e1 : e2;
+          const cEnt = e1.type === 'circle' ? e1 : e2;
+          const pt = pEnt.point;
+          const c = new THREE.Vector3(...cEnt.feature.center);
+          const r = cEnt.feature.radius;
+          const cDist = pt.distanceTo(c);
+          const minDist = Math.max(0, cDist - r);
+          const maxDist = cDist + r;
+          drawPointPin(pt, 0x38bdf8);
+          drawCircleRing(cEnt.feature);
+          drawCADDimensionLine(pt, c, cDist, `Dist: ${formatDim(cDist)}`);
+
+          if (titleEl) titleEl.innerText = '⭕ Point to Hole Distance';
+          if (distEl) distEl.innerText = `${formatDim(cDist)} (Center)`;
+          if (deltasEl) deltasEl.innerHTML = `Min: <strong>${formatDim(minDist)}</strong> &nbsp;|&nbsp; Max: <strong>${formatDim(maxDist)}</strong>`;
+          if (extraEl) {
+            extraEl.innerText = `Hole Diameter: Ø ${formatDim(cEnt.feature.diameter)} (R ${formatDim(r)})`;
+            extraEl.style.display = 'block';
+          }
+          if (angleEl) angleEl.style.display = 'none';
+          currentMeasuredValue = `${formatDim(cDist)} (Min: ${formatDim(minDist)}, Max: ${formatDim(maxDist)})`;
+        }
+        // Permutation 4: Circle + Circle
+        else if (e1.type === 'circle' && e2.type === 'circle') {
+          const f1 = e1.feature;
+          const f2 = e2.feature;
+          const c1 = new THREE.Vector3(...f1.center);
+          const c2 = new THREE.Vector3(...f2.center);
+          const cDist = c1.distanceTo(c2);
+          const minDist = Math.max(0, cDist - f1.radius - f2.radius);
+          const maxDist = cDist + f1.radius + f2.radius;
+          const dx = Math.abs(c2.x - c1.x);
+          const dy = Math.abs(c2.y - c1.y);
+          const dz = Math.abs(c2.z - c1.z);
+
+          drawCircleRing(f1);
+          drawCircleRing(f2);
+          drawCADDimensionLine(c1, c2, cDist, `C-C: ${formatDim(cDist)}`);
+
+          if (titleEl) titleEl.innerText = '⭕ Center-to-Center Holes';
+          if (distEl) distEl.innerText = formatDim(cDist);
+          if (deltasEl) deltasEl.innerHTML = `Min: <strong>${formatDim(minDist)}</strong> &nbsp;|&nbsp; Max: <strong>${formatDim(maxDist)}</strong>`;
+          if (extraEl) {
+            extraEl.innerHTML = `<span style="color:#e05656">ΔX:</span> ${formatCoord(dx)} &nbsp;<span style="color:#3eb86f">ΔY:</span> ${formatCoord(dy)} &nbsp;<span style="color:#4a9eed">ΔZ:</span> ${formatCoord(dz)}`;
+            extraEl.style.display = 'block';
+          }
+          if (angleEl) angleEl.style.display = 'none';
+          currentMeasuredValue = `${formatDim(cDist)} (C-C, Min: ${formatDim(minDist)}, Max: ${formatDim(maxDist)})`;
+        }
+        // Permutation 5: Line + Line
+        else if (e1.type === 'line' && e2.type === 'line') {
+          const f1 = e1.feature;
+          const f2 = e2.feature;
+          const d1 = new THREE.Vector3(f1.end[0] - f1.start[0], f1.end[1] - f1.start[1], f1.end[2] - f1.start[2]).normalize();
+          const d2 = new THREE.Vector3(f2.end[0] - f2.start[0], f2.end[1] - f2.start[1], f2.end[2] - f2.start[2]).normalize();
+          const dot = Math.abs(d1.dot(d2));
+
+          [f1, f2].forEach(lf => {
+            const geom = new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(...lf.start),
+              new THREE.Vector3(...lf.end)
+            ]);
+            const mat = new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 2, depthTest: false });
+            const line = new THREE.Line(geom, mat);
+            line.renderOrder = 997;
+            line.name = 'measure_element';
+            measureGroup.add(line);
+          });
+
+          if (dot > 0.98) {
+            const p1 = new THREE.Vector3(...f1.start);
+            const p2 = new THREE.Vector3(...f2.start);
+            const v = p2.clone().sub(p1);
+            const perp = v.clone().sub(d1.clone().multiplyScalar(v.dot(d1)));
+            const normalDist = perp.length();
+
+            const perpStart = p1.clone().add(d1.clone().multiplyScalar(v.dot(d1) * 0.5));
+            const perpEnd = perpStart.clone().add(perp);
+            drawCADDimensionLine(perpStart, perpEnd, normalDist, `Dist: ${formatDim(normalDist)}`);
+
+            if (titleEl) titleEl.innerText = '📏 Parallel Edges Distance';
+            if (distEl) distEl.innerText = formatDim(normalDist);
+            if (deltasEl) deltasEl.innerText = 'Perpendicular (Normal) distance between parallel edges';
+            if (extraEl) extraEl.style.display = 'none';
+            if (angleEl) angleEl.style.display = 'none';
+            currentMeasuredValue = formatDim(normalDist);
+          } else {
+            const angleRad = Math.acos(Math.min(1, Math.max(-1, d1.dot(d2))));
+            const angleDeg = angleRad * (180 / Math.PI);
+
+            const mid1 = new THREE.Vector3(...f1.start).add(new THREE.Vector3(...f1.end)).multiplyScalar(0.5);
+            const mid2 = new THREE.Vector3(...f2.start).add(new THREE.Vector3(...f2.end)).multiplyScalar(0.5);
+            drawCADDimensionLine(mid1, mid2, 0, `∠ ${angleDeg.toFixed(1)}°`);
+
+            if (titleEl) titleEl.innerText = '📐 Angle Between Edges';
+            if (distEl) distEl.innerText = `${angleDeg.toFixed(1)}°`;
+            if (deltasEl) deltasEl.innerText = `Supplementary Angle: ${(180 - angleDeg).toFixed(1)}°`;
+            if (extraEl) extraEl.style.display = 'none';
+            if (angleEl) angleEl.style.display = 'none';
+            currentMeasuredValue = `${angleDeg.toFixed(1)}°`;
+          }
+        }
+        // Permutation 6: Hole + Line (or Line + Hole)
+        else {
+          const circleF = e1.type === 'circle' ? e1.feature : e2.feature;
+          const lineF = e1.type === 'line' ? e1.feature : e2.feature;
+          const c = new THREE.Vector3(...circleF.center);
+          const s = new THREE.Vector3(...lineF.start);
+          const dir = new THREE.Vector3(...lineF.end).sub(s).normalize();
+          const v = c.clone().sub(s);
+          const proj = s.clone().add(dir.clone().multiplyScalar(v.dot(dir)));
+          const distToLine = c.distanceTo(proj);
+
+          drawCircleRing(circleF);
+
+          const lineGeom = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(...lineF.start),
+            new THREE.Vector3(...lineF.end)
+          ]);
+          const lineMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 2, depthTest: false });
+          const lineMesh = new THREE.Line(lineGeom, lineMat);
+          lineMesh.renderOrder = 997;
+          lineMesh.name = 'measure_element';
+          measureGroup.add(lineMesh);
+
+          drawCADDimensionLine(proj, c, distToLine, `Dist: ${formatDim(distToLine)}`);
+
+          if (titleEl) titleEl.innerText = '📏 Hole Center to Edge';
+          if (distEl) distEl.innerText = formatDim(distToLine);
+          if (deltasEl) deltasEl.innerText = `Hole (Ø ${formatDim(circleF.diameter)}) to Edge`;
+          if (extraEl) extraEl.style.display = 'none';
+          if (angleEl) angleEl.style.display = 'none';
+          currentMeasuredValue = formatDim(distToLine);
+        }
+
+        selectedCadEntities = [];
+      }
+    }
+
+    function clearMeasurement(closeCard = true) {
+      measurePoints = [];
+      selectedFeatures = [];
+      selectedCadEntities = [];
+      currentHoverFeature = null;
+      currentHoverTarget = null;
+      currentMeasuredValue = '';
+      if (hoverEdgeMesh) hoverEdgeMesh.visible = false;
+      const tooltip = document.getElementById('measure-tooltip');
+      if (tooltip) tooltip.style.display = 'none';
+
+      removeRubberband();
+      if (snapIndicator) snapIndicator.visible = false;
+
+      const toRemove = [];
+      measureGroup.children.forEach(child => {
+        if (child !== snapIndicator && child !== hoverEdgeMesh) toRemove.push(child);
+      });
+      toRemove.forEach(child => {
+        measureGroup.remove(child);
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          if (child.material.map) child.material.map.dispose();
+          child.material.dispose();
+        }
+      });
+
+      const card = document.getElementById('measure-card');
+      const distEl = document.getElementById('measure-dist');
+      const deltasEl = document.getElementById('measure-deltas');
+      const extraEl = document.getElementById('measure-extra');
+      const angleEl = document.getElementById('measure-angle');
+      const titleEl = document.getElementById('measure-card-title');
+
+      if (titleEl) titleEl.innerText = '📐 Smart Measure';
+      if (extraEl) extraEl.style.display = 'none';
+
+      if (closeCard) {
+        if (card) card.style.display = 'none';
+      } else {
+        if (distEl) distEl.innerText = 'Select Point, Edge, or Hole';
+        if (deltasEl) deltasEl.innerText = 'Hover over corners, midpoints, edges, or holes';
+        if (angleEl) angleEl.style.display = 'none';
+      }
+    }
+
+    function toggleMeasureMode(enable) {
+      isMeasureActive = (enable !== undefined) ? enable : !isMeasureActive;
+      const btn = document.getElementById('btn-measure');
+      const card = document.getElementById('measure-card');
+      const container = document.getElementById('canvas-container');
+      const tooltip = document.getElementById('measure-tooltip');
+
+      if (isMeasureActive) {
+        if (btn) btn.classList.add('active');
+        if (card) card.style.display = 'flex';
+        if (container) container.style.cursor = 'crosshair';
+        clearMeasurement(false);
+      } else {
+        if (btn) btn.classList.remove('active');
+        if (card) card.style.display = 'none';
+        if (tooltip) tooltip.style.display = 'none';
+        if (container) container.style.cursor = 'default';
+        clearMeasurement(true);
+      }
+    }
+
+    // 4. Toolbar Controls & Interactive Features
+    function setupToolbar() {
+      // Toggle SolidWorks Shaded Edges
+      const btnEdges = document.getElementById('btn-edges');
+      if (btnEdges) {
+        btnEdges.addEventListener('click', () => {
+          isEdgesActive = !isEdgesActive;
+          btnEdges.classList.toggle('active', isEdgesActive);
+          modelGroup.traverse((child) => {
+            if (child.name === 'solidworks_edges') {
+              child.visible = isEdgesActive && !isWireframeActive;
+            }
+          });
+        });
+      }
+
+      // Wireframe Mode
+      const btnWireframe = document.getElementById('btn-wireframe');
+      btnWireframe.addEventListener('click', () => {
+        isWireframeActive = !isWireframeActive;
+        btnWireframe.classList.toggle('active', isWireframeActive);
+        modelGroup.traverse((child) => {
+          if (child.isMesh && child.material) {
+            child.material.wireframe = isWireframeActive;
+          }
+          if (child.name === 'solidworks_edges') {
+            child.visible = isEdgesActive && !isWireframeActive;
+          }
+        });
+      });
+
+      // Auto-Rotation
+      const btnAutoRotate = document.getElementById('btn-autorotate');
+      btnAutoRotate.addEventListener('click', () => {
+        isAutoRotateActive = !isAutoRotateActive;
+        btnAutoRotate.classList.toggle('active', isAutoRotateActive);
+      });
+
+      function setBtnLabel(id, text) {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        const span = btn.querySelector('span');
+        if (span) span.innerText = text;
+        else btn.innerText = text;
+      }
+
+      // Standard CAD View Orientations & Flip to Opposite View
+      const viewStates = {
+        'btn-view-iso': 0,   // 0: Iso (Front), 1: Iso 2 (Back)
+        'btn-view-top': 0,   // 0: Top, 1: Bottom
+        'btn-view-front': 0, // 0: Front, 1: Back
+        'btn-view-right': 0  // 0: Right, 1: Left
+      };
+
+      const viewActions = {
+        'btn-view-iso': (flip) => {
+          if (flip) viewStates['btn-view-iso'] = 1 - viewStates['btn-view-iso'];
+          const isIso2 = viewStates['btn-view-iso'] === 1;
+          const factorX = isIso2 ? -0.7 : 0.7;
+          const factorZ = isIso2 ? -0.7 : 0.7;
+          const targetPos = new THREE.Vector3(
+            currentModelCenter.x + currentModelDistance * factorX,
+            currentModelCenter.y + currentModelDistance * 0.6,
+            currentModelCenter.z + currentModelDistance * factorZ
+          );
+          setBtnLabel('btn-view-iso', isIso2 ? 'Iso 2' : 'Iso');
+          tweenCamera(targetPos, currentModelCenter, new THREE.Vector3(0, 1, 0));
+        },
+        'btn-view-top': (flip) => {
+          if (flip) viewStates['btn-view-top'] = 1 - viewStates['btn-view-top'];
+          const isBottom = viewStates['btn-view-top'] === 1;
+          const factorY = isBottom ? -1.25 : 1.25;
+          const targetPos = new THREE.Vector3(
+            currentModelCenter.x,
+            currentModelCenter.y + currentModelDistance * factorY,
+            currentModelCenter.z
+          );
+          const upVec = isBottom ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 0, -1);
+          setBtnLabel('btn-view-top', isBottom ? 'Btm' : 'Top');
+          tweenCamera(targetPos, currentModelCenter, upVec);
+        },
+        'btn-view-front': (flip) => {
+          if (flip) viewStates['btn-view-front'] = 1 - viewStates['btn-view-front'];
+          const isBack = viewStates['btn-view-front'] === 1;
+          const factorZ = isBack ? -1.25 : 1.25;
+          const targetPos = new THREE.Vector3(
+            currentModelCenter.x,
+            currentModelCenter.y,
+            currentModelCenter.z + currentModelDistance * factorZ
+          );
+          setBtnLabel('btn-view-front', isBack ? 'Back' : 'Front');
+          tweenCamera(targetPos, currentModelCenter, new THREE.Vector3(0, 1, 0));
+        },
+        'btn-view-right': (flip) => {
+          if (flip) viewStates['btn-view-right'] = 1 - viewStates['btn-view-right'];
+          const isLeft = viewStates['btn-view-right'] === 1;
+          const factorX = isLeft ? -1.25 : 1.25;
+          const targetPos = new THREE.Vector3(
+            currentModelCenter.x + currentModelDistance * factorX,
+            currentModelCenter.y,
+            currentModelCenter.z
+          );
+          setBtnLabel('btn-view-right', isLeft ? 'Left' : 'Right');
+          tweenCamera(targetPos, currentModelCenter, new THREE.Vector3(0, 1, 0));
+        }
+      };
+
+      Object.keys(viewActions).forEach((btnId) => {
+        const btn = document.getElementById(btnId);
+        if (btn) {
+          btn.addEventListener('click', () => {
+            const isAlreadyActive = btn.classList.contains('active');
+            if (!isAlreadyActive) {
+              // Switched to a new view button: deactivate others, reset other button labels
+              Object.keys(viewActions).forEach(id => {
+                const b = document.getElementById(id);
+                if (b) {
+                  b.classList.remove('active');
+                  viewStates[id] = 0;
+                }
+              });
+              setBtnLabel('btn-view-top', 'Top');
+              setBtnLabel('btn-view-front', 'Front');
+              setBtnLabel('btn-view-right', 'Right');
+              setBtnLabel('btn-view-iso', 'Iso');
+
+              btn.classList.add('active');
+              viewActions[btnId](false);
+            } else {
+              // Clicked the same active button again: toggle opposite view!
+              viewActions[btnId](true);
+            }
+          });
+        }
+      });
+
+      // Reset View
+      const btnReset = document.getElementById('btn-reset');
+      btnReset.addEventListener('click', () => {
+        if (initialCameraState.position.lengthSq() > 0) {
+          tweenCamera(initialCameraState.position, initialCameraState.target, new THREE.Vector3(0, 1, 0));
+          Object.keys(viewActions).forEach(id => {
+            const b = document.getElementById(id);
+            if (b) {
+              b.classList.remove('active');
+              viewStates[id] = 0;
+            }
+          });
+          setBtnLabel('btn-view-top', 'Top');
+          setBtnLabel('btn-view-front', 'Front');
+          setBtnLabel('btn-view-right', 'Right');
+          const bIso = document.getElementById('btn-view-iso');
+          if (bIso) {
+            setBtnLabel('btn-view-iso', 'Iso');
+            bIso.classList.add('active');
+          }
+        }
+      });
+
+      // Clear Cache
+      const btnClearCache = document.getElementById('btn-clearcache');
+      const clearText = document.getElementById('clearcache-text');
+      if (btnClearCache) {
+        btnClearCache.addEventListener('click', async () => {
+          const success = await clearAllCache();
+          if (success) {
+            if (clearText) clearText.innerText = 'Cleared!';
+            btnClearCache.classList.add('active');
+            setTimeout(() => {
+              if (clearText) clearText.innerText = 'Cache';
+              btnClearCache.classList.remove('active');
+            }, 1800);
+          }
+        });
+      }
+
+      // Cross-Section Cut View Controls
+      const btnSection = document.getElementById('btn-section');
+      if (btnSection) {
+        btnSection.addEventListener('click', () => toggleSectionView());
+      }
+
+      const secSlider = document.getElementById('sec-slider');
+      if (secSlider) {
+        secSlider.addEventListener('input', () => updateSectionPlane());
+      }
+
+      ['x', 'y', 'z'].forEach(axis => {
+        const btnAxis = document.getElementById(`btn-sec-${axis}`);
+        if (btnAxis) {
+          btnAxis.addEventListener('click', () => {
+            sectionAxis = axis;
+            ['x', 'y', 'z'].forEach(a => {
+              const b = document.getElementById(`btn-sec-${a}`);
+              if (b) b.classList.remove('active');
+            });
+            btnAxis.classList.add('active');
+            updateSectionPlane();
+          });
+        }
+      });
+
+      const btnFlip = document.getElementById('btn-sec-flip');
+      if (btnFlip) {
+        btnFlip.addEventListener('click', () => {
+          sectionFlipped = !sectionFlipped;
+          btnFlip.classList.toggle('active', sectionFlipped);
+          updateSectionPlane();
+        });
+      }
+
+      // Smart Measurement Controls
+      const btnMeasure = document.getElementById('btn-measure');
+      if (btnMeasure) {
+        btnMeasure.addEventListener('click', () => toggleMeasureMode());
+      }
+
+      const btnClearMeasure = document.getElementById('btn-clear-measure');
+      if (btnClearMeasure) {
+        btnClearMeasure.addEventListener('click', () => clearMeasurement(false));
+      }
+
+      const btnCopyMeasure = document.getElementById('btn-copy-measure');
+      if (btnCopyMeasure) {
+        btnCopyMeasure.addEventListener('click', () => {
+          if (!currentMeasuredValue) return;
+          navigator.clipboard.writeText(currentMeasuredValue).then(() => {
+            const copySpan = document.getElementById('copy-text');
+            if (copySpan) {
+              const orig = copySpan.innerText;
+              copySpan.innerText = 'Copied! ✓';
+              btnCopyMeasure.style.color = '#38bdf8';
+              setTimeout(() => {
+                copySpan.innerText = orig;
+                btnCopyMeasure.style.color = '';
+              }, 1500);
+            }
+          }).catch(err => {
+            console.warn('Clipboard write failed:', err);
+          });
+        });
+      }
+
+      // Physical Properties Modal
+      const btnProps = document.getElementById('btn-props');
+      if (btnProps) {
+        btnProps.addEventListener('click', () => togglePropsModal());
+      }
+      const btnCloseProps = document.getElementById('btn-close-props');
+      if (btnCloseProps) {
+        btnCloseProps.addEventListener('click', () => togglePropsModal(false));
+      }
+
+      // Units Toggle (mm / in)
+      const btnUnits = document.getElementById('btn-units');
+      if (btnUnits) {
+        btnUnits.addEventListener('click', () => toggleUnits());
+      }
+
+      // CAD Assembly Tree Controls
+      const btnTree = document.getElementById('btn-tree');
+      if (btnTree) {
+        btnTree.addEventListener('click', () => toggleTreePanel());
+      }
+      const btnCloseTree = document.getElementById('btn-close-tree');
+      if (btnCloseTree) {
+        btnCloseTree.addEventListener('click', () => toggleTreePanel(false));
+      }
+      const btnTreeShowAll = document.getElementById('btn-tree-showall');
+      if (btnTreeShowAll) {
+        btnTreeShowAll.addEventListener('click', () => {
+          modelBodies.forEach(b => setBodyVisibility(b.id, true));
+        });
+      }
+      const btnTreeSolidAll = document.getElementById('btn-tree-solidall');
+      if (btnTreeSolidAll) {
+        btnTreeSolidAll.addEventListener('click', () => {
+          modelBodies.forEach(b => setBodyGhostMode(b.id, false));
+        });
+      }
+      const btnTreeResetIso = document.getElementById('btn-tree-resetiso');
+      if (btnTreeResetIso) {
+        btnTreeResetIso.addEventListener('click', () => {
+          resetBodyIsolation();
+        });
+      }
+      const btnExitIso = document.getElementById('btn-exit-isolate');
+      if (btnExitIso) {
+        btnExitIso.addEventListener('click', () => {
+          resetBodyIsolation();
+        });
+      }
+
+      // Snapshot Viewport & Save File Dialog
+      const btnSnapshot = document.getElementById('btn-snapshot');
+      if (btnSnapshot) {
+        btnSnapshot.addEventListener('click', () => {
+          try {
+            renderer.render(scene, camera);
+            const dataUrl = renderer.domElement.toDataURL('image/png');
+
+            // Copy to clipboard for immediate pasting
+            renderer.domElement.toBlob(blob => {
+              if (blob && navigator.clipboard) {
+                navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).catch(() => {});
+              }
+            }, 'image/png');
+
+            const baseName = (pendingFileName || 'CAD_Model').replace(/\.[^/.]+$/, "");
+            const dateStr = new Date().toISOString().slice(0, 10);
+            const defaultName = `${baseName}_Snapshot_${dateStr}.png`;
+
+            if (window.chrome && window.chrome.webview) {
+              window.chrome.webview.postMessage({
+                type: 'SAVE_SNAPSHOT',
+                action: 'SAVE_SNAPSHOT',
+                data: dataUrl,
+                defaultName: defaultName
+              });
+            } else {
+              // Browser save dialog fallback
+              const a = document.createElement('a');
+              a.href = dataUrl;
+              a.download = defaultName;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              showToast('Snapshot downloaded: ' + defaultName);
+            }
+
+            const span = btnSnapshot.querySelector('span');
+            const orig = span ? span.innerText : 'Snap';
+            if (span) span.innerText = 'Saved! ✓';
+            btnSnapshot.classList.add('active');
+            setTimeout(() => {
+              if (span) span.innerText = orig;
+              btnSnapshot.classList.remove('active');
+            }, 1800);
+          } catch (e) {
+            console.warn('Snapshot error:', e);
+          }
+        });
+      }
+
+      function showToast(msg) {
+        const toast = document.getElementById('toast-notify');
+        if (!toast) return;
+        toast.innerText = msg;
+        toast.style.display = 'block';
+        toast.style.opacity = '1';
+        if (window._toastTimer) clearTimeout(window._toastTimer);
+        window._toastTimer = setTimeout(() => {
+          toast.style.display = 'none';
+        }, 3500);
+      }
+      window.showToast = showToast;
+
+      // Double-Click on 3D Model to Pivot & Center View
+      const container = document.getElementById('canvas-container');
+      const raycaster = new THREE.Raycaster();
+      const mouse = new THREE.Vector2();
+
+      // Pointer interactions for measurement & vertex snapping
+      let pointerDownPos = { x: 0, y: 0 };
+
+      container.addEventListener('pointerdown', (e) => {
+        pointerDownPos = { x: e.clientX, y: e.clientY };
+      });
+
+      container.addEventListener('pointermove', (e) => {
+        if (!isMeasureActive) return;
+
+        const tooltip = document.getElementById('measure-tooltip');
+        const snap = findSnapTarget(e);
+
+        if (snap) {
+          currentHoverTarget = snap;
+
+          if (snap.type === 'surface' || snap.subType === 'surface') {
+            if (hoverEdgeMesh) hoverEdgeMesh.visible = false;
+            snapIndicator.position.copy(snap.point);
+            snapIndicator.material.color.setHex(0x38bdf8);
+            snapIndicator.visible = true;
+
+            if (tooltip) {
+              const areaVal = snap.areaMm2 || 0;
+              const areaStr = areaVal > 0.01 ? (currentUnit === 'mm' ? `${areaVal.toFixed(1)} mm²` : `${(areaVal / 645.16).toFixed(2)} in²`) : '';
+              const areaText = areaStr ? `<span style="color:#f1f5f9; font-weight:700;">${areaStr}</span> &nbsp;|&nbsp; ` : '';
+              tooltip.innerHTML = `<span style="color:#38bdf8">Planar Face:</span> ${areaText}<span style="color:#94a3b8">(${formatCoord(snap.point.x)}, ${formatCoord(snap.point.y)}, ${formatCoord(snap.point.z)})</span>`;
+              tooltip.style.left = (e.clientX + 14) + 'px';
+              tooltip.style.top = (e.clientY + 14) + 'px';
+              tooltip.style.display = 'block';
+            }
+          } else if (snap.type === 'point') {
+            if (hoverEdgeMesh) hoverEdgeMesh.visible = false;
+            snapIndicator.position.copy(snap.point);
+            const colorHex = snap.subType === 'midpoint' ? 0x38bdf8 : (snap.subType === 'center' ? 0x10b981 : 0xf59e0b);
+            snapIndicator.material.color.setHex(colorHex);
+            snapIndicator.visible = true;
+
+            if (tooltip) {
+              const label = snap.subType === 'midpoint' ? '⟷ Midpoint' : (snap.subType === 'center' ? '⭕ Hole Center' : '📍 Point');
+              tooltip.innerHTML = `<span style="color:#38bdf8">${label}:</span> (${formatCoord(snap.point.x)}, ${formatCoord(snap.point.y)}, ${formatCoord(snap.point.z)})`;
+              tooltip.style.left = (e.clientX + 14) + 'px';
+              tooltip.style.top = (e.clientY + 14) + 'px';
+              tooltip.style.display = 'block';
+            }
+          } else if (snap.type === 'line') {
+            if (snapIndicator) snapIndicator.visible = false;
+            updateHoverEdgeGeometry(snap.feature);
+
+            if (tooltip) {
+              tooltip.innerHTML = `<span style="color:#38bdf8">Edge:</span> ${snap.feature.length.toFixed(2)} mm`;
+              tooltip.style.left = (e.clientX + 14) + 'px';
+              tooltip.style.top = (e.clientY + 14) + 'px';
+              tooltip.style.display = 'block';
+            }
+          } else if (snap.type === 'circle') {
+            if (snapIndicator) snapIndicator.visible = false;
+            updateHoverEdgeGeometry(snap.feature);
+
+            if (tooltip) {
+              tooltip.innerHTML = `<span style="color:#38bdf8">\u00D8:</span> ${snap.feature.diameter.toFixed(2)} mm &nbsp;<span style="color:#94a3b8">(R ${snap.feature.radius.toFixed(2)})</span>`;
+              tooltip.style.left = (e.clientX + 14) + 'px';
+              tooltip.style.top = (e.clientY + 14) + 'px';
+              tooltip.style.display = 'block';
+            }
+          }
+
+          if (selectedCadEntities.length === 1) {
+            const origPt = getEntityOriginPoint(selectedCadEntities[0]);
+            if (origPt) {
+              updateRubberband(origPt, snap.point);
+            }
+          }
+          return;
+        }
+
+        currentHoverTarget = null;
+        if (hoverEdgeMesh) hoverEdgeMesh.visible = false;
+        if (snapIndicator) snapIndicator.visible = false;
+        if (tooltip) tooltip.style.display = 'none';
+        removeRubberband();
+      });
+
+      container.addEventListener('pointerup', (e) => {
+        if (e.button !== 0) return; // Only primary left click
+        const dragDist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+        if (dragDist > 6) return; // Ignore drag/rotation gestures
+
+        if (!isMeasureActive) {
+          if (selectedFaceInfo) {
+            deselectFace();
+          }
+          if (selectedBodyId !== null) {
+            deselectBody();
+          }
+          return;
+        }
+
+        const snap = findSnapTarget(e);
+        if (!snap) return;
+
+        handleUnifiedClick(snap);
+      });
+
+      container.addEventListener('pointerleave', () => {
+        if (hoverEdgeMesh) hoverEdgeMesh.visible = false;
+        const tooltip = document.getElementById('measure-tooltip');
+        if (tooltip) tooltip.style.display = 'none';
+        if (snapIndicator) snapIndicator.visible = false;
+        removeRubberband();
+      });
+
+      container.addEventListener('dblclick', (e) => {
+        if (isMeasureActive) return;
+        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(modelGroup.children, true);
+
+        if (intersects && intersects.length > 0) {
+          const hit = intersects.find(i => i.object.isMesh && i.object.name !== 'solidworks_edges') || intersects[0];
+          const hitPoint = hit.point;
+          const delta = hitPoint.clone().sub(controls.target);
+          const newCamPos = camera.position.clone().add(delta);
+          tweenCamera(newCamPos, hitPoint, camera.up, 300);
+        }
+      });
+
+      // Keyboard Shortcuts for Instant CAD Inspection
+      window.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        const key = e.key.toLowerCase();
+        if (key === 'f') {
+          autoFitCamera();
+        } else if (key === '1') {
+          document.getElementById('btn-view-iso')?.click();
+        } else if (key === '2') {
+          document.getElementById('btn-view-top')?.click();
+        } else if (key === '3') {
+          document.getElementById('btn-view-front')?.click();
+        } else if (key === '4') {
+          document.getElementById('btn-view-right')?.click();
+        } else if (key === 'e') {
+          document.getElementById('btn-edges')?.click();
+        } else if (key === 'w') {
+          document.getElementById('btn-wireframe')?.click();
+        } else if (key === 'm') {
+          toggleMeasureMode();
+        } else if (key === 's') {
+          toggleSectionView();
+        } else if (key === 'p') {
+          togglePropsModal();
+        } else if (key === 't') {
+          toggleTreePanel();
+        } else if (key === 'u') {
+          toggleUnits();
+        } else if (key === 'escape') {
+          if (isolatedBodyId !== null) {
+            resetBodyIsolation();
+          }
+          deselectFace();
+          deselectBody();
+          if (faceHighlightMesh) {
+            scene.remove(faceHighlightMesh);
+            if (faceHighlightMesh.geometry) faceHighlightMesh.geometry.dispose();
+            if (faceHighlightMesh.material) faceHighlightMesh.material.dispose();
+            faceHighlightMesh = null;
+          }
+          if (isTreeActive) {
+            toggleTreePanel(false);
+          }
+          if (isPropsActive) {
+            togglePropsModal(false);
+          }
+          if (isMeasureActive) {
+            if (selectedCadEntities.length > 0) {
+              clearMeasurement(false);
+            } else {
+              toggleMeasureMode(false);
+            }
+          }
+          if (isSectionActive) {
+            toggleSectionView(false);
+          }
+        } else if (key === 'r') {
+          document.getElementById('btn-reset')?.click();
+        }
+      });
+
+      // Subtle Auto-Fade for Hints Bar after User Interacts
+      const hintsBar = document.getElementById('hints-bar');
+      let hintsFaded = false;
+      function onFirstUserAction() {
+        if (hintsFaded || !hintsBar) return;
+        hintsFaded = true;
+        setTimeout(() => {
+          hintsBar.style.transition = 'opacity 0.8s ease';
+          hintsBar.style.opacity = '0';
+          setTimeout(() => { if (hintsBar) hintsBar.style.display = 'none'; }, 800);
+        }, 4000);
+      }
+      window.addEventListener('mousedown', onFirstUserAction, { once: true });
+    }
+
+    function showError(msg) {
+      const container = document.getElementById('error-container');
+      container.innerText = msg;
+      container.style.display = 'block';
+      document.getElementById('spinner').style.display = 'none';
+      document.getElementById('status-text').innerText = 'Failed to load model';
+      notifyHost({ type: 'ERROR', message: msg });
+    }
+
+    function hideError() {
+      document.getElementById('error-container').style.display = 'none';
+    }
+
+    function notifyHost(obj) {
+      if (window.chrome && window.chrome.webview) {
+        window.chrome.webview.postMessage(obj);
+      }
+    }
+
+    // 5. Host IPC (WebView2 Message Handler)
+    if (window.chrome && window.chrome.webview) {
+      window.chrome.webview.addEventListener('message', function (e) {
+        const msg = e.data;
+        if (!msg) return;
+
+        if (msg.action === 'LOAD_URL') {
+          // Fetch raw binary directly from Virtual Host
+          fetch(msg.url)
+            .then(res => {
+              if (!res.ok) throw new Error('HTTP ' + res.status + ' loading CAD file');
+              return res.arrayBuffer();
+            })
+            .then(buffer => {
+              startTessellation(buffer, msg.fileName);
+            })
+            .catch(err => {
+              showError('Failed to fetch file stream: ' + err.message);
+            });
+        } else if (msg.action === 'CANCEL' || msg.action === 'DISPOSE') {
+          if (loadTimer) {
+            clearInterval(loadTimer);
+            loadTimer = null;
+          }
+          if (currentWorker) {
+            currentWorker.terminate();
+            if (msg.action === 'CANCEL') {
+              initWorker();
+            } else {
+              currentWorker = null;
+            }
+          }
+          clearModel();
+        } else if (msg.action === 'RESET_VIEW') {
+          document.getElementById('btn-reset').click();
+        } else if (msg.action === 'TOGGLE_WIREFRAME') {
+          document.getElementById('btn-wireframe').click();
+        }
+      });
+    }
+
+    // Initialize Viewport on page load
+    window.addEventListener('DOMContentLoaded', initViewport);
+  </script>
+</body>
+</html>
