@@ -35,11 +35,4 @@
     </None>
   </ItemGroup>
 
-  <ItemGroup>
-    <!-- Exclude release staging directory from root project compilation -->
-    <Compile Remove="StepViewer-Release-Staging\**" />
-    <None Remove="StepViewer-Release-Staging\**" />
-    <Page Remove="StepViewer-Release-Staging\**" />
-  </ItemGroup>
-
 </Project>

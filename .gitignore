@@ -28,9 +28,10 @@ docs/superpowers/
 Hosieni - Nar.stp
 2-1.STEP
 
-# IDE & OS Files
-.vs/
-.vscode/
-.idea/
-Thumbs.db
-Desktop.ini
+# Internal Project Memory & Local Documentation (persisted locally only)
+.agent/
+GLOSSARY.md
+docs/DEVELOPER_HANDBOOK.md
+docs/PROJECT_SPEC.md
+docs/PROJECT_STATUS.md
+
