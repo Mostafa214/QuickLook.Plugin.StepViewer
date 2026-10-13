@@ -1034,7 +1034,7 @@
     <div class="measure-sub" id="measure-deltas">Hover over edges or holes for auto-detect</div>
     <div class="measure-sub" id="measure-extra" style="display: none;"></div>
     <div class="measure-sub" id="measure-angle" style="display: none;">Angle: 0.0°</div>
-    <button id="btn-clear-measure">Clear [Esc]</button>
+    <button id="btn-clear-measure">Clear [C]</button>
   </div>
 
   <!-- Floating Physical Properties & Materials Modal -->
@@ -1106,7 +1106,7 @@
     <canvas id="triad-canvas" width="70" height="70"></canvas>
   </div>
 
-  <div class="hints" id="hints-bar">Scroll: Zoom | Middle: Rotate | Right: Pan | T: Tree | M: Measure | S: Section | P: Mass | U: Units | F: Fit</div>
+  <div class="hints" id="hints-bar">Scroll: Zoom | Middle: Rotate | Right: Pan / Cancel | T: Tree | M: Measure | C: Clear | S: Section | P: Mass | U: Units | F: Fit</div>
   <div id="error-container"></div>
 
   <!-- Scripts -->
@@ -4541,9 +4541,22 @@
       });
 
       container.addEventListener('pointerup', (e) => {
-        if (e.button !== 0) return; // Only primary left click
         const dragDist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
         if (dragDist > 6) return; // Ignore drag/rotation gestures
+
+        if (e.button === 2) { // 2nd mouse button (Right-Click) quick clear/cancel
+          if (isMeasureActive) {
+            clearMeasurement(false);
+            showToast('Measurement cleared');
+          } else if (selectedFaceInfo) {
+            deselectFace();
+          } else if (selectedBodyId !== null) {
+            deselectBody();
+          }
+          return;
+        }
+
+        if (e.button !== 0) return; // Only primary left click beyond here
 
         if (!isMeasureActive) {
           if (selectedFaceInfo) {
@@ -4614,6 +4627,21 @@
           toggleTreePanel();
         } else if (key === 'u') {
           toggleUnits();
+        } else if (key === 'c') {
+          if (isMeasureActive) {
+            if (selectedCadEntities.length > 0) {
+              clearMeasurement(false);
+              showToast('Measurement cleared');
+            } else {
+              toggleMeasureMode(false);
+            }
+          } else if (selectedFaceInfo) {
+            deselectFace();
+            showToast('Face deselected');
+          } else if (selectedBodyId !== null) {
+            deselectBody();
+            showToast('Body deselected');
+          }
         } else if (key === 'escape') {
           if (isolatedBodyId !== null) {
             resetBodyIsolation();

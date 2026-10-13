@@ -54,13 +54,19 @@
 
 ## 📥 Installation
 
-### Method 1: The QuickLook Way (Recommended)
-1. Download the latest `QuickLook.Plugin.StepViewer.qlplugin` from the **[Releases](https://github.com/Mostafa214/QuickLook.Plugin.StepViewer/releases)** page.
-2. In Windows Explorer, select the downloaded `.qlplugin` file and press **Spacebar**.
-3. QuickLook will automatically ask to install the plugin. Click **Install**.
-4. Restart QuickLook (or right-click the QuickLook icon in your system tray and select **Restart**).
+> [!TIP]
+> **No compilation or coding required!** If you are a mechanical engineer or CAD designer, simply download the ready-to-use `.qlplugin` file below and let QuickLook handle the installation in 3 seconds.
 
-### Method 2: Manual Installation
+### ⚡ Method 1: The One-Click QuickLook Way (Recommended)
+1. **[⬇️ Download the Latest `QuickLook.Plugin.StepViewer.qlplugin`](https://github.com/Mostafa214/QuickLook.Plugin.StepViewer/releases/latest/download/QuickLook.Plugin.StepViewer.qlplugin)** *(Always links directly to the latest release binary).*
+   *(Or browse all versions on the [Releases](https://github.com/Mostafa214/QuickLook.Plugin.StepViewer/releases) page).*
+2. Open your **Downloads** folder in Windows Explorer.
+3. Select `QuickLook.Plugin.StepViewer.qlplugin` and press **Spacebar**.
+4. QuickLook will pop up asking to install the plugin. Click **Install**.
+5. Restart QuickLook (right-click the QuickLook icon in the system tray and select **Restart**).
+6. Done! Select any `.step` or `.stp` file and tap **Spacebar** to inspect in 3D.
+
+### 📦 Method 2: Manual Installation
 1. Download `QuickLook.Plugin.StepViewer.qlplugin` and rename the extension from `.qlplugin` to `.zip`.
 2. Extract the folder into your QuickLook plugin directory:
    * **Installer / Portable version:**  
@@ -75,9 +81,10 @@
 
 | Shortcut / Input | Action |
 | :--- | :--- |
-| **Spacebar** | Open / Close QuickLook CAD preview |
+| **Spacebar** | Open / Close QuickLook CAD preview window |
 | **Left Click + Drag** | Orbit / Rotate model 3D camera |
 | **Right Click + Drag** | Pan 3D camera |
+| **`C`** or **Right-Click** | **Clear active measurement**, cancel tool, or deselect active body/face |
 | **Mouse Scroll Wheel** | Zoom In / Out |
 | **`M`** | Toggle Smart Measure Tool |
 | **`T`** | Toggle Model Tree / Multi-Body Assembly Panel |
@@ -86,11 +93,15 @@
 | **`I`** | Isolate currently active body (in Tree Panel) |
 | **`G`** | Toggle Ghost / X-Ray transparency on active body |
 | **`V`** | Toggle active body visibility |
-| **`Esc`** | Deselect active face / body, clear measurements, or close modal panels |
+| **`F`** | Auto-Fit camera to model bounding box |
+| **`E`** | Toggle mechanical edge line display |
+| **`W`** | Toggle wireframe mode |
+| **`S`** | Toggle interactive section clipping plane |
+| **`R`** | Reset camera to default isometric perspective |
 
 ---
 
-## 🛠️ Building from Source
+## 🛠️ Building from Source (For Developers Only)
 
 ### Prerequisites
 * Windows 10 / 11
