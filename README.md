@@ -11,7 +11,7 @@
 
 ---
 
-![QuickLook STEP Viewer Hero Preview](docs/images/preview_hero.png)
+![QuickLook Spacebar 3D CAD Preview Demo](docs/images/quicklook_spacebar_demo.gif)
 
 ---
 
@@ -22,6 +22,7 @@
   * **Intelligent Geometric Snapping:** Instantly snaps to vertices, edge midpoints, and circular hole centers.
   * **Direct Feature Dimensions:** Hover or click to read linear edge lengths, circular hole diameters ($\varnothing$) / radii ($R$), and planar face surface areas.
   * **3D Delta Distance:** Click any two points, edges, or hole centers to inspect Euclidean 3D distance and Cartesian $(\Delta X, \Delta Y, \Delta Z)$ components with automatic leader dimension lines.
+  * **Ergonomic Quick Clear:** Fast cancellation via **`C`** key or **Right-Click** without triggering QuickLook window close.
   * **Dual Units:** Live one-touch toggle between Metric ($\text{mm}, \text{mm}^2, \text{cm}^3$) and Imperial ($\text{in}, \text{in}^2, \text{in}^3$) via the `U` key.
 * 🌳 **Model Tree & Multi-Body Assembly Panel (`T` key):**
   * Explore individual solid bodies and underlying B-Rep topological faces.
@@ -42,13 +43,21 @@
 
 ## 📸 Visual Showcase
 
-| Multi-Body Assembly Tree (`T`) | Smart Snapping & Pitch Measurement (`M`) |
-| :---: | :---: |
-| ![Model Tree Preview](docs/images/preview_tree.png) | ![Smart Measure Preview](docs/images/preview_measure.png) |
+### ⚡ Instant Spacebar 3D Inspection
+Full-fidelity 60 FPS 3D viewport with SolidWorks-grade HLR mechanical crease lines, multi-body material shading, and Studio Graphite HUD.
+![QuickLook 3D CAD Preview Hero](docs/images/preview_hero.png)
 
-| Mass Properties & Material Density (`P`) | Metric & Imperial Live Toggle (`U`) |
-| :---: | :---: |
-| ![Mass Properties Preview](docs/images/preview_mass_props.png) | ![Hero Preview](docs/images/preview_hero.png) |
+### 🌳 Multi-Body Assembly Tree & Ghost X-Ray (`T`)
+Inspect complex assemblies with individual solid body hierarchies, real-time volume / face metrics, and Ghost X-Ray mode to see internal mating components.
+![Multi-Body Assembly Tree Preview](docs/images/preview_tree.png)
+
+### 📐 Smart CAD Snapping & Precision 3D Dimensions (`M`)
+Snaps dynamically to 3D vertices, circular hole centers, and linear edges with Cartesian $(\Delta X, \Delta Y, \Delta Z)$ delta readouts and ergonomic `C` quick-clear.
+![Smart Measure Preview](docs/images/preview_measure.png)
+
+### ⚖️ Physical Properties & Material Weight Calculator (`P`)
+Calculates real CAD volume, surface area, and live weight estimation across industry metals and engineering plastics (*Structural Steel*, *6061 Aluminum*, *Brass*, *Titanium*, *ABS*).
+![Physical Properties Preview](docs/images/preview_mass_props.png)
 
 ---
 
