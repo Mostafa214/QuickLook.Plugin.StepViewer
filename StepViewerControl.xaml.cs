@@ -512,6 +512,12 @@ namespace QuickLook.Plugin.StepViewer
                         });
                     }
                 }
+                else if (string.Equals(msgType, "PERFORM_AUTO_UPDATE", StringComparison.OrdinalIgnoreCase))
+                {
+                    string downloadUrl = ExtractJsonProp(json, "downloadUrl");
+                    string version = ExtractJsonProp(json, "version") ?? "latest";
+                    _ = ExecuteAutoUpdateAsync(downloadUrl, version);
+                }
             }
             catch (Exception ex)
             {
@@ -667,6 +673,161 @@ namespace QuickLook.Plugin.StepViewer
             {
                 Log($"Failed to launch browser for WebView2 download: {ex.Message}");
             }
+        }
+
+        private async System.Threading.Tasks.Task ExecuteAutoUpdateAsync(string downloadUrl, string version)
+        {
+            if (string.IsNullOrEmpty(downloadUrl))
+            {
+                NotifyUpdateError("No download URL provided for update.");
+                return;
+            }
+
+            try
+            {
+                string tempDir = Path.GetTempPath();
+                string safeVersion = Regex.Replace(version, @"[^\w\.\-]", "_");
+                string downloadPath = Path.Combine(tempDir, $"QuickLook_StepViewer_Update_{safeVersion}_{Guid.NewGuid():N}.qlplugin");
+                string currentPluginDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+
+                Log($"AutoUpdate: Starting download from {downloadUrl} to {downloadPath}");
+
+                using (var client = new System.Net.WebClient())
+                {
+                    client.Headers[System.Net.HttpRequestHeader.UserAgent] = "QuickLook-StepViewer-AutoUpdater";
+
+                    client.DownloadProgressChanged += (s, e) =>
+                    {
+                        int percent = e.ProgressPercentage;
+                        string status = $"در حال دانلود بسته بروزرسانی... {percent}%";
+                        Dispatcher.Invoke(() =>
+                        {
+                            _ = WebViewControl?.CoreWebView2?.ExecuteScriptAsync(
+                                $"if (typeof window.onUpdateDownloadProgress === 'function') window.onUpdateDownloadProgress({percent}, '{EscapeJsonString(status)}');"
+                            );
+                        });
+                    };
+
+                    await client.DownloadFileTaskAsync(new Uri(downloadUrl), downloadPath);
+                }
+
+                if (!File.Exists(downloadPath) || new FileInfo(downloadPath).Length < 1000)
+                {
+                    throw new IOException("بسته بروزرسانی دانلود شده نامعتبر یا خالی است.");
+                }
+
+                Dispatcher.Invoke(() =>
+                {
+                    _ = WebViewControl?.CoreWebView2?.ExecuteScriptAsync(
+                        "if (typeof window.onUpdateDownloadProgress === 'function') window.onUpdateDownloadProgress(100, 'دانلود کامل شد. در حال اعمال تغییرات و راه‌اندازی مجدد QuickLook...');"
+                    );
+                });
+
+                string scriptPath = Path.Combine(tempDir, $"apply_ql_update_{Guid.NewGuid():N}.ps1");
+                string scriptContent = GenerateUpdaterScript();
+                File.WriteAllText(scriptPath, scriptContent, Encoding.UTF8);
+
+                var psi = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = $"-WindowStyle Hidden -ExecutionPolicy Bypass -File \"{scriptPath}\" -qlPluginPath \"{downloadPath}\" -currentPluginDir \"{currentPluginDir}\"",
+                    UseShellExecute = true,
+                    CreateNoWindow = true
+                };
+
+                System.Diagnostics.Process.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                Log($"AutoUpdate Error: {ex}");
+                NotifyUpdateError(ex.Message);
+            }
+        }
+
+        private void NotifyUpdateError(string errorMsg)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _ = WebViewControl?.CoreWebView2?.ExecuteScriptAsync(
+                    $"if (typeof window.onUpdateError === 'function') window.onUpdateError('{EscapeJsonString(errorMsg)}');"
+                );
+            });
+        }
+
+        private static string GenerateUpdaterScript()
+        {
+            return @"
+param([string]$qlPluginPath, [string]$currentPluginDir)
+
+# Allow UI time to present completion status
+Start-Sleep -Milliseconds 900
+
+# 1. Stop QuickLook to release file locks on loaded DLLs
+$qlProc = Get-Process -Name ""QuickLook"" -ErrorAction SilentlyContinue
+if ($qlProc) {
+    Stop-Process -Name ""QuickLook"" -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Milliseconds 1200
+}
+
+# 2. Locate QuickLook.Plugin target directories (Store and Roaming)
+$storePluginBase = ""$env:LOCALAPPDATA\Packages\21090PaddyXu.QuickLook_egxr34yet59cg\LocalCache\Roaming\pooi.moe\QuickLook\QuickLook.Plugin""
+$roamingPluginBase = ""$env:APPDATA\pooi.moe\QuickLook\QuickLook.Plugin""
+
+$targets = @()
+if (Test-Path (Split-Path $storePluginBase)) {
+    if (-not (Test-Path $storePluginBase)) { New-Item -ItemType Directory -Path $storePluginBase -Force | Out-Null }
+    $targets += (Join-Path $storePluginBase ""QuickLook.Plugin.StepViewer"")
+}
+if (Test-Path (Split-Path $roamingPluginBase)) {
+    if (-not (Test-Path $roamingPluginBase)) { New-Item -ItemType Directory -Path $roamingPluginBase -Force | Out-Null }
+    $targets += (Join-Path $roamingPluginBase ""QuickLook.Plugin.StepViewer"")
+}
+
+# Include currently executing plugin directory if not already covered
+if ($currentPluginDir -and (Test-Path $currentPluginDir)) {
+    $normalizedCurrent = (Resolve-Path $currentPluginDir).Path
+    $exists = $false
+    foreach ($t in $targets) {
+        if ((Test-Path $t) -and ((Resolve-Path $t).Path -eq $normalizedCurrent)) {
+            $exists = $true
+            break
+        }
+    }
+    if (-not $exists) {
+        $targets += $currentPluginDir
+    }
+}
+
+# 3. Extract to clean staging folder
+$stage = Join-Path $env:TEMP (""ql_stage_"" + [Guid]::NewGuid().ToString(""N""))
+New-Item -ItemType Directory -Path $stage -Force | Out-Null
+
+try {
+    Add-Type -AssemblyName ""System.IO.Compression.FileSystem""
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($qlPluginPath, $stage)
+
+    # 4. Overwrite in all target installations
+    foreach ($tgt in $targets) {
+        if (-not (Test-Path $tgt)) {
+            New-Item -ItemType Directory -Path $tgt -Force | Out-Null
+        }
+        Copy-Item -Path ""$stage\*"" -Destination $tgt -Recurse -Force
+    }
+} finally {
+    Remove-Item -Path $stage -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path $qlPluginPath -Force -ErrorAction SilentlyContinue
+}
+
+# 5. Restart QuickLook cleanly
+if (Test-Path (Split-Path $storePluginBase)) {
+    Start-Process ""explorer.exe"" -ArgumentList ""shell:AppsFolder\21090PaddyXu.QuickLook_egxr34yet59cg!Main""
+} else {
+    Start-Process ""QuickLook.exe"" -ErrorAction SilentlyContinue
+}
+
+# 6. Self-delete updater script
+Remove-Item -Path $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyContinue
+";
         }
 
         private static string EscapeJsonString(string s)

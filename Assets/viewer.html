@@ -1466,10 +1466,197 @@
       backdrop-filter: blur(14px);
       z-index: 2000;
     }
+
+    /* 1-Click Auto-Update Notification Banner (Linear / Glassmorphism) */
+    .update-banner {
+      position: fixed;
+      top: 62px;
+      right: 16px;
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(56, 189, 248, 0.5);
+      border-radius: 12px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 1500;
+      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.55), 0 0 16px rgba(56, 189, 248, 0.2);
+      animation: updateSlideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      max-width: 520px;
+      direction: rtl;
+    }
+    @keyframes updateSlideDown {
+      from { opacity: 0; transform: translateY(-12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .update-icon-circle {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .update-content {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      flex-grow: 1;
+      text-align: right;
+    }
+    .update-title-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .update-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #f8fafc;
+      letter-spacing: 0.2px;
+    }
+    .update-title span {
+      color: #38bdf8;
+      font-family: monospace;
+      font-weight: 800;
+    }
+    .update-size {
+      font-size: 10px;
+      color: #94a3b8;
+      font-family: monospace;
+    }
+    .update-subtitle {
+      font-size: 10px;
+      color: #94a3b8;
+      line-height: 1.3;
+    }
+    .update-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .update-action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+      border: 1px solid rgba(56, 189, 248, 0.5);
+      color: #ffffff;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+      white-space: nowrap;
+    }
+    .update-action-btn:hover {
+      background: linear-gradient(135deg, #0369a1 0%, #1d4ed8 100%);
+      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.5);
+      transform: translateY(-1px);
+    }
+    .update-action-btn:active {
+      transform: scale(0.98);
+    }
+    .update-close-btn {
+      background: transparent;
+      border: none;
+      color: #64748b;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s ease, background 0.15s ease;
+    }
+    .update-close-btn:hover {
+      color: #f1f5f9;
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .update-progress-wrap {
+      margin-top: 6px;
+      width: 100%;
+    }
+    .update-progress-bar {
+      height: 4px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .update-progress-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #38bdf8, #818cf8);
+      transition: width 0.2s ease;
+    }
+    .update-progress-text {
+      font-size: 9px;
+      color: #cbd5e1;
+      margin-top: 3px;
+      text-align: right;
+    }
+    .hint-version-pill {
+      cursor: pointer;
+      color: #94a3b8;
+      transition: color 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .hint-version-pill:hover {
+      color: #38bdf8;
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
   <div id="canvas-container"></div>
+
+  <!-- 1-Click In-App Auto-Update Notification Banner -->
+  <div class="update-banner" id="update-notification-banner" style="display: none;">
+    <div class="update-icon-circle">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </svg>
+    </div>
+    <div class="update-content">
+      <div class="update-title-row">
+        <span class="update-title">نسخه جدید <span id="update-ver-label">v1.1.0</span> در دسترس است</span>
+        <span class="update-size" id="update-size-label"></span>
+      </div>
+      <div class="update-subtitle">شتاب‌دهی بایت‌کد WASM، پشتیبانی چندفرمتی CAD و برش سه‌بعدی پیشرفته</div>
+      <div id="update-progress-container" class="update-progress-wrap" style="display: none;">
+        <div class="update-progress-bar">
+          <div id="update-progress-fill" class="update-progress-fill"></div>
+        </div>
+        <div id="update-progress-text" class="update-progress-text">در حال آماده‌سازی دانلود...</div>
+      </div>
+    </div>
+    <div class="update-actions">
+      <button id="btn-apply-update" class="update-action-btn" onclick="AutoUpdater.startUpdate()" title="دانلود و نصب خودکار نسخه جدید">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+        </svg>
+        <span>بروزرسانی با ۱ کلیک</span>
+      </button>
+      <button class="update-close-btn" onclick="AutoUpdater.dismissBanner()" title="بستن بنر">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+  </div>
 
   <!-- Minimalist Technical HUD Badge -->
   <div class="hud-badge" id="info-badge">
@@ -2118,7 +2305,7 @@
     <canvas id="triad-canvas" width="70" height="70"></canvas>
   </div>
 
-  <div class="hints" id="hints-bar">Scroll: Zoom | Middle: Rotate | Right: Pan / Cancel | T: Tree | X: Explode | M: Measure | S: Section | P: Mass | K: Snap | U: Units | F: Fit</div>
+  <div class="hints" id="hints-bar">Scroll: Zoom | Middle: Rotate | Right: Pan / Cancel | T: Tree | X: Explode | M: Measure | S: Section | P: Mass | K: Snap | U: Units | F: Fit | <span id="btn-check-update" class="hint-version-pill" onclick="AutoUpdater.checkForUpdates(true)" title="بررسی بروزرسانی نسخه">v1.0.1 ⚡</span></div>
   <div id="error-container"></div>
 
   <!-- Scripts -->
@@ -2126,6 +2313,180 @@
   <script src="OrbitControls.js"></script>
 
   <script>
+    const APP_CURRENT_VERSION = '1.0.1';
+
+    // =============================================================
+    // Autonomous In-App Auto-Updater & Version Checker (v1.0.1 -> vX.Y.Z)
+    // Future-Proof & Backward-Forward Compatible
+    // =============================================================
+    const AutoUpdater = {
+      repo: 'Mostafa214/QuickLook.Plugin.StepViewer',
+      currentVersion: APP_CURRENT_VERSION,
+      checkIntervalMs: 12 * 60 * 60 * 1000, // 12 hours rate-limit guard
+      latestRelease: null,
+      isUpdating: false,
+
+      // Robust Semantic Version comparator (supports v1.0.1, v1.1.0, v2.0, v3.0.0, etc.)
+      isNewer(remoteVer, currentVer) {
+        if (!remoteVer || !currentVer) return false;
+        const clean = (v) => String(v).replace(/^[^\d]*/, '').split('-')[0].split('.').map(n => parseInt(n, 10) || 0);
+        const r = clean(remoteVer);
+        const c = clean(currentVer);
+        const maxLen = Math.max(r.length, c.length);
+        for (let i = 0; i < maxLen; i++) {
+          const rPart = r[i] || 0;
+          const cPart = c[i] || 0;
+          if (rPart > cPart) return true;
+          if (rPart < cPart) return false;
+        }
+        return false;
+      },
+
+      async checkForUpdates(force = false) {
+        if (this.isUpdating) return;
+        const now = Date.now();
+        const lastCheck = parseInt(localStorage.getItem('cad_last_update_check') || '0', 10);
+
+        if (!force && (now - lastCheck < this.checkIntervalMs)) {
+          const cached = localStorage.getItem('cad_cached_release_info');
+          if (cached) {
+            try {
+              const release = JSON.parse(cached);
+              if (this.isNewer(release.tag_name, this.currentVersion)) {
+                this.latestRelease = release;
+                this.showUpdateBanner(release);
+              }
+            } catch (e) {}
+          }
+          return;
+        }
+
+        if (force && typeof window.showToast === 'function') {
+          window.showToast('در حال بررسی نسخه جدید در سرور گیت‌هاب...');
+        }
+
+        try {
+          const resp = await fetch(`https://api.github.com/repos/${this.repo}/releases/latest`, {
+            headers: { 'Accept': 'application/vnd.github.v3+json' }
+          });
+          if (!resp.ok) {
+            if (force && typeof window.showToast === 'function') {
+              window.showToast('عدم برقراری ارتباط با سرور گیت‌هاب.');
+            }
+            return;
+          }
+
+          const release = await resp.json();
+          localStorage.setItem('cad_last_update_check', String(now));
+          localStorage.setItem('cad_cached_release_info', JSON.stringify(release));
+
+          if (this.isNewer(release.tag_name, this.currentVersion)) {
+            this.latestRelease = release;
+            this.showUpdateBanner(release);
+            if (force && typeof window.showToast === 'function') {
+              window.showToast(`نسخه جدید ${release.tag_name} در دسترس است!`);
+            }
+          } else {
+            if (force && typeof window.showToast === 'function') {
+              window.showToast(`پلاگین شما به آخرین نسخه (${this.currentVersion}) به‌روز است.`);
+            }
+          }
+        } catch (err) {
+          console.warn('AutoUpdate check failed:', err);
+          if (force && typeof window.showToast === 'function') {
+            window.showToast('خطا در بررسی بروزرسانی.');
+          }
+        }
+      },
+
+      showUpdateBanner(release) {
+        const banner = document.getElementById('update-notification-banner');
+        if (!banner) return;
+
+        let assetSizeMb = null;
+        if (release.assets && release.assets.length > 0) {
+          const qlAsset = release.assets.find(a => a.name && a.name.toLowerCase().endsWith('.qlplugin'));
+          if (qlAsset && qlAsset.size) {
+            assetSizeMb = (qlAsset.size / (1024 * 1024)).toFixed(1);
+          }
+        }
+
+        const verLabel = document.getElementById('update-ver-label');
+        if (verLabel) verLabel.innerText = release.tag_name || 'جدید';
+        const sizeLabel = document.getElementById('update-size-label');
+        if (sizeLabel && assetSizeMb) sizeLabel.innerText = `(${assetSizeMb} MB)`;
+
+        banner.style.display = 'flex';
+      },
+
+      dismissBanner() {
+        const banner = document.getElementById('update-notification-banner');
+        if (banner) banner.style.display = 'none';
+      },
+
+      startUpdate() {
+        if (!this.latestRelease) return;
+        this.isUpdating = true;
+
+        let downloadUrl = null;
+        if (this.latestRelease.assets && this.latestRelease.assets.length > 0) {
+          const qlAsset = this.latestRelease.assets.find(a => a.name && a.name.toLowerCase().endsWith('.qlplugin'));
+          if (qlAsset) downloadUrl = qlAsset.browser_download_url;
+        }
+
+        if (!downloadUrl && this.latestRelease.html_url) {
+          downloadUrl = this.latestRelease.html_url;
+        }
+
+        const btn = document.getElementById('btn-apply-update');
+        if (btn) {
+          btn.disabled = true;
+          btn.style.opacity = '0.85';
+          btn.innerHTML = `<span class="spinner" style="display:inline-block;width:11px;height:11px;margin-inline-end:6px;"></span> در حال دانلود...`;
+        }
+
+        const progressContainer = document.getElementById('update-progress-container');
+        if (progressContainer) progressContainer.style.display = 'block';
+
+        notifyHost({
+          action: 'PERFORM_AUTO_UPDATE',
+          downloadUrl: downloadUrl,
+          version: this.latestRelease.tag_name
+        });
+      }
+    };
+
+    window.AutoUpdater = AutoUpdater;
+
+    window.onUpdateDownloadProgress = function(percent, statusText) {
+      const pFill = document.getElementById('update-progress-fill');
+      const pText = document.getElementById('update-progress-text');
+      if (pFill) pFill.style.width = percent + '%';
+      if (pText) pText.innerText = statusText || (percent + '%');
+
+      if (percent >= 100) {
+        const btn = document.getElementById('btn-apply-update');
+        if (btn) {
+          btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> <span>نصب شد! راه‌اندازی مجدد...</span>`;
+        }
+      }
+    };
+
+    window.onUpdateError = function(errorMsg) {
+      AutoUpdater.isUpdating = false;
+      const btn = document.getElementById('btn-apply-update');
+      if (btn) {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.innerHTML = `تلاش مجدد`;
+      }
+      const pText = document.getElementById('update-progress-text');
+      if (pText) pText.innerText = 'خطا: ' + errorMsg;
+      if (typeof window.showToast === 'function') {
+        window.showToast('خطا در بروزرسانی: ' + errorMsg);
+      }
+    };
+
     let scene, camera, renderer, controls;
     let modelGroup = new THREE.Group();
     let gridHelper = null;
@@ -2309,6 +2670,11 @@
       animate();
 
       notifyHost({ type: 'VIEWPORT_READY' });
+
+      // Silent non-blocking update check (rate-limited to 12h)
+      setTimeout(() => {
+        if (window.AutoUpdater) window.AutoUpdater.checkForUpdates(false);
+      }, 2000);
     }
 
     // Smooth CAD View Interpolation (60 FPS)
