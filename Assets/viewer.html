@@ -2167,7 +2167,7 @@
     let initialCameraState = { position: new THREE.Vector3(), target: new THREE.Vector3() };
     let loadTimer = null;
 
-    // Section View State (SolidWorks-Grade Stencil Capping & Glass Helper Plane)
+    // Section View State (SolidWorks-Grade Stencil Capping, Glass Helper Plane & 3D Interactive Manipulator)
     let isSectionActive = false;
     let sectionAxis = 'x';
     let sectionFlipped = false;
@@ -2178,6 +2178,11 @@
     let sectionStencilGroup = new THREE.Group();
     let sectionCapMesh = null;
     let sectionPlaneHelperMesh = null;
+    let sectionGizmoMesh = null;
+    let isDraggingSectionGizmo = false;
+    let isSectionGizmoHovered = false;
+    let sectionGizmoMatNormal = null;
+    let sectionGizmoMatHover = null;
 
     // Smart Measure State
     let isMeasureActive = false;
@@ -4485,12 +4490,157 @@
         sectionPlaneHelperMesh.lookAt(planePos.clone().add(normal));
         sectionPlaneHelperMesh.visible = isSectionPlaneHelperActive;
       }
+
+      if (sectionGizmoMesh) {
+        sectionGizmoMesh.position.copy(planePos);
+        sectionGizmoMesh.lookAt(planePos.clone().add(normal));
+        sectionGizmoMesh.visible = isSectionPlaneHelperActive;
+      }
+    }
+
+    function createSectionGizmoMesh(boxSize) {
+      const maxDim = Math.max(boxSize.x, boxSize.y, boxSize.z, 50);
+      const arrowLen = Math.max(maxDim * 0.22, 22);
+      const shaftR = Math.max(arrowLen * 0.035, 1.0);
+      const coneR = Math.max(arrowLen * 0.12, 3.2);
+      const coneLen = Math.max(arrowLen * 0.28, 7.5);
+      const ringR = Math.max(arrowLen * 0.22, 5.5);
+      const tubeR = Math.max(shaftR * 1.2, 1.2);
+
+      const gizmo = new THREE.Group();
+      gizmo.name = 'sectionManipulatorGizmo';
+
+      sectionGizmoMatNormal = new THREE.MeshStandardMaterial({
+        color: 0x38bdf8,
+        emissive: 0x0284c7,
+        emissiveIntensity: 0.35,
+        roughness: 0.25,
+        metalness: 0.7,
+        depthTest: false,
+        depthWrite: false
+      });
+      sectionGizmoMatHover = new THREE.MeshStandardMaterial({
+        color: 0xfbbf24,
+        emissive: 0xf59e0b,
+        emissiveIntensity: 0.65,
+        roughness: 0.2,
+        metalness: 0.8,
+        depthTest: false,
+        depthWrite: false
+      });
+
+      // 1. Center Collar Ring on cutting plane (XY plane in local space)
+      const ringGeom = new THREE.TorusGeometry(ringR, tubeR, 16, 32);
+      const ringMesh = new THREE.Mesh(ringGeom, sectionGizmoMatNormal);
+      ringMesh.renderOrder = 10;
+      gizmo.add(ringMesh);
+
+      // 2. Forward Arrow Shaft along +Z (local normal direction)
+      const shaftGeom = new THREE.CylinderGeometry(shaftR, shaftR, arrowLen, 16);
+      shaftGeom.rotateX(Math.PI / 2);
+      shaftGeom.translate(0, 0, arrowLen / 2);
+      const shaftMesh = new THREE.Mesh(shaftGeom, sectionGizmoMatNormal);
+      shaftMesh.renderOrder = 10;
+      gizmo.add(shaftMesh);
+
+      // 3. Forward Arrow Cone at the tip pointing +Z
+      const coneGeom = new THREE.ConeGeometry(coneR, coneLen, 24);
+      coneGeom.rotateX(-Math.PI / 2);
+      coneGeom.translate(0, 0, arrowLen + coneLen / 2);
+      const coneMesh = new THREE.Mesh(coneGeom, sectionGizmoMatNormal);
+      coneMesh.renderOrder = 10;
+      gizmo.add(coneMesh);
+
+      // 4. Backward Arrow Shaft along -Z
+      const backShaftGeom = new THREE.CylinderGeometry(shaftR, shaftR, arrowLen * 0.7, 16);
+      backShaftGeom.rotateX(Math.PI / 2);
+      backShaftGeom.translate(0, 0, -arrowLen * 0.35);
+      const backShaftMesh = new THREE.Mesh(backShaftGeom, sectionGizmoMatNormal);
+      backShaftMesh.renderOrder = 10;
+      gizmo.add(backShaftMesh);
+
+      // 5. Backward Arrow Cone at the tip pointing -Z
+      const backConeGeom = new THREE.ConeGeometry(coneR * 0.85, coneLen * 0.85, 24);
+      backConeGeom.rotateX(Math.PI / 2);
+      backConeGeom.translate(0, 0, -arrowLen * 0.7 - (coneLen * 0.85) / 2);
+      const backConeMesh = new THREE.Mesh(backConeGeom, sectionGizmoMatNormal);
+      backConeMesh.renderOrder = 10;
+      gizmo.add(backConeMesh);
+
+      // 6. Invisible Hit Proxy Cylinder (larger radius covering both sides for easy clicking/dragging)
+      const proxyLen = (arrowLen + coneLen) * 2;
+      const proxyGeom = new THREE.CylinderGeometry(coneR * 2.4, coneR * 2.4, proxyLen, 16);
+      proxyGeom.rotateX(Math.PI / 2);
+      const proxyMat = new THREE.MeshBasicMaterial({
+        visible: false,
+        depthTest: false,
+        depthWrite: false
+      });
+      const proxyMesh = new THREE.Mesh(proxyGeom, proxyMat);
+      proxyMesh.renderOrder = 10;
+      gizmo.add(proxyMesh);
+
+      gizmo.renderOrder = 10;
+      return gizmo;
+    }
+
+    function highlightSectionGizmo(active) {
+      if (!sectionGizmoMesh) return;
+      isSectionGizmoHovered = active;
+      const targetMat = active ? sectionGizmoMatHover : sectionGizmoMatNormal;
+      sectionGizmoMesh.children.forEach(child => {
+        if (child.material && child.material !== targetMat && child.material.visible !== false) {
+          child.material = targetMat;
+        }
+      });
+    }
+
+    function dragSectionGizmoWithRay(raycaster) {
+      if (!isSectionActive || sectionBox.isEmpty()) return;
+
+      const min = sectionBox.min;
+      const max = sectionBox.max;
+      const center = sectionBox.getCenter(new THREE.Vector3());
+
+      const axisVec = new THREE.Vector3();
+      if (sectionAxis === 'x') axisVec.set(1, 0, 0);
+      else if (sectionAxis === 'y') axisVec.set(0, 1, 0);
+      else axisVec.set(0, 0, 1);
+
+      const camDir = camera.getWorldDirection(new THREE.Vector3());
+      // Find drag plane normal that contains axisVec and faces camera: (axisVec x camDir) x axisVec
+      let planeNormal = new THREE.Vector3().crossVectors(axisVec, camDir).cross(axisVec).normalize();
+      if (planeNormal.lengthSq() < 0.01) {
+        planeNormal.copy(camDir).negate();
+      }
+
+      const planePos = sectionGizmoMesh ? sectionGizmoMesh.position : center;
+      const dragPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(planeNormal, planePos);
+      const hitPoint = new THREE.Vector3();
+
+      if (raycaster.ray.intersectPlane(dragPlane, hitPoint)) {
+        const minVal = min[sectionAxis];
+        const maxVal = max[sectionAxis];
+        const range = maxVal - minVal;
+
+        if (range > 1e-4) {
+          let norm = (hitPoint[sectionAxis] - minVal) / range;
+          norm = Math.max(0, Math.min(1, norm));
+          const slider = document.getElementById('sec-slider');
+          if (slider) {
+            slider.value = (norm * 100).toFixed(1);
+            updateSectionPlane();
+          }
+        }
+      }
     }
 
     function rebuildSectionStencilMeshes() {
       sectionStencilGroup.clear();
       sectionCapMesh = null;
       sectionPlaneHelperMesh = null;
+      sectionGizmoMesh = null;
+      isDraggingSectionGizmo = false;
 
       if (!isSectionActive) return;
 
@@ -4597,6 +4747,10 @@
         sectionPlaneHelperMesh.add(edgeLine);
         sectionPlaneHelperMesh.renderOrder = 4;
         sectionStencilGroup.add(sectionPlaneHelperMesh);
+
+        // 4. 3D Interactive Manipulator Arrow Gizmo
+        sectionGizmoMesh = createSectionGizmoMesh(boxSize);
+        sectionStencilGroup.add(sectionGizmoMesh);
       }
 
       updateSectionGizmos();
@@ -4618,6 +4772,10 @@
         sectionStencilGroup.clear();
         sectionCapMesh = null;
         sectionPlaneHelperMesh = null;
+        sectionGizmoMesh = null;
+        isDraggingSectionGizmo = false;
+        highlightSectionGizmo(false);
+        if (controls) controls.enabled = true;
       }
 
       modelGroup.traverse((child) => {
@@ -7410,14 +7568,57 @@
       const raycaster = new THREE.Raycaster();
       const mouse = new THREE.Vector2();
 
-      // Pointer interactions for measurement & vertex snapping
+      // Pointer interactions for measurement & vertex snapping & 3D section gizmo
       let pointerDownPos = { x: 0, y: 0 };
 
       container.addEventListener('pointerdown', (e) => {
         pointerDownPos = { x: e.clientX, y: e.clientY };
+
+        // 3D Section Manipulator Gizmo Grab
+        if (isSectionActive && sectionGizmoMesh && sectionGizmoMesh.visible && e.button === 0) {
+          const rect = container.getBoundingClientRect();
+          mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+          mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+          raycaster.setFromCamera(mouse, camera);
+          const intersects = raycaster.intersectObjects(sectionGizmoMesh.children, true);
+          if (intersects.length > 0) {
+            isDraggingSectionGizmo = true;
+            controls.enabled = false;
+            highlightSectionGizmo(true);
+            container.style.cursor = 'ew-resize';
+            return;
+          }
+        }
       });
 
       container.addEventListener('pointermove', (e) => {
+        // 1. Active dragging of 3D Section Manipulator Arrow
+        if (isDraggingSectionGizmo) {
+          const rect = container.getBoundingClientRect();
+          mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+          mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+          raycaster.setFromCamera(mouse, camera);
+          dragSectionGizmoWithRay(raycaster);
+          return;
+        }
+
+        // 2. Hover detection on 3D Section Manipulator Arrow
+        if (isSectionActive && sectionGizmoMesh && sectionGizmoMesh.visible && !isMeasureActive) {
+          const rect = container.getBoundingClientRect();
+          mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+          mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+          raycaster.setFromCamera(mouse, camera);
+          const intersects = raycaster.intersectObjects(sectionGizmoMesh.children, true);
+          if (intersects.length > 0) {
+            highlightSectionGizmo(true);
+            container.style.cursor = 'grab';
+            return;
+          } else if (isSectionGizmoHovered) {
+            highlightSectionGizmo(false);
+            container.style.cursor = '';
+          }
+        }
+
         if (!isMeasureActive) return;
 
         const tooltip = document.getElementById('measure-tooltip');
@@ -7510,6 +7711,14 @@
       });
 
       container.addEventListener('pointerup', (e) => {
+        if (isDraggingSectionGizmo) {
+          isDraggingSectionGizmo = false;
+          controls.enabled = true;
+          highlightSectionGizmo(false);
+          container.style.cursor = '';
+          return;
+        }
+
         const dragDist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
         if (dragDist > 6) return; // Ignore drag/rotation gestures
 
@@ -7549,6 +7758,15 @@
         if (tooltip) tooltip.style.display = 'none';
         if (snapIndicator) snapIndicator.visible = false;
         removeRubberband();
+      });
+
+      window.addEventListener('pointerup', () => {
+        if (isDraggingSectionGizmo) {
+          isDraggingSectionGizmo = false;
+          controls.enabled = true;
+          highlightSectionGizmo(false);
+          container.style.cursor = '';
+        }
       });
 
       container.addEventListener('dblclick', (e) => {
