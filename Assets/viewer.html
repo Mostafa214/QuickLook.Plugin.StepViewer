@@ -1467,141 +1467,151 @@
       z-index: 2000;
     }
 
-    /* 1-Click Auto-Update Notification Banner (Linear / Glassmorphism) */
-    .update-banner {
+    /* Compact 1-Click Auto-Update Widget (Linear / Stripe Grade) */
+    .update-compact-container {
       position: fixed;
-      top: 62px;
+      top: 14px;
       right: 16px;
-      background: rgba(15, 23, 42, 0.94);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(56, 189, 248, 0.5);
-      border-radius: 12px;
-      padding: 10px 14px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
       z-index: 1500;
-      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.55), 0 0 16px rgba(56, 189, 248, 0.2);
-      animation: updateSlideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-      max-width: 520px;
-      direction: rtl;
-    }
-    @keyframes updateSlideDown {
-      from { opacity: 0; transform: translateY(-12px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .update-icon-circle {
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      background: rgba(56, 189, 248, 0.12);
-      border: 1px solid rgba(56, 189, 248, 0.3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-    .update-content {
       display: flex;
       flex-direction: column;
-      gap: 3px;
-      flex-grow: 1;
-      text-align: right;
+      align-items: flex-end;
+      gap: 5px;
+      font-family: inherit;
+      pointer-events: auto;
     }
-    .update-title-row {
+    .update-pill-row {
       display: flex;
       align-items: center;
-      gap: 6px;
-    }
-    .update-title {
-      font-size: 12px;
-      font-weight: 700;
-      color: #f8fafc;
-      letter-spacing: 0.2px;
-    }
-    .update-title span {
-      color: #38bdf8;
-      font-family: monospace;
-      font-weight: 800;
-    }
-    .update-size {
-      font-size: 10px;
-      color: #94a3b8;
-      font-family: monospace;
-    }
-    .update-subtitle {
-      font-size: 10px;
-      color: #94a3b8;
-      line-height: 1.3;
-    }
-    .update-actions {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-shrink: 0;
-    }
-    .update-action-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
-      border: 1px solid rgba(56, 189, 248, 0.5);
-      color: #ffffff;
-      padding: 6px 12px;
+      gap: 5px;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(56, 189, 248, 0.35);
       border-radius: 8px;
+      padding: 3px 4px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45), 0 0 12px rgba(56, 189, 248, 0.15);
+      animation: updateSlideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes updateSlideDown {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .btn-update-action {
+      position: relative;
+      overflow: hidden;
+      height: 28px;
+      min-width: 125px;
+      padding: 0 12px;
+      border-radius: 6px;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+      color: #ffffff;
       font-size: 11px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
       white-space: nowrap;
+      user-select: none;
     }
-    .update-action-btn:hover {
+    .btn-update-action:hover {
       background: linear-gradient(135deg, #0369a1 0%, #1d4ed8 100%);
+      border-color: #38bdf8;
       box-shadow: 0 4px 14px rgba(2, 132, 199, 0.5);
       transform: translateY(-1px);
     }
-    .update-action-btn:active {
+    .btn-update-action:active {
       transform: scale(0.98);
     }
-    .update-close-btn {
-      background: transparent;
-      border: none;
-      color: #64748b;
+    .btn-update-action.is-downloading {
+      background: rgba(15, 23, 42, 0.92);
+      border-color: rgba(56, 189, 248, 0.5);
+      box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.5);
+      cursor: wait;
+    }
+    .btn-update-action.is-completed {
+      background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+      border-color: #34d399;
+      box-shadow: 0 2px 10px rgba(16, 185, 129, 0.4), 0 0 12px rgba(16, 185, 129, 0.25);
       cursor: pointer;
-      padding: 4px;
+    }
+    .btn-update-action.is-completed:hover {
+      background: linear-gradient(135deg, #047857 0%, #059669 100%);
+      box-shadow: 0 4px 16px rgba(16, 185, 129, 0.6);
+      transform: translateY(-1px);
+    }
+    .btn-update-progress-fill {
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 0%;
+      background: linear-gradient(90deg, #0284c7, #38bdf8);
+      transition: width 0.15s ease;
+      z-index: 1;
+      opacity: 0.9;
+      border-radius: 5px;
+    }
+    .btn-update-content {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      pointer-events: none;
+    }
+    .btn-update-info, .btn-update-dismiss {
+      background: transparent;
+      border: 1px solid transparent;
+      color: #94a3b8;
+      width: 26px;
+      height: 26px;
       border-radius: 6px;
+      cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: color 0.15s ease, background 0.15s ease;
+      transition: all 0.15s ease;
+      padding: 0;
     }
-    .update-close-btn:hover {
+    .btn-update-info:hover {
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.12);
+      border-color: rgba(56, 189, 248, 0.3);
+    }
+    .btn-update-info.active {
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.2);
+      border-color: #38bdf8;
+    }
+    .btn-update-dismiss:hover {
       color: #f1f5f9;
       background: rgba(255, 255, 255, 0.08);
     }
-    .update-progress-wrap {
-      margin-top: 6px;
-      width: 100%;
+    .update-highlights-drawer {
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      border-radius: 6px;
+      padding: 5px 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+      animation: fadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      max-width: 480px;
     }
-    .update-progress-bar {
-      height: 4px;
-      background: rgba(255, 255, 255, 0.12);
-      border-radius: 2px;
+    .update-highlights-text {
+      font-size: 10.5px;
+      color: #e2e8f0;
+      white-space: nowrap;
       overflow: hidden;
-    }
-    .update-progress-fill {
-      width: 0%;
-      height: 100%;
-      background: linear-gradient(90deg, #38bdf8, #818cf8);
-      transition: width 0.2s ease;
-    }
-    .update-progress-text {
-      font-size: 9px;
-      color: #cbd5e1;
-      margin-top: 3px;
-      text-align: right;
+      text-overflow: ellipsis;
     }
     .hint-version-pill {
       cursor: pointer;
@@ -1620,41 +1630,46 @@
 <body>
   <div id="canvas-container"></div>
 
-  <!-- 1-Click In-App Auto-Update Notification Banner -->
-  <div class="update-banner" id="update-notification-banner" style="display: none;">
-    <div class="update-icon-circle">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-        <polyline points="7 10 12 15 17 10"></polyline>
-        <line x1="12" y1="15" x2="12" y2="3"></line>
-      </svg>
-    </div>
-    <div class="update-content">
-      <div class="update-title-row">
-        <span class="update-title">نسخه جدید <span id="update-ver-label">v1.1.0</span> در دسترس است</span>
-        <span class="update-size" id="update-size-label"></span>
-      </div>
-      <div class="update-subtitle">شتاب‌دهی بایت‌کد WASM، پشتیبانی چندفرمتی CAD و برش سه‌بعدی پیشرفته</div>
-      <div id="update-progress-container" class="update-progress-wrap" style="display: none;">
-        <div class="update-progress-bar">
-          <div id="update-progress-fill" class="update-progress-fill"></div>
+  <!-- Compact In-App 1-Click Auto-Updater Widget -->
+  <div class="update-compact-container" id="update-compact-container" style="display: none;">
+    <div class="update-pill-row">
+      <!-- The morphing update / progress / restart button -->
+      <button id="btn-update-action" class="btn-update-action" onclick="AutoUpdater.handleButtonClick()" title="Click to update">
+        <div id="btn-update-progress-fill" class="btn-update-progress-fill"></div>
+        <div id="btn-update-content" class="btn-update-content">
+          <svg class="update-svg-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span id="btn-update-text">Update to v1.1.0</span>
         </div>
-        <div id="update-progress-text" class="update-progress-text">در حال آماده‌سازی دانلود...</div>
-      </div>
-    </div>
-    <div class="update-actions">
-      <button id="btn-apply-update" class="update-action-btn" onclick="AutoUpdater.startUpdate()" title="دانلود و نصب خودکار نسخه جدید">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-        </svg>
-        <span>بروزرسانی با ۱ کلیک</span>
       </button>
-      <button class="update-close-btn" onclick="AutoUpdater.dismissBanner()" title="بستن بنر">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+
+      <!-- Highlights / Notes Toggle Button -->
+      <button id="btn-update-info" class="btn-update-info" onclick="AutoUpdater.toggleHighlights()" title="View update highlights">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+      </button>
+
+      <!-- Dismiss Button -->
+      <button id="btn-update-dismiss" class="btn-update-dismiss" onclick="AutoUpdater.dismiss()" title="Dismiss update notification">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
       </button>
+    </div>
+
+    <!-- Single-line Highlights Drawer -->
+    <div id="update-highlights-drawer" class="update-highlights-drawer" style="display: none;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2" style="flex-shrink:0;">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+      </svg>
+      <span id="update-highlights-text" class="update-highlights-text">Highlights: Hardware-accelerated WASM cache, multi-CAD support & 3D section tools</span>
     </div>
   </div>
 
@@ -2324,7 +2339,8 @@
       currentVersion: APP_CURRENT_VERSION,
       checkIntervalMs: 12 * 60 * 60 * 1000, // 12 hours rate-limit guard
       latestRelease: null,
-      isUpdating: false,
+      updateState: 'idle', // 'idle' | 'available' | 'downloading' | 'completed' | 'restarting'
+      highlightsVisible: false,
 
       // Robust Semantic Version comparator (supports v1.0.1, v1.1.0, v2.0, v3.0.0, etc.)
       isNewer(remoteVer, currentVer) {
@@ -2342,8 +2358,49 @@
         return false;
       },
 
+      /**
+       * Extracts single-line release highlights from GitHub release data.
+       * Future release protocol:
+       * 1) Write "Highlights: <single line summary>" in the release description.
+       * 2) Or write "<!-- highlights: <single line summary> -->"
+       * 3) Fallback: Uses the Release Title, or the first non-empty line.
+       */
+      extractHighlights(release) {
+        if (!release) return 'Performance improvements, multi-CAD support & bug fixes.';
+        const body = release.body || '';
+
+        // 1. Explicit HTML comment marker <!-- highlights: ... -->
+        const commentMatch = body.match(/<!--\s*(?:highlights?|summary)\s*:\s*([^\r\n>]+)-->/i);
+        if (commentMatch && commentMatch[1].trim()) return commentMatch[1].trim();
+
+        // 2. Line starting with Highlights:, What's New:, Summary:
+        const lines = body.split(/\r?\n/);
+        for (const rawLine of lines) {
+          const line = rawLine.trim();
+          const m = line.match(/^(?:[\*_\-`#\s]*)(?:Highlights?|What'?s\s*New|Summary|Key\s*Features?)\s*:\s*([^\r\n]+)/i);
+          if (m && m[1].trim()) {
+            return m[1].replace(/[\*_`]+$/, '').trim();
+          }
+        }
+
+        // 3. Release title / name if distinct from tag_name
+        if (release.name && release.name.trim() && release.name.trim() !== release.tag_name) {
+          return release.name.trim();
+        }
+
+        // 4. First non-empty markdown line
+        for (const rawLine of lines) {
+          const line = rawLine.replace(/^[#\*\-\s>]+/, '').trim();
+          if (line.length > 5 && !line.startsWith('![')) {
+            return line;
+          }
+        }
+
+        return 'Performance improvements, multi-CAD support & bug fixes.';
+      },
+
       async checkForUpdates(force = false) {
-        if (this.isUpdating) return;
+        if (this.updateState === 'downloading' || this.updateState === 'restarting') return;
         const now = Date.now();
         const lastCheck = parseInt(localStorage.getItem('cad_last_update_check') || '0', 10);
 
@@ -2354,7 +2411,7 @@
               const release = JSON.parse(cached);
               if (this.isNewer(release.tag_name, this.currentVersion)) {
                 this.latestRelease = release;
-                this.showUpdateBanner(release);
+                this.showUpdateWidget(release);
               }
             } catch (e) {}
           }
@@ -2362,7 +2419,7 @@
         }
 
         if (force && typeof window.showToast === 'function') {
-          window.showToast('در حال بررسی نسخه جدید در سرور گیت‌هاب...');
+          window.showToast('Checking for updates on GitHub...');
         }
 
         try {
@@ -2371,7 +2428,7 @@
           });
           if (!resp.ok) {
             if (force && typeof window.showToast === 'function') {
-              window.showToast('عدم برقراری ارتباط با سرور گیت‌هاب.');
+              window.showToast('Unable to connect to GitHub server.');
             }
             return;
           }
@@ -2382,108 +2439,171 @@
 
           if (this.isNewer(release.tag_name, this.currentVersion)) {
             this.latestRelease = release;
-            this.showUpdateBanner(release);
+            this.showUpdateWidget(release);
             if (force && typeof window.showToast === 'function') {
-              window.showToast(`نسخه جدید ${release.tag_name} در دسترس است!`);
+              window.showToast(`New version ${release.tag_name} is available!`);
             }
           } else {
             if (force && typeof window.showToast === 'function') {
-              window.showToast(`پلاگین شما به آخرین نسخه (${this.currentVersion}) به‌روز است.`);
+              window.showToast(`StepViewer is up to date (${this.currentVersion}).`);
             }
           }
         } catch (err) {
           console.warn('AutoUpdate check failed:', err);
           if (force && typeof window.showToast === 'function') {
-            window.showToast('خطا در بررسی بروزرسانی.');
+            window.showToast('Error checking for updates.');
           }
         }
       },
 
-      showUpdateBanner(release) {
-        const banner = document.getElementById('update-notification-banner');
-        if (!banner) return;
+      showUpdateWidget(release) {
+        const widget = document.getElementById('update-compact-container');
+        if (!widget) return;
 
-        let assetSizeMb = null;
-        if (release.assets && release.assets.length > 0) {
-          const qlAsset = release.assets.find(a => a.name && a.name.toLowerCase().endsWith('.qlplugin'));
-          if (qlAsset && qlAsset.size) {
-            assetSizeMb = (qlAsset.size / (1024 * 1024)).toFixed(1);
-          }
+        this.updateState = 'available';
+        const btnText = document.getElementById('btn-update-text');
+        if (btnText) btnText.innerText = `Update to ${release.tag_name || 'latest'}`;
+
+        const highlightsText = document.getElementById('update-highlights-text');
+        if (highlightsText) {
+          highlightsText.innerText = this.extractHighlights(release);
         }
 
-        const verLabel = document.getElementById('update-ver-label');
-        if (verLabel) verLabel.innerText = release.tag_name || 'جدید';
-        const sizeLabel = document.getElementById('update-size-label');
-        if (sizeLabel && assetSizeMb) sizeLabel.innerText = `(${assetSizeMb} MB)`;
-
-        banner.style.display = 'flex';
+        widget.style.display = 'flex';
       },
 
-      dismissBanner() {
-        const banner = document.getElementById('update-notification-banner');
-        if (banner) banner.style.display = 'none';
+      toggleHighlights() {
+        const drawer = document.getElementById('update-highlights-drawer');
+        const infoBtn = document.getElementById('btn-update-info');
+        if (!drawer) return;
+        this.highlightsVisible = !this.highlightsVisible;
+        drawer.style.display = this.highlightsVisible ? 'flex' : 'none';
+        if (infoBtn) {
+          infoBtn.classList.toggle('active', this.highlightsVisible);
+        }
       },
 
-      startUpdate() {
+      dismiss() {
+        const widget = document.getElementById('update-compact-container');
+        if (widget) widget.style.display = 'none';
+        const drawer = document.getElementById('update-highlights-drawer');
+        if (drawer) drawer.style.display = 'none';
+        this.highlightsVisible = false;
+      },
+
+      handleButtonClick() {
+        if (this.updateState === 'available') {
+          this.startDownload();
+        } else if (this.updateState === 'completed') {
+          this.applyRestart();
+        }
+      },
+
+      startDownload() {
         if (!this.latestRelease) return;
-        this.isUpdating = true;
+        this.updateState = 'downloading';
 
         let downloadUrl = null;
         if (this.latestRelease.assets && this.latestRelease.assets.length > 0) {
           const qlAsset = this.latestRelease.assets.find(a => a.name && a.name.toLowerCase().endsWith('.qlplugin'));
           if (qlAsset) downloadUrl = qlAsset.browser_download_url;
         }
-
         if (!downloadUrl && this.latestRelease.html_url) {
           downloadUrl = this.latestRelease.html_url;
         }
 
-        const btn = document.getElementById('btn-apply-update');
-        if (btn) {
-          btn.disabled = true;
-          btn.style.opacity = '0.85';
-          btn.innerHTML = `<span class="spinner" style="display:inline-block;width:11px;height:11px;margin-inline-end:6px;"></span> در حال دانلود...`;
-        }
+        const btn = document.getElementById('btn-update-action');
+        const btnText = document.getElementById('btn-update-text');
+        const pFill = document.getElementById('btn-update-progress-fill');
 
-        const progressContainer = document.getElementById('update-progress-container');
-        if (progressContainer) progressContainer.style.display = 'block';
+        if (btn) {
+          btn.classList.add('is-downloading');
+          btn.style.cursor = 'wait';
+        }
+        if (pFill) pFill.style.width = '0%';
+        if (btnText) btnText.innerText = 'Downloading 0%';
 
         notifyHost({
-          action: 'PERFORM_AUTO_UPDATE',
+          action: 'START_UPDATE_DOWNLOAD',
           downloadUrl: downloadUrl,
           version: this.latestRelease.tag_name
+        });
+      },
+
+      applyRestart() {
+        this.updateState = 'restarting';
+        const btn = document.getElementById('btn-update-action');
+        const btnText = document.getElementById('btn-update-text');
+        if (btn) {
+          btn.disabled = true;
+          btn.style.opacity = '0.9';
+          btn.style.cursor = 'wait';
+        }
+        if (btnText) {
+          btnText.innerHTML = '<span class="spinner" style="display:inline-block;width:11px;height:11px;margin-inline-end:5px;"></span> Restarting...';
+        }
+
+        notifyHost({
+          action: 'APPLY_UPDATE_AND_RESTART'
         });
       }
     };
 
     window.AutoUpdater = AutoUpdater;
 
-    window.onUpdateDownloadProgress = function(percent, statusText) {
-      const pFill = document.getElementById('update-progress-fill');
-      const pText = document.getElementById('update-progress-text');
+    window.onUpdateDownloadProgress = function(percent, receivedBytes, totalBytes) {
+      const pFill = document.getElementById('btn-update-progress-fill');
+      const btnText = document.getElementById('btn-update-text');
       if (pFill) pFill.style.width = percent + '%';
-      if (pText) pText.innerText = statusText || (percent + '%');
-
-      if (percent >= 100) {
-        const btn = document.getElementById('btn-apply-update');
-        if (btn) {
-          btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> <span>نصب شد! راه‌اندازی مجدد...</span>`;
+      if (btnText) {
+        if (totalBytes && totalBytes > 0) {
+          const recMb = (receivedBytes / (1024 * 1024)).toFixed(1);
+          const totMb = (totalBytes / (1024 * 1024)).toFixed(1);
+          btnText.innerText = `Downloading ${percent}% (${recMb}/${totMb} MB)`;
+        } else {
+          btnText.innerText = `Downloading ${percent}%`;
         }
       }
     };
 
-    window.onUpdateError = function(errorMsg) {
-      AutoUpdater.isUpdating = false;
-      const btn = document.getElementById('btn-apply-update');
+    window.onUpdateDownloadCompleted = function() {
+      AutoUpdater.updateState = 'completed';
+      const btn = document.getElementById('btn-update-action');
+      const btnText = document.getElementById('btn-update-text');
+      const pFill = document.getElementById('btn-update-progress-fill');
+
+      if (pFill) pFill.style.width = '100%';
       if (btn) {
-        btn.disabled = false;
-        btn.style.opacity = '1';
-        btn.innerHTML = `تلاش مجدد`;
+        btn.classList.remove('is-downloading');
+        btn.classList.add('is-completed');
+        btn.style.cursor = 'pointer';
       }
-      const pText = document.getElementById('update-progress-text');
-      if (pText) pText.innerText = 'خطا: ' + errorMsg;
+      if (btnText) {
+        btnText.innerHTML = `
+          <svg class="update-svg-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+          </svg>
+          <span>Restart QuickLook</span>
+        `;
+      }
       if (typeof window.showToast === 'function') {
-        window.showToast('خطا در بروزرسانی: ' + errorMsg);
+        window.showToast('Download complete. Click Restart QuickLook to apply.');
+      }
+    };
+
+    window.onUpdateError = function(errorMsg) {
+      AutoUpdater.updateState = 'available';
+      const btn = document.getElementById('btn-update-action');
+      const btnText = document.getElementById('btn-update-text');
+      const pFill = document.getElementById('btn-update-progress-fill');
+      if (btn) {
+        btn.classList.remove('is-downloading');
+        btn.style.cursor = 'pointer';
+      }
+      if (pFill) pFill.style.width = '0%';
+      if (btnText) btnText.innerText = 'Retry Update';
+      if (typeof window.showToast === 'function') {
+        window.showToast('Update failed: ' + errorMsg);
       }
     };
 

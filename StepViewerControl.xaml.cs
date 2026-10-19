@@ -29,6 +29,9 @@ namespace QuickLook.Plugin.StepViewer
         private bool _isDisposed;
         private bool _isInitializing;
         private string _assetsDir;
+        private string _preparedUpdatePackagePath;
+        private string _preparedUpdaterScriptPath;
+        private string _currentPluginDir;
 
         public static void Log(string msg)
         {
@@ -512,11 +515,16 @@ namespace QuickLook.Plugin.StepViewer
                         });
                     }
                 }
-                else if (string.Equals(msgType, "PERFORM_AUTO_UPDATE", StringComparison.OrdinalIgnoreCase))
+                else if (string.Equals(msgType, "PERFORM_AUTO_UPDATE", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(msgType, "START_UPDATE_DOWNLOAD", StringComparison.OrdinalIgnoreCase))
                 {
                     string downloadUrl = ExtractJsonProp(json, "downloadUrl");
                     string version = ExtractJsonProp(json, "version") ?? "latest";
-                    _ = ExecuteAutoUpdateAsync(downloadUrl, version);
+                    _ = ExecuteAutoUpdateDownloadAsync(downloadUrl, version);
+                }
+                else if (string.Equals(msgType, "APPLY_UPDATE_AND_RESTART", StringComparison.OrdinalIgnoreCase))
+                {
+                    ApplyUpdateAndRestart();
                 }
             }
             catch (Exception ex)
@@ -675,7 +683,7 @@ namespace QuickLook.Plugin.StepViewer
             }
         }
 
-        private async System.Threading.Tasks.Task ExecuteAutoUpdateAsync(string downloadUrl, string version)
+        private async System.Threading.Tasks.Task ExecuteAutoUpdateDownloadAsync(string downloadUrl, string version)
         {
             if (string.IsNullOrEmpty(downloadUrl))
             {
@@ -688,7 +696,7 @@ namespace QuickLook.Plugin.StepViewer
                 string tempDir = Path.GetTempPath();
                 string safeVersion = Regex.Replace(version, @"[^\w\.\-]", "_");
                 string downloadPath = Path.Combine(tempDir, $"QuickLook_StepViewer_Update_{safeVersion}_{Guid.NewGuid():N}.qlplugin");
-                string currentPluginDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                _currentPluginDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
                 Log($"AutoUpdate: Starting download from {downloadUrl} to {downloadPath}");
 
@@ -699,11 +707,12 @@ namespace QuickLook.Plugin.StepViewer
                     client.DownloadProgressChanged += (s, e) =>
                     {
                         int percent = e.ProgressPercentage;
-                        string status = $"در حال دانلود بسته بروزرسانی... {percent}%";
+                        long received = e.BytesReceived;
+                        long total = e.TotalBytesToReceive;
                         Dispatcher.Invoke(() =>
                         {
                             _ = WebViewControl?.CoreWebView2?.ExecuteScriptAsync(
-                                $"if (typeof window.onUpdateDownloadProgress === 'function') window.onUpdateDownloadProgress({percent}, '{EscapeJsonString(status)}');"
+                                $"if (typeof window.onUpdateDownloadProgress === 'function') window.onUpdateDownloadProgress({percent}, {received}, {total});"
                             );
                         });
                     };
@@ -713,24 +722,58 @@ namespace QuickLook.Plugin.StepViewer
 
                 if (!File.Exists(downloadPath) || new FileInfo(downloadPath).Length < 1000)
                 {
-                    throw new IOException("بسته بروزرسانی دانلود شده نامعتبر یا خالی است.");
+                    throw new IOException("Downloaded update package is invalid or empty.");
                 }
 
-                Dispatcher.Invoke(() =>
+                // Verify zip archive integrity
+                using (var zip = System.IO.Compression.ZipFile.OpenRead(downloadPath))
                 {
-                    _ = WebViewControl?.CoreWebView2?.ExecuteScriptAsync(
-                        "if (typeof window.onUpdateDownloadProgress === 'function') window.onUpdateDownloadProgress(100, 'دانلود کامل شد. در حال اعمال تغییرات و راه‌اندازی مجدد QuickLook...');"
-                    );
-                });
+                    if (zip.Entries.Count == 0)
+                    {
+                        throw new IOException("Downloaded update package contains no files.");
+                    }
+                }
 
                 string scriptPath = Path.Combine(tempDir, $"apply_ql_update_{Guid.NewGuid():N}.ps1");
                 string scriptContent = GenerateUpdaterScript();
                 File.WriteAllText(scriptPath, scriptContent, Encoding.UTF8);
 
+                _preparedUpdatePackagePath = downloadPath;
+                _preparedUpdaterScriptPath = scriptPath;
+
+                Log($"AutoUpdate: Package downloaded and staged at {downloadPath}");
+
+                Dispatcher.Invoke(() =>
+                {
+                    _ = WebViewControl?.CoreWebView2?.ExecuteScriptAsync(
+                        "if (typeof window.onUpdateDownloadCompleted === 'function') window.onUpdateDownloadCompleted();"
+                    );
+                });
+            }
+            catch (Exception ex)
+            {
+                Log($"AutoUpdate Download Error: {ex}");
+                NotifyUpdateError(ex.Message);
+            }
+        }
+
+        private void ApplyUpdateAndRestart()
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_preparedUpdatePackagePath) || !File.Exists(_preparedUpdatePackagePath) ||
+                    string.IsNullOrEmpty(_preparedUpdaterScriptPath) || !File.Exists(_preparedUpdaterScriptPath))
+                {
+                    NotifyUpdateError("Prepared update package was not found. Please try downloading again.");
+                    return;
+                }
+
+                Log($"AutoUpdate: Launching detached updater script {_preparedUpdaterScriptPath}");
+
                 var psi = new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = "powershell.exe",
-                    Arguments = $"-WindowStyle Hidden -ExecutionPolicy Bypass -File \"{scriptPath}\" -qlPluginPath \"{downloadPath}\" -currentPluginDir \"{currentPluginDir}\"",
+                    Arguments = $"-WindowStyle Hidden -ExecutionPolicy Bypass -File \"{_preparedUpdaterScriptPath}\" -qlPluginPath \"{_preparedUpdatePackagePath}\" -currentPluginDir \"{_currentPluginDir}\"",
                     UseShellExecute = true,
                     CreateNoWindow = true
                 };
@@ -739,7 +782,7 @@ namespace QuickLook.Plugin.StepViewer
             }
             catch (Exception ex)
             {
-                Log($"AutoUpdate Error: {ex}");
+                Log($"AutoUpdate Restart Error: {ex}");
                 NotifyUpdateError(ex.Message);
             }
         }
