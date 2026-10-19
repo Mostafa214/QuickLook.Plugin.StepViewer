@@ -3,12 +3,122 @@
 
 let occt = null;
 let occtInitPromise = null;
+let wasmInitTelemetry = { source: 'unknown', elapsedMs: 0 };
+
+const WASM_CACHE_NAME = 'QuickLook_OcctWasmCache_v1';
+const WASM_FILE = 'occt-import-js.wasm';
+const WASM_IDB_NAME = 'QuickLook_OcctWasmIDB';
+const WASM_STORE_NAME = 'wasm_store';
+const WASM_KEY = 'occt_wasm_binary_v1';
+
+async function getWasmSource() {
+    const wasmUrl = (typeof location !== 'undefined' && location.href)
+        ? new URL(WASM_FILE, location.href).href
+        : WASM_FILE;
+
+    // 1. Try CacheStorage first (activates Chromium V8 bytecode & code cache)
+    if (typeof caches !== 'undefined') {
+        try {
+            const cache = await caches.open(WASM_CACHE_NAME);
+            let match = await cache.match(wasmUrl);
+            if (match) {
+                return { type: 'cache_storage', response: match };
+            }
+            // Populate cache asynchronously in background for future launches
+            fetch(wasmUrl).then(resp => {
+                if (resp && resp.ok) cache.put(wasmUrl, resp);
+            }).catch(() => {});
+        } catch (e) {
+            // Fall through to IndexedDB
+        }
+    }
+
+    // 2. Try IndexedDB ArrayBuffer
+    if (typeof indexedDB !== 'undefined') {
+        try {
+            const db = await new Promise((resolve, reject) => {
+                const req = indexedDB.open(WASM_IDB_NAME, 1);
+                req.onupgradeneeded = () => req.result.createObjectStore(WASM_STORE_NAME);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+
+            const buf = await new Promise((resolve, reject) => {
+                const tx = db.transaction(WASM_STORE_NAME, 'readonly');
+                const req = tx.objectStore(WASM_STORE_NAME).get(WASM_KEY);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+
+            if (buf && buf instanceof ArrayBuffer && buf.byteLength > 0) {
+                return { type: 'indexeddb', buffer: buf };
+            }
+
+            // Fetch, save in IDB for next launch, and return buffer
+            const resp = await fetch(wasmUrl);
+            const fetchedBuf = await resp.arrayBuffer();
+            try {
+                const tx = db.transaction(WASM_STORE_NAME, 'readwrite');
+                tx.objectStore(WASM_STORE_NAME).put(fetchedBuf, WASM_KEY);
+            } catch (err) {}
+
+            return { type: 'network_cached_to_idb', buffer: fetchedBuf };
+        } catch (e) {
+            // Fall through to plain network fetch
+        }
+    }
+
+    // 3. Fallback to direct network fetch
+    const resp = await fetch(wasmUrl);
+    return { type: 'network_direct', response: resp };
+}
 
 function getOcct() {
     if (!occtInitPromise) {
         importScripts('occt-import-js.js');
+        const startInitTime = Date.now();
         occtInitPromise = occtimportjs({
-            locateFile: (path) => path
+            locateFile: (path) => path,
+            instantiateWasm: function(imports, successCallback) {
+                (async () => {
+                    try {
+                        const source = await getWasmSource();
+                        let result = null;
+
+                        if (source.response && typeof WebAssembly.instantiateStreaming === 'function') {
+                            try {
+                                result = await WebAssembly.instantiateStreaming(source.response, imports);
+                                wasmInitTelemetry.source = source.type;
+                            } catch (streamErr) {
+                                const buf = await source.response.arrayBuffer();
+                                result = await WebAssembly.instantiate(buf, imports);
+                                wasmInitTelemetry.source = source.type + '_fallback_buffer';
+                            }
+                        } else if (source.buffer) {
+                            result = await WebAssembly.instantiate(source.buffer, imports);
+                            wasmInitTelemetry.source = source.type;
+                        } else if (source.response) {
+                            const buf = await source.response.arrayBuffer();
+                            result = await WebAssembly.instantiate(buf, imports);
+                            wasmInitTelemetry.source = source.type;
+                        }
+
+                        wasmInitTelemetry.elapsedMs = Date.now() - startInitTime;
+
+                        if (result && result.instance) {
+                            successCallback(result.instance, result.module);
+                        } else if (result && result.exports) {
+                            successCallback(result, null);
+                        } else {
+                            throw new Error('WebAssembly instantiation did not return instance');
+                        }
+                    } catch (err) {
+                        console.error('[P5 WASM] Instantiation error:', err);
+                        throw err;
+                    }
+                })();
+                return {};
+            }
         }).then((instance) => {
             occt = instance;
             return instance;
@@ -322,7 +432,11 @@ self.onmessage = async function (e) {
     if (data.type === 'INIT') {
         try {
             await getOcct();
-            self.postMessage({ type: 'READY' });
+            self.postMessage({
+                type: 'READY',
+                initElapsedMs: wasmInitTelemetry.elapsedMs,
+                wasmSource: wasmInitTelemetry.source
+            });
         } catch (err) {
             self.postMessage({ type: 'ERROR', message: 'Failed to initialize OpenCASCADE WASM: ' + (err.message || err) });
         }
@@ -622,6 +736,16 @@ self.onmessage = async function (e) {
 
             const elapsedMs = Date.now() - startTime;
 
+            // Zero-Copy Transferable Objects: transfer underlying ArrayBuffers directly to main thread
+            const transferables = [];
+            for (let i = 0; i < meshes.length; i++) {
+                const m = meshes[i];
+                if (m.position && m.position.buffer) transferables.push(m.position.buffer);
+                if (m.normal && m.normal.buffer) transferables.push(m.normal.buffer);
+                if (m.index && m.index.buffer) transferables.push(m.index.buffer);
+                if (m.edgeIndices && m.edgeIndices.buffer) transferables.push(m.edgeIndices.buffer);
+            }
+
             self.postMessage({
                 type: 'PARSE_SUCCESS',
                 format: format,
@@ -631,8 +755,9 @@ self.onmessage = async function (e) {
                 isMultiBody: meshes.length > 1,
                 elapsedMs: elapsedMs,
                 cacheKey: data.cacheKey,
-                bufferSize: data.bufferSize
-            });
+                bufferSize: data.bufferSize,
+                wasmSource: wasmInitTelemetry.source
+            }, transferables);
 
         } catch (err) {
             self.postMessage({

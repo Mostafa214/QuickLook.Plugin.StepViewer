@@ -2230,6 +2230,9 @@
       scene.add(measureGroup);
       scene.add(explodeTrailsGroup);
       scene.add(sectionStencilGroup);
+      window.modelGroup = modelGroup;
+      window.scene = scene;
+      window.startTessellation = startTessellation;
 
       camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 50000);
       camera.position.set(100, 100, 100);
@@ -2448,6 +2451,7 @@
 
         if (msg.type === 'READY') {
           workerReady = true;
+          window._workerReadyInfo = msg;
           document.getElementById('status-text').innerText = 'Ready for CAD files';
           document.getElementById('spinner').style.display = 'none';
 
@@ -2456,6 +2460,8 @@
             pendingFileBuffer = null;
           }
         } else if (msg.type === 'PARSE_SUCCESS') {
+          window._lastTessellationElapsed = msg.elapsedMs;
+          window._lastWasmSource = msg.wasmSource;
           onTessellationComplete(msg);
           if (msg.cacheKey && msg.meshes) {
             saveCachedModel(msg.cacheKey, msg, msg.bufferSize || 0);
@@ -2620,8 +2626,10 @@
 
       const bufferMB = buffer.byteLength / (1024 * 1024);
       const sizeFormatted = bufferMB >= 1 ? `${bufferMB.toFixed(1)} MB` : `${Math.round(buffer.byteLength / 1024)} KB`;
-      document.getElementById('badge-filename').innerText = `${pendingFileName} (${sizeFormatted})`;
-      document.getElementById('spinner').style.display = 'inline-block';
+      const fnEl = document.getElementById('badge-filename');
+      if (fnEl) fnEl.innerText = `${pendingFileName} (${sizeFormatted})`;
+      const spEl = document.getElementById('spinner');
+      if (spEl) spEl.style.display = 'inline-block';
       hideError();
 
       // Clear previous models
@@ -2704,8 +2712,10 @@
       }
 
       const speedLabel = data.isCached ? '⚡ Instant Cache (12ms)' : `Parsed in ${(data.elapsedMs / 1000).toFixed(1)}s`;
-      document.getElementById('status-text').innerText = `${speedLabel} (${data.meshCount} solids)`;
-      document.getElementById('spinner').style.display = 'none';
+      const stEl = document.getElementById('status-text');
+      if (stEl) stEl.innerText = `${speedLabel} (${data.meshCount} solids)`;
+      const spDone = document.getElementById('spinner');
+      if (spDone) spDone.style.display = 'none';
 
       clearModel();
 
@@ -2879,8 +2889,16 @@
       }
 
       const timeDisplay = data.isCached ? '⚡ 12ms (Cache)' : (data.elapsedMs >= 1000 ? `${(data.elapsedMs / 1000).toFixed(1)}s` : `${data.elapsedMs}ms`);
-      document.getElementById('badge-status').innerHTML =
-        `<span style="color:#94a3b8;">✓</span> ${data.meshCount} Part(s) • ${Math.round(totalTriangles).toLocaleString()} Triangles • ${timeDisplay}`;
+      const statusTextSpan = document.getElementById('status-text');
+      const formattedStatus = `<span style="color:#94a3b8;">✓</span> ${data.meshCount} Part(s) • ${Math.round(totalTriangles).toLocaleString()} Triangles • ${timeDisplay}`;
+      if (statusTextSpan) {
+        statusTextSpan.innerHTML = formattedStatus;
+      } else {
+        const badgeStatusEl = document.getElementById('badge-status');
+        if (badgeStatusEl) {
+          badgeStatusEl.innerHTML = `<span class="spinner" id="spinner" style="display:none;"></span><span id="status-text">${formattedStatus}</span>`;
+        }
+      }
 
       notifyHost({
         type: 'LOADED',
@@ -7892,8 +7910,10 @@
       const container = document.getElementById('error-container');
       container.innerText = msg;
       container.style.display = 'block';
-      document.getElementById('spinner').style.display = 'none';
-      document.getElementById('status-text').innerText = 'Failed to load model';
+      const spErr = document.getElementById('spinner');
+      if (spErr) spErr.style.display = 'none';
+      const stErr = document.getElementById('status-text');
+      if (stErr) stErr.innerText = 'Failed to load model';
       notifyHost({ type: 'ERROR', message: msg });
     }
 
