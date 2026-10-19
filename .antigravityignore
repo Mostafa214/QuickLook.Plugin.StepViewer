@@ -1,0 +1,23 @@
+# Baseline patterns
+node_modules/
+.venv/
+venv/
+dist/
+build/
+out/
+target/
+__pycache__/
+.next/
+coverage/
+*.log
+.env
+.env.*
+*.stl
+*.step
+
+# Project-specific patterns
+bin/
+obj/
+*.user
+*.suo
+scratch/
