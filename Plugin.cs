@@ -9,11 +9,11 @@ namespace QuickLook.Plugin.StepViewer
 {
     public class Plugin : IViewer
     {
-        private readonly string[] _supportedExtensions = { ".step", ".stp", ".p21", ".stpx" };
+        private readonly string[] _supportedExtensions = { ".step", ".stp", ".p21", ".stpx", ".iges", ".igs", ".brep" };
         private UIElement _currentContent;
 
         /// <summary>
-        /// Higher priority than default viewers (0) so STEP files are exclusively routed here.
+        /// Higher priority than default viewers (0) so STEP, IGES, and BREP files are exclusively routed here.
         /// </summary>
         public int Priority => 15;
 
@@ -44,8 +44,8 @@ namespace QuickLook.Plugin.StepViewer
             if (!extMatches)
                 return false;
 
-            // Instant validation of ISO 10303-21 header (< 2ms)
-            return StepMetadataParser.IsStepFile(path);
+            // Instant validation of CAD headers (ISO 10303-21, IGES, BREP) (< 2ms)
+            return StepMetadataParser.IsValidCadFile(path);
         }
 
         public void Prepare(string path, ContextObject context)

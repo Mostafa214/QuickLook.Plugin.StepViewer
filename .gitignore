@@ -22,6 +22,7 @@ render_hybrid_screenshot.ps1
 screenshot_manshor.ps1
 stream_test.log
 test_artifacts/
+scratch/
 docs/superpowers/
 
 # Private CAD Test Models

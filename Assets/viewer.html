@@ -193,15 +193,48 @@
       border-radius: 8px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
       z-index: 1000;
       animation: fadeIn 0.2s ease;
     }
+    .sec-divider {
+      width: 1px;
+      height: 18px;
+      background: rgba(255, 255, 255, 0.12);
+      margin: 0 2px;
+    }
+    .sec-pos-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .sec-btn-center {
+      font-size: 10px;
+      padding: 3px 6px;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      color: #38bdf8;
+      font-weight: 600;
+    }
+    .sec-btn-center:hover {
+      background: rgba(56, 189, 248, 0.25);
+      border-color: #38bdf8;
+      color: #ffffff;
+    }
+    .sec-offset-badge {
+      font-size: 11px;
+      font-family: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, monospace;
+      font-weight: 600;
+      color: #00f0ff;
+      min-width: 68px;
+      text-align: right;
+      user-select: none;
+    }
     .sec-slider {
       width: 130px;
       height: 4px;
-      accent-color: #cbd5e1;
+      accent-color: #38bdf8;
       cursor: pointer;
     }
     .btn-sm {
@@ -214,15 +247,18 @@
       border-radius: 4px;
       cursor: pointer;
       transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
     .btn-sm:hover {
       background: rgba(255, 255, 255, 0.10);
       color: #ffffff;
     }
     .btn-sm.active {
-      background: #16181f;
-      color: #ffffff;
-      border-color: rgba(255, 255, 255, 0.2);
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border-color: rgba(56, 189, 248, 0.4);
     }
 
     /* Floating Measure Info Card */
@@ -346,6 +382,249 @@
       background: rgba(255, 255, 255, 0.15);
       border-radius: 2px;
     }
+
+    /* Floating Engineering Export Panel */
+    .snapshot-panel {
+      position: absolute;
+      top: 66px;
+      right: 16px;
+      background: rgba(20, 24, 33, 0.96);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      backdrop-filter: blur(16px);
+      padding: 12px 14px;
+      border-radius: 8px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65);
+      z-index: 1000;
+      width: 335px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .snap-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 7px;
+    }
+    .snap-panel-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .snap-icon {
+      width: 14px;
+      height: 14px;
+      stroke: currentColor;
+    }
+    .snap-section {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .snap-label {
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      color: #94a3b8;
+      text-transform: uppercase;
+    }
+    .snap-btn-group {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .snap-mode-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #94a3b8;
+      padding: 7px 4px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 500;
+      transition: all 0.15s ease;
+    }
+    .snap-mode-btn svg {
+      width: 17px;
+      height: 17px;
+    }
+    .snap-mode-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #f1f5f9;
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+    .snap-mode-btn.active {
+      background: rgba(56, 189, 248, 0.16);
+      border-color: #38bdf8;
+      color: #38bdf8;
+      font-weight: 600;
+    }
+    .snap-res-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #94a3b8;
+      padding: 6px 4px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      transition: all 0.15s ease;
+    }
+    .snap-res-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #f1f5f9;
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+    .snap-res-btn.active {
+      background: rgba(56, 189, 248, 0.16);
+      border-color: #38bdf8;
+      color: #38bdf8;
+    }
+    .snap-res-tag {
+      font-size: 10.5px;
+      font-weight: 700;
+    }
+    .snap-res-desc {
+      font-size: 8.5px;
+      color: #64748b;
+    }
+    .snap-res-btn.active .snap-res-desc {
+      color: #7dd3fc;
+    }
+    .snap-angle-btn, .snap-tb-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #94a3b8;
+      padding: 5px 3px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      font-size: 10px;
+      font-weight: 500;
+      transition: all 0.15s ease;
+    }
+    .snap-angle-btn:hover, .snap-tb-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #f1f5f9;
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+    .snap-angle-btn.active, .snap-tb-btn.active {
+      background: rgba(56, 189, 248, 0.16);
+      border-color: #38bdf8;
+      color: #38bdf8;
+      font-weight: 600;
+    }
+    .snap-text-input {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 5px;
+      color: #f1f5f9;
+      padding: 5px 7px;
+      font-size: 9.5px;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .snap-text-input:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 6px rgba(56, 189, 248, 0.3);
+    }
+    .snap-options-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: rgba(15, 23, 42, 0.5);
+      padding: 7px 9px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .snap-checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 10px;
+      color: #cbd5e1;
+      cursor: pointer;
+      user-select: none;
+    }
+    .snap-checkbox-row input {
+      accent-color: #38bdf8;
+      cursor: pointer;
+    }
+    .snap-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+      margin-top: 2px;
+    }
+    .snap-primary-btn {
+      background: #0284c7;
+      border: 1px solid #38bdf8;
+      color: #ffffff;
+      padding: 7px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+    }
+    .snap-primary-btn:hover {
+      background: #0369a1;
+      border-color: #7dd3fc;
+      transform: translateY(-1px);
+    }
+    .snap-primary-btn:active {
+      transform: translateY(0);
+    }
+    .snap-primary-btn svg {
+      width: 13px;
+      height: 13px;
+    }
+    .snap-secondary-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #e2e8f0;
+      padding: 7px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+    }
+    .snap-secondary-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.25);
+      color: #ffffff;
+    }
+    .snap-secondary-btn svg {
+      width: 13px;
+      height: 13px;
+    }
+
     .mat-item {
       display: flex;
       align-items: center;
@@ -509,13 +788,112 @@
       color: #38bdf8;
       border-color: rgba(56, 189, 248, 0.3);
     }
+    /* Tree Exploded Assembly View Section */
+    .tree-explode-section {
+      padding: 8px 10px;
+      background: rgba(15, 23, 42, 0.7);
+      border-bottom: 1px solid rgba(56, 189, 248, 0.18);
+    }
+    .tree-explode-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .tree-explode-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      letter-spacing: 0.3px;
+    }
+    .explode-percent-label {
+      font-size: 10px;
+      font-weight: 700;
+      font-family: monospace;
+      color: #00f0ff;
+      background: rgba(0, 240, 255, 0.12);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+    .tree-explode-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .explode-slider {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 5px;
+      border-radius: 3px;
+      background: #1e293b;
+      outline: none;
+      cursor: pointer;
+      accent-color: #38bdf8;
+    }
+    .explode-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #38bdf8;
+      cursor: pointer;
+      box-shadow: 0 0 6px rgba(56, 189, 248, 0.7);
+      border: 1px solid #ffffff;
+      transition: transform 0.1s ease;
+    }
+    .explode-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+    .tree-explode-btns {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+    }
+    .btn-explode-action {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #cbd5e1;
+      border-radius: 4px;
+      padding: 3px 6px;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: center;
+    }
+    .btn-explode-action:hover {
+      background: rgba(56, 189, 248, 0.2);
+      color: #38bdf8;
+      border-color: rgba(56, 189, 248, 0.4);
+    }
+    .explode-trail-toggle {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      color: #94a3b8;
+      cursor: pointer;
+      user-select: none;
+      padding: 2px 4px;
+    }
+    .explode-trail-toggle input {
+      cursor: pointer;
+      accent-color: #38bdf8;
+    }
     .tree-content {
       overflow-y: auto;
       padding: 8px 10px;
       display: flex;
       flex-direction: column;
       gap: 6px;
-      max-height: calc(100vh - 210px);
+      max-height: calc(100vh - 280px);
     }
     .tree-content::-webkit-scrollbar {
       width: 4px;
@@ -575,11 +953,18 @@
       flex: 1;
     }
     .tree-color-swatch {
-      width: 11px;
-      height: 11px;
+      width: 13px;
+      height: 13px;
       border-radius: 3px;
       flex-shrink: 0;
-      border: 1px solid rgba(255, 255, 255, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+    .tree-color-swatch:hover {
+      transform: scale(1.25);
+      border-color: #38bdf8;
+      box-shadow: 0 0 6px rgba(56, 189, 248, 0.6);
     }
     .tree-node-name {
       font-weight: 600;
@@ -684,6 +1069,262 @@
     .tree-face-item.active span:last-child {
       color: #e2e8f0 !important;
     }
+
+    /* Floating CAD Body Material & Color Popover */
+    .color-popover {
+      position: absolute;
+      left: 314px;
+      top: 68px;
+      width: 290px;
+      max-height: calc(100vh - 110px);
+      background: rgba(20, 24, 33, 0.96);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 10px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
+      z-index: 1100;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 12px 14px;
+      overflow-y: auto;
+      animation: fadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      color: #f1f5f9;
+      font-size: 11px;
+    }
+    .color-popover::-webkit-scrollbar {
+      width: 4px;
+    }
+    .color-popover::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 2px;
+    }
+    .color-popover-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 6px;
+    }
+    .color-popover-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .color-popover-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .color-popover-label {
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      color: #94a3b8;
+      text-transform: uppercase;
+    }
+    .cad-orig-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      padding: 6px 8px;
+    }
+    .cad-orig-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .color-swatch-lg {
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      flex-shrink: 0;
+      box-shadow: inset 0 0 4px rgba(0,0,0,0.4);
+    }
+    .cad-orig-text {
+      display: flex;
+      flex-direction: column;
+    }
+    .cad-orig-title {
+      font-size: 10px;
+      font-weight: 600;
+      color: #f1f5f9;
+    }
+    .cad-orig-hex {
+      font-size: 9px;
+      color: #64748b;
+      font-family: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, monospace;
+    }
+    .btn-popover-action {
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: #38bdf8;
+      border-radius: 5px;
+      padding: 3px 8px;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-popover-action:hover {
+      background: rgba(56, 189, 248, 0.3);
+      border-color: #38bdf8;
+    }
+    .swatches-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+    }
+    .swatch-btn {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 6px;
+      padding: 5px 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .swatch-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(56, 189, 248, 0.4);
+      transform: translateY(-1px);
+    }
+    .swatch-btn.active {
+      border-color: #38bdf8;
+      background: rgba(56, 189, 248, 0.15);
+    }
+    .swatch-circle {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+    }
+    .swatch-label {
+      font-size: 9px;
+      color: #94a3b8;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 70px;
+    }
+    .custom-color-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      padding: 5px 8px;
+    }
+    .popover-color-input {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      width: 26px;
+      height: 24px;
+      background-color: transparent;
+      border: none;
+      cursor: pointer;
+    }
+    .popover-color-input::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+    .popover-color-input::-webkit-color-swatch {
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 4px;
+    }
+    .popover-hex-text {
+      font-family: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, monospace;
+      font-size: 10px;
+      color: #94a3b8;
+      flex: 1;
+    }
+    .materials-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 5px;
+    }
+    .mat-preset-btn {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 6px;
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.15s ease;
+    }
+    .mat-preset-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(56, 189, 248, 0.4);
+    }
+    .mat-preset-btn.active {
+      border-color: #38bdf8;
+      background: rgba(56, 189, 248, 0.16);
+    }
+    .mat-name {
+      font-size: 10px;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+    .mat-density {
+      font-size: 8.5px;
+      color: #64748b;
+      font-family: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, monospace;
+    }
+    .popover-mat-meter {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 6px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .meter-stat {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 9.5px;
+    }
+    .meter-label {
+      color: #94a3b8;
+    }
+    .meter-val {
+      font-weight: 600;
+      color: #f1f5f9;
+      font-family: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, monospace;
+    }
+    .meter-val.text-sky {
+      color: #38bdf8;
+    }
+    .opacity-val-text {
+      font-size: 9.5px;
+      font-weight: 600;
+      color: #38bdf8;
+      font-family: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, monospace;
+    }
+
     .isolate-banner {
       position: absolute;
       bottom: 48px;
@@ -924,6 +1565,12 @@
         </svg>
         <span>Tree</span>
       </button>
+      <button class="btn" id="btn-explode" title="Exploded Assembly View [X]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 8l4 4-4 4M20 8l-4 4 4 4M12 4v4M12 16v4M8 12h8"/>
+        </svg>
+        <span>Explode</span>
+      </button>
       <button class="btn" id="btn-measure" title="Smart Measure Points & Distances [M]">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
           <circle cx="12" cy="4" r="2"/>
@@ -968,7 +1615,7 @@
         </svg>
         <span>Fit</span>
       </button>
-      <button class="btn" id="btn-snapshot" title="Snapshot Viewport to Clipboard">
+      <button class="btn" id="btn-snapshot" title="Engineering CAD Export & Snapshot [K]">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
           <circle cx="12" cy="13" r="4"/>
@@ -1000,11 +1647,205 @@
     <div class="tree-batch-bar">
       <button id="btn-tree-showall" class="tree-batch-btn" title="Show all bodies">👁️ Show All</button>
       <button id="btn-tree-solidall" class="tree-batch-btn" title="Make all bodies solid">👻 Solid All</button>
+      <button id="btn-tree-autocolor" class="tree-batch-btn" title="Auto-colorize all assembly bodies">🎨 Colors</button>
       <button id="btn-tree-resetiso" class="tree-batch-btn" title="Reset isolation">🎯 All</button>
+    </div>
+
+    <!-- Interactive Exploded View Section -->
+    <div id="tree-explode-section" class="tree-explode-section" style="display: none;">
+      <div class="tree-explode-header">
+        <span class="tree-explode-title">💥 Exploded View</span>
+        <span id="explode-percent-label" class="explode-percent-label">0%</span>
+      </div>
+      <div class="tree-explode-controls">
+        <input type="range" id="explode-slider" min="0" max="100" value="0" class="explode-slider" title="Drag to explode assembly">
+        <div class="tree-explode-btns">
+          <button id="btn-explode-toggle" class="btn-explode-action" title="Toggle Auto-Explode / Collapse [X]">Explode ⏵</button>
+          <label class="explode-trail-toggle" title="Show SolidWorks-style dashed assembly trails">
+            <input type="checkbox" id="chk-explode-trails" checked>
+            <span>Trails</span>
+          </label>
+          <button id="btn-explode-reset" class="btn-explode-action" title="Reset assembly to 0%">Reset</button>
+        </div>
+      </div>
     </div>
 
     <!-- Tree Node Scroll List -->
     <div id="tree-content" class="tree-content"></div>
+  </div>
+
+  <!-- Floating CAD Body Material & Color Popover -->
+  <div id="color-picker-popover" class="color-popover" style="display: none;">
+    <div class="color-popover-header">
+      <div class="color-popover-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="m4.93 4.93 4.24 4.24"></path>
+          <path d="m14.83 9.17 4.24-4.24"></path>
+          <path d="m14.83 14.83 4.24 4.24"></path>
+          <path d="m9.17 14.83-4.24 4.24"></path>
+          <circle cx="12" cy="12" r="4"></circle>
+        </svg>
+        <span id="color-popover-body-name">Body Appearance</span>
+      </div>
+      <button id="btn-close-color-popover" class="btn-copy" style="font-size: 11px; padding: 1px 6px;">✕</button>
+    </div>
+
+    <!-- Pinned Original CAD Color with 1-click Reset -->
+    <div class="color-popover-section">
+      <div class="color-popover-label">CAD Source Color</div>
+      <div class="cad-orig-row">
+        <div class="cad-orig-info">
+          <span id="popover-orig-swatch" class="color-swatch-lg"></span>
+          <div class="cad-orig-text">
+            <span class="cad-orig-title">Original STEP Color</span>
+            <span id="popover-orig-hex" class="cad-orig-hex">#CCCCCC</span>
+          </div>
+        </div>
+        <button id="btn-reset-orig-color" class="btn-popover-action" title="Restore original STEP model color">
+          ↺ Reset
+        </button>
+      </div>
+    </div>
+
+    <!-- Metals & Engineering Finishes -->
+    <div class="color-popover-section">
+      <div class="color-popover-label">Engineering Metals</div>
+      <div class="swatches-grid">
+        <button class="swatch-btn" data-color="#d4d8dd" data-metal="0.8" data-rough="0.35" title="Machined Steel">
+          <span class="swatch-circle" style="background: linear-gradient(135deg, #f1f5f9, #94a3b8);"></span>
+          <span class="swatch-label">Steel</span>
+        </button>
+        <button class="swatch-btn" data-color="#b0b7bd" data-metal="0.9" data-rough="0.25" title="Brushed Aluminum">
+          <span class="swatch-circle" style="background: linear-gradient(135deg, #cbd5e1, #64748b);"></span>
+          <span class="swatch-label">Alu</span>
+        </button>
+        <button class="swatch-btn" data-color="#d4af37" data-metal="0.7" data-rough="0.3" title="Industrial Brass">
+          <span class="swatch-circle" style="background: linear-gradient(135deg, #fde047, #b45309);"></span>
+          <span class="swatch-label">Brass</span>
+        </button>
+        <button class="swatch-btn" data-color="#3a3d42" data-metal="0.6" data-rough="0.6" title="Cast Iron">
+          <span class="swatch-circle" style="background: linear-gradient(135deg, #475569, #1e293b);"></span>
+          <span class="swatch-label">Iron</span>
+        </button>
+        <button class="swatch-btn" data-color="#0077b6" data-metal="0.5" data-rough="0.2" title="Anodized Blue">
+          <span class="swatch-circle" style="background: linear-gradient(135deg, #38bdf8, #0369a1);"></span>
+          <span class="swatch-label">Ano Blue</span>
+        </button>
+        <button class="swatch-btn" data-color="#c1121f" data-metal="0.5" data-rough="0.2" title="Anodized Red">
+          <span class="swatch-circle" style="background: linear-gradient(135deg, #f87171, #991b1b);"></span>
+          <span class="swatch-label">Ano Red</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Industrial Plastics & Safety Palettes -->
+    <div class="color-popover-section">
+      <div class="color-popover-label">Plastics & Safety Palettes</div>
+      <div class="swatches-grid">
+        <button class="swatch-btn" data-color="#ffd000" data-metal="0.0" data-rough="0.4" title="Safety Yellow">
+          <span class="swatch-circle" style="background: #ffd000;"></span>
+          <span class="swatch-label">Safety Ylw</span>
+        </button>
+        <button class="swatch-btn" data-color="#ff6b00" data-metal="0.0" data-rough="0.4" title="High-Vis Orange">
+          <span class="swatch-circle" style="background: #ff6b00;"></span>
+          <span class="swatch-label">Hi-Vis</span>
+        </button>
+        <button class="swatch-btn" data-color="#e63946" data-metal="0.0" data-rough="0.4" title="Signal Red">
+          <span class="swatch-circle" style="background: #e63946;"></span>
+          <span class="swatch-label">Signal Red</span>
+        </button>
+        <button class="swatch-btn" data-color="#1e2024" data-metal="0.1" data-rough="0.8" title="Stealth Matte Black">
+          <span class="swatch-circle" style="background: #1e2024; border: 1px solid rgba(255,255,255,0.2);"></span>
+          <span class="swatch-label">Matte Blk</span>
+        </button>
+        <button class="swatch-btn" data-color="#f8f9fa" data-metal="0.0" data-rough="0.5" title="Delrin White">
+          <span class="swatch-circle" style="background: #f8f9fa;"></span>
+          <span class="swatch-label">Delrin</span>
+        </button>
+        <button class="swatch-btn" data-color="#2a9d8f" data-metal="0.0" data-rough="0.4" title="Industrial Teal">
+          <span class="swatch-circle" style="background: #2a9d8f;"></span>
+          <span class="swatch-label">Teal</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Custom Hex / Color Picker -->
+    <div class="color-popover-section">
+      <div class="color-popover-label">Custom Swatch</div>
+      <div class="custom-color-row">
+        <input type="color" id="popover-color-input" class="popover-color-input" value="#38bdf8" />
+        <span id="popover-color-hex-val" class="popover-hex-text">#38BDF8</span>
+        <button id="btn-apply-custom-color" class="btn-popover-action">Apply</button>
+      </div>
+    </div>
+
+    <!-- 3D Printing Material Presets -->
+    <div class="color-popover-section">
+      <div class="color-popover-label" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>3D Printing Presets</span>
+        <span style="font-size:8.5px; color:#64748b; text-transform:none;">1.75mm Filament</span>
+      </div>
+      <div class="materials-grid">
+        <button class="mat-preset-btn" data-mat="PLA" data-density="1.24" data-color="#0284c7" data-rough="0.45" title="Polylactic Acid (1.24 g/cm³)">
+          <span class="mat-name">PLA</span>
+          <span class="mat-density">1.24 g/cm³</span>
+        </button>
+        <button class="mat-preset-btn" data-mat="PETG" data-density="1.27" data-color="#059669" data-rough="0.3" title="Polyethylene Terephthalate Glycol (1.27 g/cm³)">
+          <span class="mat-name">PETG</span>
+          <span class="mat-density">1.27 g/cm³</span>
+        </button>
+        <button class="mat-preset-btn" data-mat="ABS" data-density="1.04" data-color="#dc2626" data-rough="0.5" title="Acrylonitrile Butadiene Styrene (1.04 g/cm³)">
+          <span class="mat-name">ABS</span>
+          <span class="mat-density">1.04 g/cm³</span>
+        </button>
+        <button class="mat-preset-btn" data-mat="ASA" data-density="1.07" data-color="#ea580c" data-rough="0.55" title="Acrylonitrile Styrene Acrylate (1.07 g/cm³)">
+          <span class="mat-name">ASA</span>
+          <span class="mat-density">1.07 g/cm³</span>
+        </button>
+        <button class="mat-preset-btn" data-mat="TPU 95A" data-density="1.21" data-color="#7c3aed" data-rough="0.7" title="Thermoplastic Polyurethane 95A (1.21 g/cm³)">
+          <span class="mat-name">TPU 95A</span>
+          <span class="mat-density">1.21 g/cm³</span>
+        </button>
+        <button class="mat-preset-btn" data-mat="Nylon PA12" data-density="1.15" data-color="#475569" data-rough="0.65" title="Polyamide 12 Engineering Grade (1.15 g/cm³)">
+          <span class="mat-name">Nylon PA12</span>
+          <span class="mat-density">1.15 g/cm³</span>
+        </button>
+        <button class="mat-preset-btn" data-mat="UV Resin" data-density="1.10" data-color="#0891b2" data-rough="0.25" title="Standard UV SLA/DLP Resin (1.10 g/cm³)">
+          <span class="mat-name">UV Resin</span>
+          <span class="mat-density">1.10 g/cm³</span>
+        </button>
+      </div>
+
+      <!-- Live 3D Printing Filament Meter -->
+      <div id="popover-mat-meter" class="popover-mat-meter">
+        <div class="meter-stat">
+          <span class="meter-label">Active Material</span>
+          <span id="meter-mat-name" class="meter-val text-sky">Custom / Default</span>
+        </div>
+        <div class="meter-stat">
+          <span class="meter-label">Estimated Mass</span>
+          <span id="meter-mat-mass" class="meter-val">-</span>
+        </div>
+        <div class="meter-stat">
+          <span class="meter-label">Filament (1.75mm)</span>
+          <span id="meter-mat-length" class="meter-val">-</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Body Opacity Slider -->
+    <div class="color-popover-section">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span class="color-popover-label">Body Opacity / X-Ray</span>
+        <span id="popover-opacity-val" class="opacity-val-text">100%</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:10px; color:#64748b;">10%</span>
+        <input type="range" id="popover-opacity-slider" class="sec-slider" min="10" max="100" value="100" style="flex:1;" />
+        <span style="font-size:10px; color:#64748b;">100%</span>
+      </div>
+    </div>
   </div>
 
   <!-- Floating Section View Controls -->
@@ -1013,9 +1854,35 @@
       <button class="btn-sm active" id="btn-sec-x" title="Cut along X Plane">X</button>
       <button class="btn-sm" id="btn-sec-y" title="Cut along Y Plane">Y</button>
       <button class="btn-sm" id="btn-sec-z" title="Cut along Z Plane">Z</button>
-      <button class="btn-sm" id="btn-sec-flip" title="Flip Cut Direction">⇄ Flip</button>
+      <button class="btn-sm" id="btn-sec-flip" title="Flip Cut Direction">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-inline-end:3px;"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
+        Flip
+      </button>
     </div>
-    <input type="range" id="sec-slider" min="0" max="100" value="50" class="sec-slider" title="Slice Position" />
+
+    <div class="sec-divider"></div>
+
+    <!-- Live Physical Position & Snap to Center -->
+    <div class="sec-pos-wrap">
+      <button class="btn-sm sec-btn-center" id="btn-sec-center" title="Snap to Part Center (0 mm)">Center</button>
+      <span id="sec-offset-val" class="sec-offset-badge" title="Physical offset from center">X: +0.00 mm</span>
+    </div>
+
+    <input type="range" id="sec-slider" min="0" max="100" value="50" class="sec-slider" title="Slice Position (0% to 100%)" />
+
+    <div class="sec-divider"></div>
+
+    <!-- SolidWorks Capping & Glass Helper Plane Toggles -->
+    <div class="tool-group">
+      <button class="btn-sm active" id="btn-sec-cap" title="Toggle SolidWorks Solid Capping Fill">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-inline-end:3px;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+        Cap
+      </button>
+      <button class="btn-sm active" id="btn-sec-plane" title="Toggle 3D Glass Cutting Plane Helper">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-inline-end:3px;"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        Plane
+      </button>
+    </div>
   </div>
 
   <!-- Floating Measure Card -->
@@ -1090,6 +1957,151 @@
     <div id="mat-list" class="mat-list-container"></div>
   </div>
 
+  <!-- Floating Engineering Export & Snapshot Panel -->
+  <div id="snapshot-panel" class="snapshot-panel" style="display: none;">
+    <div class="snap-panel-header">
+      <div class="snap-panel-title">
+        <svg viewBox="0 0 24 24" class="snap-icon" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+        <span>Engineering CAD Export</span>
+      </div>
+      <button id="btn-close-snapshot" class="btn-copy" style="font-size:11px; padding: 2px 7px;">✕</button>
+    </div>
+
+    <!-- Mode Selector -->
+    <div class="snap-section">
+      <label class="snap-label">PRESET THEME</label>
+      <div class="snap-btn-group">
+        <button class="snap-mode-btn active" id="snap-mode-trans" data-mode="transparent" title="Pure geometry cutout with transparent alpha background">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="3 3"/>
+            <path d="M7 17l4-5 3 3 4-6"/>
+          </svg>
+          <span>Transparent</span>
+        </button>
+        <button class="snap-mode-btn" id="snap-mode-white" data-mode="white" title="High-contrast CAD edges on pure white paper (SolidWorks HLR style)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="4" y="2" width="16" height="20" rx="2" fill="#ffffff" stroke="#94a3b8"/>
+            <line x1="8" y1="6" x2="16" y2="6" stroke="#0f172a"/>
+            <line x1="8" y1="10" x2="16" y2="10" stroke="#0f172a"/>
+            <line x1="8" y1="14" x2="12" y2="14" stroke="#0f172a"/>
+          </svg>
+          <span>Tech White</span>
+        </button>
+        <button class="snap-mode-btn" id="snap-mode-dark" data-mode="dark" title="Polished neutral slate studio without floor grid lines">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="3" y="3" width="18" height="18" rx="2" fill="#181a20" stroke="#475569"/>
+            <circle cx="12" cy="12" r="4" stroke="#38bdf8"/>
+          </svg>
+          <span>Studio Dark</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Resolution Selector -->
+    <div class="snap-section">
+      <label class="snap-label">OUTPUT RESOLUTION</label>
+      <div class="snap-btn-group">
+        <button class="snap-res-btn active" id="snap-res-2x" data-scale="2" title="Double display resolution (~2K) - Ideal balance of speed & razor sharpness">
+          <span class="snap-res-tag">2× High-DPI</span>
+          <span class="snap-res-desc">Sharp</span>
+        </button>
+        <button class="snap-res-btn" id="snap-res-4k" data-scale="4" title="Full 4K Ultra HD (3840×2160) - Perfect for prints & presentations">
+          <span class="snap-res-tag">4K Ultra</span>
+          <span class="snap-res-desc">Print / Deck</span>
+        </button>
+        <button class="snap-res-btn" id="snap-res-1x" data-scale="1" title="Current viewport pixel size">
+          <span class="snap-res-tag">1× Viewport</span>
+          <span class="snap-res-desc">Native</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Camera Angle Quick Framing -->
+    <div class="snap-section">
+      <label class="snap-label">CAMERA ANGLE</label>
+      <div class="snap-btn-group" style="grid-template-columns: repeat(4, 1fr);">
+        <button class="snap-angle-btn active" id="snap-angle-iso" data-angle="iso" title="Standard Isometric View">
+          <span>📐 Iso</span>
+        </button>
+        <button class="snap-angle-btn" id="snap-angle-front" data-angle="front" title="Front Elevation View">
+          <span>🔲 Front</span>
+        </button>
+        <button class="snap-angle-btn" id="snap-angle-top" data-angle="top" title="Top Plan View">
+          <span>🔝 Top</span>
+        </button>
+        <button class="snap-angle-btn" id="snap-angle-right" data-angle="right" title="Right Profile View">
+          <span>➡️ Right</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Title Block & QR Mode -->
+    <div class="snap-section">
+      <label class="snap-label">TITLE BLOCK & QR MODE</label>
+      <div class="snap-btn-group" style="grid-template-columns: repeat(3, 1fr);">
+        <button class="snap-tb-btn active" id="snap-tb-full" data-tb="full" title="Executive Engineering Stamp with Specs Card & Scannable QR">
+          <span>Full + QR</span>
+        </button>
+        <button class="snap-tb-btn" id="snap-tb-badge" data-tb="badge" title="Minimalist Corner Seal with QR Passport Only">
+          <span>QR Badge</span>
+        </button>
+        <button class="snap-tb-btn" id="snap-tb-none" data-tb="none" title="Clean Viewport without any title block or badge">
+          <span>Clean</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Engineering Overlays / Options -->
+    <div class="snap-section">
+      <label class="snap-label">PROVENANCE & OVERLAYS</label>
+      <div class="snap-options-grid">
+        <label class="snap-checkbox-row" id="row-opt-qr" title="Embed scannable ISO/IEC QR passport containing model specs and link">
+          <input type="checkbox" id="snap-opt-qr" checked />
+          <span>Include Scannable QR Code</span>
+        </label>
+        <label class="snap-checkbox-row" title="Include Material name, density, estimated mass and filament consumption in stamp">
+          <input type="checkbox" id="snap-opt-mat" checked />
+          <span>Include Material & Mass</span>
+        </label>
+        <label class="snap-checkbox-row" title="Render soft studio ground contact shadow under model">
+          <input type="checkbox" id="snap-opt-shadow" checked />
+          <span>Studio Ground Shadow</span>
+        </label>
+        <label class="snap-checkbox-row" title="Composite active dimension labels and leader lines onto image">
+          <input type="checkbox" id="snap-opt-dims" checked />
+          <span>Include Active Measurements</span>
+        </label>
+      </div>
+      <!-- Custom QR Note / URL Input -->
+      <div id="snap-qr-custom-container" style="display: flex; flex-direction: column; gap: 3px; margin-top: 3px;">
+        <span style="font-size: 8.5px; color: #94a3b8; font-weight: 600;">CUSTOM LINK OR PART NOTE (EMBEDDED IN QR):</span>
+        <input type="text" id="snap-qr-note" class="snap-text-input" placeholder="e.g. https://company.com/drawing or Rev 3.2..." maxlength="120" />
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="snap-actions">
+      <button id="snap-btn-copy" class="snap-primary-btn" title="Render and copy image directly to clipboard [Ctrl+V ready]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+        <span id="snap-copy-label">Copy Image</span>
+      </button>
+      <button id="snap-btn-save" class="snap-secondary-btn" title="Render and save as PNG file">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span>Save File...</span>
+      </button>
+    </div>
+  </div>
+
   <!-- Isolate Banner -->
   <div id="isolate-banner" class="isolate-banner" style="display: none;">
     <span>⚠️ Isolated: <strong id="isolate-body-name">Body 1</strong></span>
@@ -1106,7 +2118,7 @@
     <canvas id="triad-canvas" width="70" height="70"></canvas>
   </div>
 
-  <div class="hints" id="hints-bar">Scroll: Zoom | Middle: Rotate | Right: Pan / Cancel | T: Tree | M: Measure | C: Clear | S: Section | P: Mass | U: Units | F: Fit</div>
+  <div class="hints" id="hints-bar">Scroll: Zoom | Middle: Rotate | Right: Pan / Cancel | T: Tree | X: Explode | M: Measure | S: Section | P: Mass | K: Snap | U: Units | F: Fit</div>
   <div id="error-container"></div>
 
   <!-- Scripts -->
@@ -1121,6 +2133,32 @@
     let workerReady = false;
     let pendingFileBuffer = null;
     let pendingFileName = '';
+    let activeCadFormat = 'STEP';
+
+    function detectCadFormat(name) {
+      if (!name) return 'STEP';
+      const ext = name.toLowerCase().split('.').pop();
+      if (ext === 'iges' || ext === 'igs') return 'IGES';
+      if (ext === 'brep') return 'BREP';
+      return 'STEP';
+    }
+
+    function computeSafeCameraDistance(targetBox, padding = 1.25) {
+      if (!targetBox || targetBox.isEmpty()) return 100;
+      const sphere = new THREE.Sphere();
+      targetBox.getBoundingSphere(sphere);
+      const radius = Math.max(sphere.radius, 1.0);
+
+      const vFovRad = camera.fov * (Math.PI / 180);
+      const aspect = Math.max(camera.aspect, 0.1);
+      const hFovRad = 2 * Math.atan(Math.tan(vFovRad / 2) * aspect);
+
+      // Exact distance required so bounding sphere fits completely inside BOTH vertical & horizontal frustum planes:
+      const distV = radius / Math.sin(vFovRad / 2);
+      const distH = radius / Math.sin(hFovRad / 2);
+      return Math.max(distV, distH, 10) * padding;
+    }
+
     let isWireframeActive = false;
     let isAutoRotateActive = false;
     let isEdgesActive = true; // SolidWorks Shaded with Edges (Default ON)
@@ -1129,12 +2167,17 @@
     let initialCameraState = { position: new THREE.Vector3(), target: new THREE.Vector3() };
     let loadTimer = null;
 
-    // Section View State
+    // Section View State (SolidWorks-Grade Stencil Capping & Glass Helper Plane)
     let isSectionActive = false;
     let sectionAxis = 'x';
     let sectionFlipped = false;
+    let isSectionCappingActive = true;
+    let isSectionPlaneHelperActive = true;
     let sectionPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
     let sectionBox = new THREE.Box3();
+    let sectionStencilGroup = new THREE.Group();
+    let sectionCapMesh = null;
+    let sectionPlaneHelperMesh = null;
 
     // Smart Measure State
     let isMeasureActive = false;
@@ -1164,6 +2207,15 @@
     let selectedBodyId = null;
     let previewBodyId = null;
 
+    // Exploded Assembly View & SolidWorks Trails State
+    let currentExplodePercent = 0;
+    let isExplodeTrailsActive = true;
+    let explodeTrailsGroup = new THREE.Group();
+    let explodeAnimId = null;
+    let explodeAnchorBodyId = null;
+    let isExplodeInitialized = false;
+    let explodeFrameState = null;
+
     // 1. Initialize Three.js Viewport
     function initViewport() {
       const container = document.getElementById('canvas-container');
@@ -1171,11 +2223,13 @@
       scene.background = new THREE.Color(0x191c22); // Option 3 Deep Matte Slate CAD Background
       scene.add(modelGroup);
       scene.add(measureGroup);
+      scene.add(explodeTrailsGroup);
+      scene.add(sectionStencilGroup);
 
       camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 50000);
       camera.position.set(100, 100, 100);
 
-      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: true });
+      renderer = new THREE.WebGLRenderer({ antialias: true, stencil: true, powerPreference: 'high-performance', preserveDrawingBuffer: true });
       renderer.setPixelRatio(window.devicePixelRatio || 1);
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.outputEncoding = THREE.sRGBEncoding;
@@ -1547,6 +2601,13 @@
 
     // 3. Start CAD Tessellation (With Instant Cache & Live Progress Feedback)
     async function startTessellation(buffer, fileName) {
+      if (fileName) {
+        pendingFileName = fileName;
+      } else if (!pendingFileName) {
+        pendingFileName = 'CAD_Model';
+      }
+      activeCadFormat = detectCadFormat(pendingFileName);
+
       if (loadTimer) {
         clearInterval(loadTimer);
         loadTimer = null;
@@ -1554,20 +2615,22 @@
 
       const bufferMB = buffer.byteLength / (1024 * 1024);
       const sizeFormatted = bufferMB >= 1 ? `${bufferMB.toFixed(1)} MB` : `${Math.round(buffer.byteLength / 1024)} KB`;
-      document.getElementById('badge-filename').innerText = `${fileName || 'STEP Model'} (${sizeFormatted})`;
+      document.getElementById('badge-filename').innerText = `${pendingFileName} (${sizeFormatted})`;
       document.getElementById('spinner').style.display = 'inline-block';
       hideError();
 
       // Clear previous models
       clearModel();
 
-      const cacheKey = (fileName || 'model') + '_' + buffer.byteLength + '_v4';
+      const cacheKey = (pendingFileName || 'model') + '_' + buffer.byteLength + '_v7';
 
       // 1. Check instant cache first (<15ms)
       try {
         const cached = await getCachedModel(cacheKey);
         if (cached && cached.meshes && cached.meshes.length > 0) {
           onTessellationComplete({
+            format: activeCadFormat,
+            fileName: pendingFileName,
             meshes: cached.meshes,
             meshCount: cached.meshCount,
             elapsedMs: 12,
@@ -1582,11 +2645,11 @@
       if (progressBar) progressBar.style.display = 'block';
 
       let elapsedSec = 0;
-      statusEl.innerText = 'Processing CAD geometry... (0s)';
+      statusEl.innerText = `Processing ${activeCadFormat} geometry... (0s)`;
       loadTimer = setInterval(() => {
         elapsedSec++;
         if (elapsedSec < 3) {
-          statusEl.innerText = `Reading STEP entity stream... (${elapsedSec}s)`;
+          statusEl.innerText = `Reading ${activeCadFormat} entity stream... (${elapsedSec}s)`;
         } else if (elapsedSec < 15) {
           statusEl.innerText = `Resolving CAD topology & B-Rep curves... (${elapsedSec}s)`;
         } else if (elapsedSec < 26) {
@@ -1598,7 +2661,6 @@
 
       if (!workerReady) {
         pendingFileBuffer = buffer;
-        pendingFileName = fileName;
         return;
       }
 
@@ -1606,7 +2668,7 @@
       currentWorker.postMessage({
         type: 'PARSE',
         buffer: buffer,
-        fileName: fileName,
+        fileName: pendingFileName,
         cacheKey: cacheKey,
         bufferSize: buffer.byteLength,
         params: null
@@ -1620,6 +2682,21 @@
       }
       const progressBar = document.getElementById('loading-progress-bar');
       if (progressBar) progressBar.style.display = 'none';
+
+      if (data.fileName) {
+        pendingFileName = data.fileName;
+        const bEl = document.getElementById('badge-filename');
+        if (bEl && data.bufferSize) {
+          const bufferMB = data.bufferSize / (1024 * 1024);
+          const sizeFormatted = bufferMB >= 1 ? `${bufferMB.toFixed(1)} MB` : `${Math.round(data.bufferSize / 1024)} KB`;
+          bEl.innerText = `${pendingFileName} (${sizeFormatted})`;
+        }
+      }
+      if (data.format) {
+        activeCadFormat = data.format;
+      } else if (pendingFileName) {
+        activeCadFormat = detectCadFormat(pendingFileName);
+      }
 
       const speedLabel = data.isCached ? '⚡ Instant Cache (12ms)' : `Parsed in ${(data.elapsedMs / 1000).toFixed(1)}s`;
       document.getElementById('status-text').innerText = `${speedLabel} (${data.meshCount} solids)`;
@@ -1635,10 +2712,11 @@
           }
         }
       }
-      indexModelVertices();
+      indexModelVertices(data.meshes);
 
       if (!data.meshes || data.meshes.length === 0) {
-        showError('The STEP file was parsed, but contains no 3D solid geometry.');
+        showError(`This ${activeCadFormat} file was successfully parsed, but contains only 2D wireframe curves/sketches (no 3D solid or surface geometry).`);
+        document.getElementById('status-text').innerText = '2D Wireframe Sketch (No 3D Solids)';
         return;
       }
 
@@ -1766,14 +2844,19 @@
           isGhosted: false,
           isHidden: false,
           material: material,
-          edgesMat: edgesMat
+          edgesMat: edgesMat,
+          originalColor: meshColor.clone(),
+          customColor: null,
+          materialPreset: null,
+          materialDensity: null
         });
       }
 
       modelPhysicalProps = {
         volumeMm3: Math.abs(totalVolMm3),
         areaMm2: totalAreaMm2,
-        bbox: null
+        bbox: null,
+        triangles: totalTriangles
       };
 
       // Auto-fit Camera & Grid
@@ -1817,12 +2900,71 @@
       }
     }
 
+    // =============================================================
+    // Studio Ground Contact Shadow Engine (Soft Contact AO)
+    // =============================================================
+    let contactShadowMesh = null;
+    let contactShadowTexture = null;
+    let contactShadowMaterial = null;
+
+    function createContactShadowTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+      const cx = 256, cy = 256;
+      // Exponential falloff radial gradient for realistic contact ambient occlusion
+      const grad = ctx.createRadialGradient(cx, cy, 15, cx, cy, 250);
+      grad.addColorStop(0, 'rgba(0, 0, 0, 0.72)');
+      grad.addColorStop(0.18, 'rgba(0, 0, 0, 0.55)');
+      grad.addColorStop(0.45, 'rgba(0, 0, 0, 0.28)');
+      grad.addColorStop(0.72, 'rgba(0, 0, 0, 0.08)');
+      grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 512, 512);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    function updateGroundContactShadow(box, center, size) {
+      if (!contactShadowTexture) {
+        contactShadowTexture = createContactShadowTexture();
+        contactShadowMaterial = new THREE.MeshBasicMaterial({
+          map: contactShadowTexture,
+          transparent: true,
+          opacity: 0.45,
+          depthWrite: false
+        });
+      }
+
+      if (contactShadowMesh) {
+        scene.remove(contactShadowMesh);
+        if (contactShadowMesh.geometry) contactShadowMesh.geometry.dispose();
+      }
+
+      const shadowW = Math.max(size.x * 1.5, size.z * 1.5, 15);
+      const shadowD = shadowW;
+      const shadowGeom = new THREE.PlaneGeometry(shadowW, shadowD);
+      shadowGeom.rotateX(-Math.PI / 2);
+      contactShadowMesh = new THREE.Mesh(shadowGeom, contactShadowMaterial);
+      contactShadowMesh.position.set(center.x, box.min.y - 0.08, center.z);
+      contactShadowMesh.name = 'ground_contact_shadow';
+      if (typeof snapExportIncludeShadow !== 'undefined') {
+        contactShadowMesh.visible = snapExportIncludeShadow;
+      }
+      scene.add(contactShadowMesh);
+    }
+
     function autoFitCamera() {
       const box = new THREE.Box3().setFromObject(modelGroup);
       if (box.isEmpty()) return;
 
       sectionBox.copy(box);
       updateSectionPlane();
+      if (isSectionActive) {
+        rebuildSectionStencilMeshes();
+      }
 
       const center = box.getCenter(new THREE.Vector3());
       const size = box.getSize(new THREE.Vector3());
@@ -1834,9 +2976,7 @@
       }
       updateBoundingBoxBadge();
 
-      const fov = camera.fov * (Math.PI / 180);
-      let cameraDistance = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.5;
-      cameraDistance = Math.max(cameraDistance, 10);
+      const cameraDistance = computeSafeCameraDistance(box, 1.25);
 
       currentModelCenter.copy(center);
       currentModelDistance = cameraDistance;
@@ -1845,19 +2985,27 @@
       camera.far = cameraDistance * 100;
       camera.updateProjectionMatrix();
 
-      // Isometric view angle
-      const targetPos = new THREE.Vector3(
-        center.x + cameraDistance * 0.7,
-        center.y + cameraDistance * 0.6,
-        center.z + cameraDistance * 0.7
-      );
+      // Normalized Isometric view angle
+      const isoDir = new THREE.Vector3(1, 0.85, 1).normalize();
+      let targetCenter = center.clone();
+
+      // If Tree panel is open (takes ~280px on the left), offset target slightly so model is centered in visible canvas
+      if (isTreeActive && window.innerWidth > 600) {
+        const vFovRad = camera.fov * (Math.PI / 180);
+        const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize();
+        const offsetAmt = (cameraDistance * Math.tan(vFovRad / 2) * camera.aspect) * 0.16;
+        targetCenter.sub(camRight.multiplyScalar(offsetAmt));
+      }
+
+      const targetPos = targetCenter.clone().add(isoDir.multiplyScalar(cameraDistance));
 
       camera.position.copy(targetPos);
-      camera.lookAt(center);
-      controls.target.copy(center);
+      camera.lookAt(targetCenter);
+      controls.target.copy(targetCenter);
+      controls.update();
 
       initialCameraState.position.copy(targetPos);
-      initialCameraState.target.copy(center);
+      initialCameraState.target.copy(targetCenter);
 
       // Create or adjust ground grid
       if (gridHelper) scene.remove(gridHelper);
@@ -1865,9 +3013,18 @@
       gridHelper = new THREE.GridHelper(gridSize, 20, 0x2d3340, 0x1f232c);
       gridHelper.position.set(center.x, box.min.y, center.z);
       scene.add(gridHelper);
+
+      // Studio Ground Contact Shadow
+      updateGroundContactShadow(box, center, size);
     }
 
     function clearModel() {
+      closeColorPickerPopover();
+      if (contactShadowMesh) {
+        scene.remove(contactShadowMesh);
+        if (contactShadowMesh.geometry) contactShadowMesh.geometry.dispose();
+        contactShadowMesh = null;
+      }
       deselectFace();
       deselectBody();
       if (faceHighlightMesh) {
@@ -1918,6 +3075,330 @@
         scene.remove(gridHelper);
         gridHelper = null;
       }
+      if (isSectionActive) {
+        toggleSectionView(false);
+      } else {
+        sectionStencilGroup.clear();
+        sectionCapMesh = null;
+        sectionPlaneHelperMesh = null;
+      }
+      resetExplodedView();
+    }
+
+    // =============================================================
+    // Interactive CAD Exploded Assembly Engine & SolidWorks Trails
+    // =============================================================
+    function initExplodeVectors() {
+      if (explodeAnimId) {
+        cancelAnimationFrame(explodeAnimId);
+        explodeAnimId = null;
+      }
+      currentExplodePercent = 0;
+      isExplodeInitialized = false;
+
+      // Clear existing trails
+      while (explodeTrailsGroup.children.length > 0) {
+        const line = explodeTrailsGroup.children[0];
+        if (line.geometry) line.geometry.dispose();
+        if (line.material) line.material.dispose();
+        explodeTrailsGroup.remove(line);
+      }
+      explodeTrailsGroup.visible = false;
+
+      const slider = document.getElementById('explode-slider');
+      const label = document.getElementById('explode-percent-label');
+      const btnToggle = document.getElementById('btn-explode-toggle');
+      const btnToolbar = document.getElementById('btn-explode');
+      if (slider) slider.value = 0;
+      if (label) label.innerText = '0%';
+      if (btnToggle) btnToggle.innerText = 'Explode ⏵';
+      if (btnToolbar) btnToolbar.classList.remove('active');
+
+      if (!modelBodies || modelBodies.length <= 1) {
+        return;
+      }
+
+      // 1. Calculate overall assembly bounding box and center
+      const asmBox = new THREE.Box3();
+      modelBodies.forEach(b => {
+        b.mesh.position.set(0, 0, 0); // ensure reset to home
+        b.mesh.updateMatrixWorld(true);
+        if (b.mesh.geometry) {
+          if (!b.mesh.geometry.boundingBox) b.mesh.geometry.computeBoundingBox();
+          const bBox = b.mesh.geometry.boundingBox.clone();
+          asmBox.union(bBox);
+        }
+      });
+
+      const asmCenter = asmBox.getCenter(new THREE.Vector3());
+      const asmSize = asmBox.getSize(new THREE.Vector3());
+      const maxAsmDim = Math.max(asmSize.x, asmSize.y, asmSize.z, 10);
+
+      // 2. Identify the Anchor Body (largest volume/base chassis stays grounded)
+      let maxVol = -1;
+      let anchorId = 0;
+      modelBodies.forEach(b => {
+        const geom = b.mesh.geometry;
+        let vol = b.data.volumeMm3 || 0;
+        if (vol <= 0 && geom && geom.boundingBox) {
+          const s = geom.boundingBox.getSize(new THREE.Vector3());
+          vol = s.x * s.y * s.z;
+        }
+        if (vol > maxVol) {
+          maxVol = vol;
+          anchorId = b.id;
+        }
+      });
+      explodeAnchorBodyId = anchorId;
+
+      // 3. Compute outward explosion directions and distances for each body
+      const dashSize = Math.max(1.5, maxAsmDim * 0.02);
+      const gapSize = Math.max(1.0, maxAsmDim * 0.015);
+
+      modelBodies.forEach((b, idx) => {
+        const geom = b.mesh.geometry;
+        if (!geom.boundingBox) geom.computeBoundingBox();
+        const bCenter = geom.boundingBox.getCenter(new THREE.Vector3());
+        b.homeCenter = bCenter.clone();
+
+        if (b.id === explodeAnchorBodyId) {
+          // Anchor stays stationary at its home position
+          b.explodeOffset = new THREE.Vector3(0, 0, 0);
+          b.trailLine = null;
+          return;
+        }
+
+        // Outward radial vector from assembly centroid
+        let dir = bCenter.clone().sub(asmCenter);
+        const distFromCenter = dir.length();
+
+        if (distFromCenter < 1e-3) {
+          // Centered/concentric part: explode outward along cylindrical axis or staggered angles
+          const angle = (idx / modelBodies.length) * Math.PI * 2;
+          const s = geom.boundingBox.getSize(new THREE.Vector3());
+          if (s.z > s.x * 1.5 && s.z > s.y * 1.5) {
+            dir.set(0, 0, idx % 2 === 0 ? 1 : -1);
+          } else if (s.y > s.x * 1.5 && s.y > s.z * 1.5) {
+            dir.set(0, idx % 2 === 0 ? 1 : -1, 0);
+          } else {
+            dir.set(Math.cos(angle), (idx % 2 === 0 ? 0.4 : -0.4), Math.sin(angle));
+          }
+        }
+        dir.normalize();
+
+        // Balanced separation factor: parts separate clearly with visible daylight without flying out of bounds
+        const spreadFactor = 0.55 + 0.45 * Math.min(1.8, distFromCenter / (maxAsmDim * 0.4));
+        const maxDist = maxAsmDim * 0.45 * spreadFactor;
+        b.explodeOffset = dir.multiplyScalar(maxDist);
+
+        // SolidWorks-style Dashed Engineering Assembly Trail
+        const trailMat = new THREE.LineDashedMaterial({
+          color: 0x38bdf8,
+          dashSize: dashSize,
+          gapSize: gapSize,
+          linewidth: 1,
+          transparent: true,
+          opacity: 0.8,
+          depthTest: true
+        });
+
+        const lineGeom = new THREE.BufferGeometry();
+        const coords = new Float32Array([
+          b.homeCenter.x, b.homeCenter.y, b.homeCenter.z,
+          b.homeCenter.x, b.homeCenter.y, b.homeCenter.z
+        ]);
+        lineGeom.setAttribute('position', new THREE.BufferAttribute(coords, 3));
+        const line = new THREE.Line(lineGeom, trailMat);
+        line.computeLineDistances();
+        line.visible = false;
+        explodeTrailsGroup.add(line);
+        b.trailLine = line;
+      });
+
+      // 4. Precompute fully exploded bounding box and dynamic camera framing state
+      const fullExplodedBox = new THREE.Box3();
+      modelBodies.forEach(b => {
+        if (b.mesh.geometry) {
+          if (!b.mesh.geometry.boundingBox) b.mesh.geometry.computeBoundingBox();
+          const bBox = b.mesh.geometry.boundingBox.clone();
+          if (b.explodeOffset) {
+            bBox.translate(b.explodeOffset);
+          }
+          fullExplodedBox.union(bBox);
+        }
+      });
+
+      const fullExplodedCenter = fullExplodedBox.getCenter(new THREE.Vector3());
+      const fullExplodedSize = fullExplodedBox.getSize(new THREE.Vector3());
+      const maxExplodedDim = Math.max(fullExplodedSize.x, fullExplodedSize.y, fullExplodedSize.z, 10);
+
+      const baseCamDist = computeSafeCameraDistance(asmBox, 1.25);
+      // Generous framing distance so exploded assembly has breathing room and never clips
+      const fullCamDist = Math.max(computeSafeCameraDistance(fullExplodedBox, 1.25), baseCamDist);
+
+      explodeFrameState = {
+        unexplodedCenter: asmCenter.clone(),
+        fullExplodedCenter: fullExplodedCenter,
+        baseCamDist: baseCamDist,
+        fullCamDist: fullCamDist
+      };
+
+      isExplodeInitialized = true;
+    }
+
+    function setExplodeProgress(percent, updateUI = true, adaptCamera = true) {
+      currentExplodePercent = Math.max(0, Math.min(100, percent));
+      const factor = currentExplodePercent / 100.0;
+
+      modelBodies.forEach(b => {
+        if (!b.explodeOffset || b.id === explodeAnchorBodyId) {
+          b.mesh.position.set(0, 0, 0);
+          return;
+        }
+        b.mesh.position.copy(b.explodeOffset).multiplyScalar(factor);
+        b.mesh.updateMatrixWorld(true);
+
+        if (b.trailLine) {
+          if (currentExplodePercent > 3 && isExplodeTrailsActive && !b.isHidden && (isolatedBodyId === null || isolatedBodyId === b.id)) {
+            b.trailLine.visible = true;
+            const positions = b.trailLine.geometry.attributes.position.array;
+            // Point 0: Home socket center
+            positions[0] = b.homeCenter.x;
+            positions[1] = b.homeCenter.y;
+            positions[2] = b.homeCenter.z;
+            // Point 1: Current exploded mesh center
+            positions[3] = b.homeCenter.x + b.mesh.position.x;
+            positions[4] = b.homeCenter.y + b.mesh.position.y;
+            positions[5] = b.homeCenter.z + b.mesh.position.z;
+            b.trailLine.geometry.attributes.position.needsUpdate = true;
+            b.trailLine.computeLineDistances();
+          } else {
+            b.trailLine.visible = false;
+          }
+        }
+      });
+
+      explodeTrailsGroup.visible = (currentExplodePercent > 3 && isExplodeTrailsActive);
+
+      if (updateUI) {
+        const slider = document.getElementById('explode-slider');
+        const label = document.getElementById('explode-percent-label');
+        const btnToggle = document.getElementById('btn-explode-toggle');
+        const btnToolbar = document.getElementById('btn-explode');
+
+        if (slider && parseInt(slider.value, 10) !== Math.round(currentExplodePercent)) {
+          slider.value = Math.round(currentExplodePercent);
+        }
+        if (label) {
+          label.innerText = Math.round(currentExplodePercent) + '%';
+        }
+        if (btnToggle) {
+          btnToggle.innerText = currentExplodePercent >= 50 ? 'Collapse ⏴' : 'Explode ⏵';
+        }
+        if (btnToolbar) {
+          btnToolbar.classList.toggle('active', currentExplodePercent > 0);
+        }
+      }
+
+      // Dynamic camera auto-centering & adaptive zoom (Zero-Clipping Invariant)
+      if (adaptCamera && explodeFrameState) {
+        const curCenter = explodeFrameState.unexplodedCenter.clone().lerp(explodeFrameState.fullExplodedCenter, factor);
+        const curDist = explodeFrameState.baseCamDist + (explodeFrameState.fullCamDist - explodeFrameState.baseCamDist) * factor;
+
+        // If Tree panel is open (takes ~280px on the left), offset target slightly so model is centered in visible canvas
+        let finalTarget = curCenter.clone();
+        if (isTreeActive && window.innerWidth > 600) {
+          const fovRad = camera.fov * (Math.PI / 180);
+          const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize();
+          const offsetAmt = (curDist * Math.tan(fovRad / 2) * camera.aspect) * 0.16;
+          finalTarget.sub(camRight.multiplyScalar(offsetAmt));
+        }
+
+        controls.target.copy(finalTarget);
+
+        // Keep current viewing direction/angle, smoothly scale distance
+        const viewDir = camera.position.clone().sub(controls.target);
+        if (viewDir.lengthSq() > 1e-4) {
+          viewDir.normalize();
+          camera.position.copy(controls.target).add(viewDir.multiplyScalar(curDist));
+        }
+        camera.near = curDist / 100;
+        camera.far = curDist * 100;
+        camera.updateProjectionMatrix();
+        controls.update();
+      }
+
+      if (isSectionActive && isSectionCappingActive) {
+        rebuildSectionStencilMeshes();
+      }
+    }
+
+    function animateExplodeTo(targetPercent, duration = 600) {
+      if (explodeAnimId) {
+        cancelAnimationFrame(explodeAnimId);
+        explodeAnimId = null;
+      }
+      const start = currentExplodePercent;
+      const target = Math.max(0, Math.min(100, targetPercent));
+      const delta = target - start;
+      if (Math.abs(delta) < 0.5) {
+        setExplodeProgress(target);
+        return;
+      }
+
+      const startTime = performance.now();
+      function step(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(1.0, elapsed / duration);
+        // Cubic ease-in-out
+        const ease = progress < 0.5
+          ? 4 * progress * progress * progress
+          : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+        setExplodeProgress(start + delta * ease);
+        if (progress < 1.0) {
+          explodeAnimId = requestAnimationFrame(step);
+        } else {
+          setExplodeProgress(target);
+          explodeAnimId = null;
+        }
+      }
+      explodeAnimId = requestAnimationFrame(step);
+    }
+
+    function toggleExplode() {
+      if (!modelBodies || modelBodies.length <= 1) {
+        showToast('Exploded view requires an assembly with multiple parts');
+        return;
+      }
+      if (!isExplodeInitialized) {
+        initExplodeVectors();
+      }
+      // Ensure tree panel is opened so user sees the progress slider
+      if (!isTreeActive) {
+        toggleTreePanel(true);
+      }
+      if (currentExplodePercent < 50) {
+        animateExplodeTo(100);
+      } else {
+        animateExplodeTo(0);
+      }
+    }
+
+    function resetExplodedView() {
+      if (explodeAnimId) {
+        cancelAnimationFrame(explodeAnimId);
+        explodeAnimId = null;
+      }
+      currentExplodePercent = 0;
+      setExplodeProgress(0);
+      const slider = document.getElementById('explode-slider');
+      const label = document.getElementById('explode-percent-label');
+      const btnToggle = document.getElementById('btn-explode-toggle');
+      const btnToolbar = document.getElementById('btn-explode');
+      if (slider) slider.value = 0;
+      if (label) label.innerText = '0%';
+      if (btnToggle) btnToggle.innerText = 'Explode ⏵';
+      if (btnToolbar) btnToolbar.classList.remove('active');
     }
 
     // =============================================================
@@ -1942,6 +3423,18 @@
         countBadge.innerText = `${bodyCount} ${bodyCount === 1 ? 'Solid' : 'Bodies'}`;
       }
 
+      // Initialize Exploded Assembly vectors and UI visibility
+      initExplodeVectors();
+      const explodeSec = document.getElementById('tree-explode-section');
+      const btnExplode = document.getElementById('btn-explode');
+      if (explodeSec) {
+        explodeSec.style.display = bodyCount > 1 ? 'block' : 'none';
+      }
+      if (btnExplode) {
+        btnExplode.style.opacity = bodyCount > 1 ? '1' : '0.45';
+        btnExplode.title = bodyCount > 1 ? 'Exploded Assembly View [X]' : 'Exploded View (Requires Assembly with 2+ parts)';
+      }
+
       if (bodyCount === 0) {
         container.innerHTML = '<div style="color:#64748b; font-size:11px; text-align:center; padding:16px;">No 3D solids in model</div>';
         return;
@@ -1961,7 +3454,7 @@
         node.innerHTML = `
           <div class="tree-node-top">
             <div class="tree-node-info" title="Double-click to Zoom, Click to Highlight">
-              <span class="tree-color-swatch" style="background-color: ${colorHex};" title="Body Color"></span>
+              <span class="tree-color-swatch" style="background-color: ${colorHex};" title="Click to Change Body Color & 3D Print Material"></span>
               <span class="tree-node-name">${b.name}</span>
             </div>
             <div class="tree-node-actions">
@@ -1996,9 +3489,17 @@
           topEl.addEventListener('mouseenter', () => previewBodyInScene(b.id));
           topEl.addEventListener('mouseleave', () => clearBodyPreview());
           topEl.addEventListener('click', (e) => {
-            if (e.target.closest('.tree-node-actions') || e.target.closest('button')) return;
+            if (e.target.closest('.tree-node-actions') || e.target.closest('.tree-color-swatch') || e.target.closest('button')) return;
             e.stopPropagation();
             selectAndFocusBody(b.id);
+          });
+        }
+
+        const swatch = node.querySelector('.tree-color-swatch');
+        if (swatch) {
+          swatch.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openColorPickerPopover(b.id, swatch);
           });
         }
 
@@ -2114,6 +3615,9 @@
       b.isHidden = (visible !== undefined) ? !visible : !b.isHidden;
       if (isolatedBodyId === null) {
         b.mesh.visible = !b.isHidden;
+        if (b.trailLine) {
+          b.trailLine.visible = (!b.isHidden && currentExplodePercent > 3 && isExplodeTrailsActive);
+        }
       }
       updateTreeItemState(bodyId);
     }
@@ -2152,6 +3656,9 @@
       isolatedBodyId = bodyId;
       modelBodies.forEach(b => {
         b.mesh.visible = (b.id === bodyId);
+        if (b.trailLine) {
+          b.trailLine.visible = (b.id === bodyId && currentExplodePercent > 3 && isExplodeTrailsActive);
+        }
       });
       zoomToBody(bodyId);
       showIsolateBanner(bodyId);
@@ -2162,6 +3669,9 @@
       isolatedBodyId = null;
       modelBodies.forEach(b => {
         b.mesh.visible = !b.isHidden;
+        if (b.trailLine) {
+          b.trailLine.visible = (!b.isHidden && currentExplodePercent > 3 && isExplodeTrailsActive);
+        }
       });
       hideIsolateBanner();
       updateAllTreeNodes();
@@ -2588,6 +4098,11 @@
       node.classList.toggle('hidden-body', b.isHidden);
       node.classList.toggle('isolated', isolatedBodyId === b.id);
 
+      const swatch = node.querySelector('.tree-color-swatch');
+      if (swatch && b.mesh && b.mesh.material && b.mesh.material.color) {
+        swatch.style.backgroundColor = '#' + b.mesh.material.color.getHexString();
+      }
+
       const btnVis = node.querySelector('.btn-tree-vis');
       if (btnVis) {
         btnVis.innerText = b.isHidden ? '🚫' : '👁️';
@@ -2624,6 +4139,249 @@
       if (banner) banner.style.display = 'none';
     }
 
+    // =============================================================
+    // CAD Body Color & 3D Printing Material Popover Controller
+    // =============================================================
+    let activeColorPopoverBodyId = null;
+
+    const AUTO_COLOR_PALETTE = [
+      '#3b82f6', // Electric Blue
+      '#f97316', // Safety Orange
+      '#10b981', // Emerald Green
+      '#a855f7', // Vivid Purple
+      '#f43f5e', // Bright Crimson
+      '#06b6d4', // Cyan
+      '#eab308', // Industrial Amber
+      '#6366f1', // Indigo
+      '#ec4899', // Pink
+      '#14b8a6', // Teal
+      '#84cc16', // Lime
+      '#8b5cf6', // Violet
+      '#f59e0b', // Warm Amber
+      '#64748b', // Slate Steel
+      '#d946ef', // Fuchsia
+      '#0ea5e9'  // Sky Blue
+    ];
+
+    function positionColorPopover(anchorEl) {
+      const popover = document.getElementById('color-picker-popover');
+      if (!popover) return;
+      const treePanel = document.getElementById('tree-panel');
+      const treeRect = treePanel ? treePanel.getBoundingClientRect() : { right: 306, top: 68 };
+      let left = treeRect.right + 8;
+      let top = treeRect.top;
+      if (anchorEl) {
+        const swatchRect = anchorEl.getBoundingClientRect();
+        top = Math.max(68, Math.min(swatchRect.top - 20, window.innerHeight - 560));
+      }
+      if (left + 290 > window.innerWidth) {
+        left = Math.max(10, (treePanel ? treePanel.getBoundingClientRect().left - 290 : 10));
+      }
+      popover.style.left = `${left}px`;
+      popover.style.top = `${top}px`;
+    }
+
+    function openColorPickerPopover(bodyId, anchorEl) {
+      const b = modelBodies.find(item => item.id === bodyId);
+      if (!b || !b.mesh || !b.mesh.material) return;
+
+      activeColorPopoverBodyId = bodyId;
+      const popover = document.getElementById('color-picker-popover');
+      if (!popover) return;
+
+      // Update body title
+      const titleEl = document.getElementById('color-popover-body-name');
+      if (titleEl) titleEl.innerText = `${b.name} Appearance`;
+
+      // Update original color
+      const origColor = b.originalColor || (b.mesh.userData && b.mesh.userData.originalColor) || b.mesh.material.color;
+      const origHex = '#' + origColor.getHexString();
+      const origSwatch = document.getElementById('popover-orig-swatch');
+      if (origSwatch) origSwatch.style.backgroundColor = origHex;
+      const origHexEl = document.getElementById('popover-orig-hex');
+      if (origHexEl) origHexEl.innerText = origHex.toUpperCase();
+
+      // Update custom input & hex text
+      const curHex = '#' + b.mesh.material.color.getHexString();
+      const colorInput = document.getElementById('popover-color-input');
+      if (colorInput) colorInput.value = curHex;
+      const hexValEl = document.getElementById('popover-color-hex-val');
+      if (hexValEl) hexValEl.innerText = curHex.toUpperCase();
+
+      // Update opacity slider
+      const curOpacity = Math.round((b.mesh.material.opacity !== undefined ? b.mesh.material.opacity : 1.0) * 100);
+      const opSlider = document.getElementById('popover-opacity-slider');
+      if (opSlider) opSlider.value = curOpacity;
+      const opVal = document.getElementById('popover-opacity-val');
+      if (opVal) opVal.innerText = `${curOpacity}%`;
+
+      // Update material meter
+      updatePopoverMaterialMeter(b);
+
+      positionColorPopover(anchorEl);
+      popover.style.display = 'flex';
+    }
+
+    function closeColorPickerPopover() {
+      activeColorPopoverBodyId = null;
+      const popover = document.getElementById('color-picker-popover');
+      if (popover) popover.style.display = 'none';
+    }
+
+    function updatePopoverMaterialMeter(b) {
+      const matNameEl = document.getElementById('meter-mat-name');
+      const massEl = document.getElementById('meter-mat-mass');
+      const lengthEl = document.getElementById('meter-mat-length');
+
+      // Highlight active material preset button
+      document.querySelectorAll('.mat-preset-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mat === b.materialPreset);
+      });
+
+      if (!b.materialPreset) {
+        if (matNameEl) matNameEl.innerText = 'Custom / CAD Native';
+        const volMm3 = b.data.volumeMm3 || 0;
+        if (volMm3 > 0) {
+          // Show default PLA (1.24) baseline reference
+          const plaMass = (volMm3 / 1000.0 * 1.24).toFixed(1);
+          const plaFilament = (volMm3 / 2405.28).toFixed(2);
+          if (massEl) massEl.innerText = `${plaMass} g (if PLA)`;
+          if (lengthEl) lengthEl.innerText = `${plaFilament} m (1.75mm)`;
+        } else {
+          if (massEl) massEl.innerText = '-';
+          if (lengthEl) lengthEl.innerText = '-';
+        }
+        return;
+      }
+
+      if (matNameEl) matNameEl.innerText = `${b.materialPreset} (${b.materialDensity} g/cm³)`;
+
+      const volMm3 = b.data.volumeMm3 || 0;
+      if (volMm3 > 0) {
+        const massG = (volMm3 / 1000.0 * b.materialDensity).toFixed(1);
+        if (massEl) massEl.innerText = `${massG} g`;
+
+        if (b.materialPreset === 'UV Resin') {
+          const resinMl = (volMm3 / 1000.0).toFixed(1);
+          if (lengthEl) lengthEl.innerText = `${resinMl} mL (Liquid)`;
+        } else {
+          const lengthM = (volMm3 / 2405.28).toFixed(2);
+          if (lengthEl) lengthEl.innerText = `${lengthM} m (1.75mm)`;
+        }
+      } else {
+        if (massEl) massEl.innerText = 'N/A';
+        if (lengthEl) lengthEl.innerText = 'N/A';
+      }
+    }
+
+    function setBodyColor(bodyId, hexColor, metalness, roughness) {
+      const b = modelBodies.find(item => item.id === bodyId);
+      if (!b || !b.mesh || !b.mesh.material) return;
+
+      b.mesh.material.color.set(hexColor);
+      if (metalness !== undefined) b.mesh.material.metalness = metalness;
+      if (roughness !== undefined) b.mesh.material.roughness = roughness;
+      b.mesh.material.needsUpdate = true;
+      b.customColor = hexColor;
+
+      updateTreeItemState(bodyId);
+
+      const colorInput = document.getElementById('popover-color-input');
+      if (colorInput) colorInput.value = hexColor;
+      const hexValEl = document.getElementById('popover-color-hex-val');
+      if (hexValEl) hexValEl.innerText = hexColor.toUpperCase();
+    }
+
+    function resetBodyColor(bodyId) {
+      const b = modelBodies.find(item => item.id === bodyId);
+      if (!b || !b.mesh || !b.mesh.material) return;
+
+      const origColor = b.originalColor || (b.mesh.userData && b.mesh.userData.originalColor) || new THREE.Color(0xcccccc);
+      b.mesh.material.color.copy(origColor);
+      b.mesh.material.metalness = 0.4;
+      b.mesh.material.roughness = 0.3;
+      b.mesh.material.opacity = 1.0;
+      b.mesh.material.transparent = false;
+      b.mesh.material.depthWrite = true;
+      b.mesh.material.needsUpdate = true;
+
+      b.customColor = null;
+      b.materialPreset = null;
+      b.materialDensity = null;
+      b.isGhosted = false;
+
+      updateTreeItemState(bodyId);
+      updatePopoverMaterialMeter(b);
+
+      const curHex = '#' + origColor.getHexString();
+      const colorInput = document.getElementById('popover-color-input');
+      if (colorInput) colorInput.value = curHex;
+      const hexValEl = document.getElementById('popover-color-hex-val');
+      if (hexValEl) hexValEl.innerText = curHex.toUpperCase();
+
+      const opSlider = document.getElementById('popover-opacity-slider');
+      if (opSlider) opSlider.value = 100;
+      const opVal = document.getElementById('popover-opacity-val');
+      if (opVal) opVal.innerText = '100%';
+
+      showToast(`Restored original CAD color for ${b.name}`);
+    }
+
+    function setBody3DPrintMaterial(bodyId, matName, density, hexColor, roughness) {
+      const b = modelBodies.find(item => item.id === bodyId);
+      if (!b || !b.mesh || !b.mesh.material) return;
+
+      b.materialPreset = matName;
+      b.materialDensity = density;
+
+      setBodyColor(bodyId, hexColor, 0.04, roughness || 0.45);
+      updatePopoverMaterialMeter(b);
+      showToast(`Applied ${matName} preset (${density} g/cm³) to ${b.name}`);
+    }
+
+    function setBodyOpacity(bodyId, percent) {
+      const b = modelBodies.find(item => item.id === bodyId);
+      if (!b || !b.mesh || !b.mesh.material) return;
+
+      const alpha = Math.max(0.1, Math.min(1.0, percent / 100.0));
+      b.mesh.material.opacity = alpha;
+      b.mesh.material.transparent = alpha < 0.999;
+      b.mesh.material.depthWrite = alpha > 0.85;
+      b.mesh.material.needsUpdate = true;
+
+      if (alpha < 0.999) {
+        b.isGhosted = false; // Custom opacity overrides binary ghost
+      }
+
+      const opVal = document.getElementById('popover-opacity-val');
+      if (opVal) opVal.innerText = `${percent}%`;
+    }
+
+    function autoColorizeAssembly() {
+      if (modelBodies.length === 0) return;
+
+      modelBodies.forEach((b, idx) => {
+        const color = AUTO_COLOR_PALETTE[idx % AUTO_COLOR_PALETTE.length];
+        b.mesh.material.color.set(color);
+        b.mesh.material.needsUpdate = true;
+        b.customColor = color;
+        updateTreeItemState(b.id);
+      });
+
+      if (activeColorPopoverBodyId !== null) {
+        const activeBody = modelBodies.find(b => b.id === activeColorPopoverBodyId);
+        if (activeBody) {
+          const curHex = '#' + activeBody.mesh.material.color.getHexString();
+          const colorInput = document.getElementById('popover-color-input');
+          if (colorInput) colorInput.value = curHex;
+          const hexValEl = document.getElementById('popover-color-hex-val');
+          if (hexValEl) hexValEl.innerText = curHex.toUpperCase();
+        }
+      }
+
+      showToast(`🎨 Auto-colorized assembly (${modelBodies.length} bodies)`);
+    }
+
     function updatePropsBodySelect() {
       const row = document.getElementById('props-body-row');
       const select = document.getElementById('props-body-select');
@@ -2652,20 +4410,23 @@
     }
 
     // =============================================================
-    // Phase 2: Cross-Section View Functions
+    // Phase 2: Cross-Section View Functions (SolidWorks-Grade Stencil Capping & 3D Glass Plane)
     // =============================================================
     function updateSectionPlane() {
       if (sectionBox.isEmpty()) return;
       const min = sectionBox.min;
       const max = sectionBox.max;
+      const center = sectionBox.getCenter(new THREE.Vector3());
       const slider = document.getElementById('sec-slider');
       const val = slider ? (parseFloat(slider.value) / 100) : 0.5;
 
       const normal = new THREE.Vector3();
       let pos = 0;
+      let centerCoord = 0;
 
       if (sectionAxis === 'x') {
         pos = min.x + (max.x - min.x) * val;
+        centerCoord = center.x;
         if (!sectionFlipped) {
           normal.set(-1, 0, 0);
           sectionPlane.constant = pos;
@@ -2675,6 +4436,7 @@
         }
       } else if (sectionAxis === 'y') {
         pos = min.y + (max.y - min.y) * val;
+        centerCoord = center.y;
         if (!sectionFlipped) {
           normal.set(0, -1, 0);
           sectionPlane.constant = pos;
@@ -2684,6 +4446,7 @@
         }
       } else if (sectionAxis === 'z') {
         pos = min.z + (max.z - min.z) * val;
+        centerCoord = center.z;
         if (!sectionFlipped) {
           normal.set(0, 0, -1);
           sectionPlane.constant = pos;
@@ -2693,6 +4456,150 @@
         }
       }
       sectionPlane.normal.copy(normal);
+
+      // Live Physical Offset Badge (relative to model center)
+      const offsetMm = pos - centerCoord;
+      const badge = document.getElementById('sec-offset-val');
+      if (badge) {
+        const sign = offsetMm > 0.005 ? '+' : (offsetMm < -0.005 ? '' : '');
+        badge.innerText = `${sectionAxis.toUpperCase()}: ${sign}${formatDim(offsetMm)}`;
+      }
+
+      // Fast update of cap and helper transforms (60 FPS hardware accelerated)
+      updateSectionGizmos();
+    }
+
+    function updateSectionGizmos() {
+      if (!isSectionActive) return;
+      const normal = sectionPlane.normal;
+      const planePos = normal.clone().multiplyScalar(-sectionPlane.constant);
+
+      if (sectionCapMesh) {
+        sectionCapMesh.position.copy(planePos);
+        sectionCapMesh.lookAt(planePos.clone().add(normal));
+        sectionCapMesh.visible = isSectionCappingActive;
+      }
+
+      if (sectionPlaneHelperMesh) {
+        sectionPlaneHelperMesh.position.copy(planePos);
+        sectionPlaneHelperMesh.lookAt(planePos.clone().add(normal));
+        sectionPlaneHelperMesh.visible = isSectionPlaneHelperActive;
+      }
+    }
+
+    function rebuildSectionStencilMeshes() {
+      sectionStencilGroup.clear();
+      sectionCapMesh = null;
+      sectionPlaneHelperMesh = null;
+
+      if (!isSectionActive) return;
+
+      const boxSize = sectionBox.getSize(new THREE.Vector3());
+      const maxDim = Math.max(boxSize.x, boxSize.y, boxSize.z, 50);
+
+      // 1. Build Stencil Shadow Meshes for each visible body if capping is active
+      if (isSectionCappingActive) {
+        const baseStencilMat = new THREE.MeshBasicMaterial({
+          depthWrite: false,
+          depthTest: false,
+          colorWrite: false,
+          stencilWrite: true,
+          stencilFunc: THREE.AlwaysStencilFunc
+        });
+
+        modelBodies.forEach(b => {
+          if (!b.mesh || !b.mesh.geometry || !b.mesh.visible) return;
+
+          // Back faces: Increment stencil buffer where clipped by plane
+          const matBack = baseStencilMat.clone();
+          matBack.side = THREE.BackSide;
+          matBack.clippingPlanes = [sectionPlane];
+          matBack.stencilFail = THREE.IncrementWrapStencilOp;
+          matBack.stencilZFail = THREE.IncrementWrapStencilOp;
+          matBack.stencilZPass = THREE.IncrementWrapStencilOp;
+
+          const meshBack = new THREE.Mesh(b.mesh.geometry, matBack);
+          meshBack.position.copy(b.mesh.position);
+          meshBack.rotation.copy(b.mesh.rotation);
+          meshBack.scale.copy(b.mesh.scale);
+          meshBack.renderOrder = 1;
+          sectionStencilGroup.add(meshBack);
+
+          // Front faces: Decrement stencil buffer where clipped by plane
+          const matFront = baseStencilMat.clone();
+          matFront.side = THREE.FrontSide;
+          matFront.clippingPlanes = [sectionPlane];
+          matFront.stencilFail = THREE.DecrementWrapStencilOp;
+          matFront.stencilZFail = THREE.DecrementWrapStencilOp;
+          matFront.stencilZPass = THREE.DecrementWrapStencilOp;
+
+          const meshFront = new THREE.Mesh(b.mesh.geometry, matFront);
+          meshFront.position.copy(b.mesh.position);
+          meshFront.rotation.copy(b.mesh.rotation);
+          meshFront.scale.copy(b.mesh.scale);
+          meshFront.renderOrder = 1;
+          sectionStencilGroup.add(meshFront);
+
+          b.mesh.renderOrder = 2;
+        });
+
+        // 2. SolidWorks-Style Solid Cut Cap Plane Mesh
+        const capGeom = new THREE.PlaneGeometry(maxDim * 4, maxDim * 4);
+        const capMat = new THREE.MeshStandardMaterial({
+          color: 0xea580c, // Technical SolidWorks cut amber/orange
+          roughness: 0.35,
+          metalness: 0.1,
+          stencilWrite: true,
+          stencilRef: 0,
+          stencilFunc: THREE.NotEqualStencilFunc,
+          stencilFail: THREE.ReplaceStencilOp,
+          stencilZFail: THREE.ReplaceStencilOp,
+          stencilZPass: THREE.ReplaceStencilOp,
+          side: THREE.DoubleSide
+        });
+        sectionCapMesh = new THREE.Mesh(capGeom, capMat);
+        sectionCapMesh.renderOrder = 1.1;
+        sectionStencilGroup.add(sectionCapMesh);
+      }
+
+      // 3. 3D Glass Cutting Plane Helper with Luminous Outer Border
+      if (isSectionPlaneHelperActive) {
+        let w = 100, h = 100;
+        if (sectionAxis === 'x') {
+          w = Math.max(boxSize.z * 1.35, 20);
+          h = Math.max(boxSize.y * 1.35, 20);
+        } else if (sectionAxis === 'y') {
+          w = Math.max(boxSize.x * 1.35, 20);
+          h = Math.max(boxSize.z * 1.35, 20);
+        } else {
+          w = Math.max(boxSize.x * 1.35, 20);
+          h = Math.max(boxSize.y * 1.35, 20);
+        }
+
+        const helperGeom = new THREE.PlaneGeometry(w, h);
+        const helperMat = new THREE.MeshBasicMaterial({
+          color: 0x38bdf8,
+          transparent: true,
+          opacity: 0.12,
+          side: THREE.DoubleSide,
+          depthWrite: false
+        });
+        sectionPlaneHelperMesh = new THREE.Mesh(helperGeom, helperMat);
+
+        const edgeGeom = new THREE.EdgesGeometry(helperGeom);
+        const edgeMat = new THREE.LineBasicMaterial({
+          color: 0x38bdf8,
+          linewidth: 2,
+          transparent: true,
+          opacity: 0.85
+        });
+        const edgeLine = new THREE.LineSegments(edgeGeom, edgeMat);
+        sectionPlaneHelperMesh.add(edgeLine);
+        sectionPlaneHelperMesh.renderOrder = 4;
+        sectionStencilGroup.add(sectionPlaneHelperMesh);
+      }
+
+      updateSectionGizmos();
     }
 
     function toggleSectionView(enable) {
@@ -2704,9 +4611,13 @@
         if (btn) btn.classList.add('active');
         if (panel) panel.style.display = 'flex';
         updateSectionPlane();
+        rebuildSectionStencilMeshes();
       } else {
         if (btn) btn.classList.remove('active');
         if (panel) panel.style.display = 'none';
+        sectionStencilGroup.clear();
+        sectionCapMesh = null;
+        sectionPlaneHelperMesh = null;
       }
 
       modelGroup.traverse((child) => {
@@ -3050,6 +4961,538 @@
       }
     }
 
+    // =============================================================
+    // Engineering Snapshot & High-DPI CAD Export Engine
+    // =============================================================
+    // Engineering Snapshot & High-DPI CAD Export Engine
+    // =============================================================
+    let isSnapshotActive = false;
+    let snapExportMode = 'transparent'; // 'transparent' | 'white' | 'dark'
+    let snapExportScale = 2; // 1 | 2 | 4
+    let snapTitleBlockMode = 'full'; // 'full' | 'badge' | 'none'
+    let snapExportIncludeQR = true;
+    let snapExportIncludeMat = true;
+    let snapExportIncludeShadow = true;
+    let snapExportIncludeDims = true;
+
+    // -------------------------------------------------------------
+    // Pure Offline ISO/IEC 18004 QR Code Generator (Kazuhiko Arase Reference Engine)
+    // -------------------------------------------------------------
+    var qrcode=function(){function i(t,r){function a(t,r){g=function(t){for(var r=new Array(t),e=0;e<t;e+=1){r[e]=new Array(t);for(var n=0;n<t;n+=1)r[e][n]=null}return r}(l=4*u+17),e(0,0),e(l-7,0),e(0,l-7),i(),o(),v(t,r),7<=u&&h(t),null==n&&(n=w(u,f,c)),d(n,r)}var u=t,f=y[r],g=null,l=0,n=null,c=[],s={},e=function(t,r){for(var e=-1;e<=7;e+=1)if(!(t+e<=-1||l<=t+e))for(var n=-1;n<=7;n+=1)r+n<=-1||l<=r+n||(g[t+e][r+n]=0<=e&&e<=6&&(0==n||6==n)||0<=n&&n<=6&&(0==e||6==e)||2<=e&&e<=4&&2<=n&&n<=4)},o=function(){for(var t=8;t<l-8;t+=1)null==g[t][6]&&(g[t][6]=t%2==0);for(var r=8;r<l-8;r+=1)null==g[6][r]&&(g[6][r]=r%2==0)},i=function(){for(var t=B.getPatternPosition(u),r=0;r<t.length;r+=1)for(var e=0;e<t.length;e+=1){var n=t[r],o=t[e];if(null==g[n][o])for(var i=-2;i<=2;i+=1)for(var a=-2;a<=2;a+=1)g[n+i][o+a]=-2==i||2==i||-2==a||2==a||0==i&&0==a}},h=function(t){for(var r=B.getBCHTypeNumber(u),e=0;e<18;e+=1){var n=!t&&1==(r>>e&1);g[Math.floor(e/3)][e%3+l-8-3]=n}for(e=0;e<18;e+=1){n=!t&&1==(r>>e&1);g[e%3+l-8-3][Math.floor(e/3)]=n}},v=function(t,r){for(var e=f<<3|r,n=B.getBCHTypeInfo(e),o=0;o<15;o+=1){var i=!t&&1==(n>>o&1);o<6?g[o][8]=i:o<8?g[o+1][8]=i:g[l-15+o][8]=i}for(o=0;o<15;o+=1){i=!t&&1==(n>>o&1);o<8?g[8][l-o-1]=i:o<9?g[8][15-o-1+1]=i:g[8][15-o-1]=i}g[l-8][8]=!t},d=function(t,r){for(var e=-1,n=l-1,o=7,i=0,a=B.getMaskFunction(r),u=l-1;0<u;u-=2)for(6==u&&(u-=1);;){for(var f=0;f<2;f+=1)if(null==g[n][u-f]){var c=!1;i<t.length&&(c=1==(t[i]>>>o&1)),a(n,u-f)&&(c=!c),g[n][u-f]=c,-1==(o-=1)&&(i+=1,o=7)}if((n+=e)<0||l<=n){n-=e,e=-e;break}}},w=function(t,r,e){for(var n=b.getRSBlocks(t,r),o=M(),i=0;i<e.length;i+=1){var a=e[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var u=0;for(i=0;i<n.length;i+=1)u+=n[i].dataCount;if(o.getLengthInBits()>8*u)throw"code length overflow. ("+o.getLengthInBits()+">"+8*u+")";for(o.getLengthInBits()+4<=8*u&&o.put(0,4);o.getLengthInBits()%8!=0;)o.putBit(!1);for(;!(o.getLengthInBits()>=8*u||(o.put(236,8),o.getLengthInBits()>=8*u));)o.put(17,8);return function(t,r){for(var e=0,n=0,o=0,i=new Array(r.length),a=new Array(r.length),u=0;u<r.length;u+=1){var f=r[u].dataCount,c=r[u].totalCount-f;n=Math.max(n,f),o=Math.max(o,c),i[u]=new Array(f);for(var g=0;g<i[u].length;g+=1)i[u][g]=255&t.getBuffer()[g+e];e+=f;var l=B.getErrorCorrectPolynomial(c),h=C(i[u],l.getLength()-1).mod(l);a[u]=new Array(l.getLength()-1);for(g=0;g<a[u].length;g+=1){var s=g+h.getLength()-a[u].length;a[u][g]=0<=s?h.getAt(s):0}}var v=0;for(g=0;g<r.length;g+=1)v+=r[g].totalCount;var d=new Array(v),w=0;for(g=0;g<n;g+=1)for(u=0;u<r.length;u+=1)g<i[u].length&&(d[w]=i[u][g],w+=1);for(g=0;g<o;g+=1)for(u=0;u<r.length;u+=1)g<a[u].length&&(d[w]=a[u][g],w+=1);return d}(o,n)};s.addData=function(t,r){var e=null;switch(r=r||"Byte"){case"Numeric":e=x(t);break;case"Alphanumeric":e=m(t);break;case"Byte":e=L(t);break;case"Kanji":e=D(t);break;default:throw"mode:"+r}c.push(e),n=null},s.isDark=function(t,r){if(t<0||l<=t||r<0||l<=r)throw t+","+r;return g[t][r]},s.getModuleCount=function(){return l},s.make=function(){if(u<1){for(var t=1;t<40;t++){for(var r=b.getRSBlocks(t,f),e=M(),n=0;n<c.length;n++){var o=c[n];e.put(o.getMode(),4),e.put(o.getLength(),B.getLengthInBits(o.getMode(),t)),o.write(e)}var i=0;for(n=0;n<r.length;n++)i+=r[n].dataCount;if(e.getLengthInBits()<=8*i)break}u=t}a(!1,function(){for(var t=0,r=0,e=0;e<8;e+=1){a(!0,e);var n=B.getLostPoint(s);(0==e||n<t)&&(t=n,r=e)}return r}())},s.createTableTag=function(t,r){t=t||2;var e="";e+='<table style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: "+(r=void 0===r?4*t:r)+"px;",e+='">',e+="<tbody>";for(var n=0;n<s.getModuleCount();n+=1){e+="<tr>";for(var o=0;o<s.getModuleCount();o+=1)e+='<td style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: 0px;",e+=" width: "+t+"px;",e+=" height: "+t+"px;",e+=" background-color: ",e+=s.isDark(n,o)?"#000000":"#ffffff",e+=";",e+='"/>';e+="</tr>"}return e+="</tbody>",e+="</table>"},s.createSvgTag=function(t,r,e,n){var o={};"object"==typeof t&&(t=(o=t).cellSize,r=o.margin,e=o.alt,n=o.title),t=t||2,r=void 0===r?4*t:r,(e="string"==typeof e?{text:e}:e||{}).text=e.text||null,e.id=e.text?e.id||"qrcode-description":null,(n="string"==typeof n?{text:n}:n||{}).text=n.text||null,n.id=n.text?n.id||"qrcode-title":null;var i,a,u,f,c=s.getModuleCount()*t+2*r,g="";for(f="l"+t+",0 0,"+t+" -"+t+",0 0,-"+t+"z ",g+='<svg version="1.1" xmlns="http://www.w3.org/2000/svg"',g+=o.scalable?"":' width="'+c+'px" height="'+c+'px"',g+=' viewBox="0 0 '+c+" "+c+'" ',g+=' preserveAspectRatio="xMinYMin meet"',g+=n.text||e.text?' role="img" aria-labelledby="'+p([n.id,e.id].join(" ").trim())+'"':"",g+=">",g+=n.text?'<title id="'+p(n.id)+'">'+p(n.text)+"</title>":"",g+=e.text?'<description id="'+p(e.id)+'">'+p(e.text)+"</description>":"",g+='<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>',g+='<path d="',a=0;a<s.getModuleCount();a+=1)for(u=a*t+r,i=0;i<s.getModuleCount();i+=1)s.isDark(a,i)&&(g+="M"+(i*t+r)+","+u+f);return g+='" stroke="transparent" fill="black"/>',g+="</svg>"},s.createDataURL=function(o,t){o=o||2,t=void 0===t?4*o:t;var r=s.getModuleCount()*o+2*t,i=t,a=r-t;return I(r,r,function(t,r){if(i<=t&&t<a&&i<=r&&r<a){var e=Math.floor((t-i)/o),n=Math.floor((r-i)/o);return s.isDark(n,e)?0:1}return 1})},s.createImgTag=function(t,r,e){t=t||2,r=void 0===r?4*t:r;var n=s.getModuleCount()*t+2*r,o="";return o+="<img",o+=' src="',o+=s.createDataURL(t,r),o+='"',o+=' width="',o+=n,o+='"',o+=' height="',o+=n,o+='"',e&&(o+=' alt="',o+=p(e),o+='"'),o+="/>"};var p=function(t){for(var r="",e=0;e<t.length;e+=1){var n=t.charAt(e);switch(n){case"<":r+="&lt;";break;case">":r+="&gt;";break;case"&":r+="&amp;";break;case'"':r+="&quot;";break;default:r+=n}}return r};return s.createASCII=function(t,r){if((t=t||1)<2)return function(t){t=void 0===t?2:t;var r,e,n,o,i,a=1*s.getModuleCount()+2*t,u=t,f=a-t,c={"██":"█","█ ":"▀"," █":"▄","  ":" "},g={"██":"▀","█ ":"▀"," █":" ","  ":" "},l="";for(r=0;r<a;r+=2){for(n=Math.floor((r-u)/1),o=Math.floor((r+1-u)/1),e=0;e<a;e+=1)i="█",u<=e&&e<f&&u<=r&&r<f&&s.isDark(n,Math.floor((e-u)/1))&&(i=" "),u<=e&&e<f&&u<=r+1&&r+1<f&&s.isDark(o,Math.floor((e-u)/1))?i+=" ":i+="█",l+=t<1&&f<=r+1?g[i]:c[i];l+="\n"}return a%2&&0<t?l.substring(0,l.length-a-1)+Array(1+a).join("▀"):l.substring(0,l.length-1)}(r);t-=1,r=void 0===r?2*t:r;var e,n,o,i,a=s.getModuleCount()*t+2*r,u=r,f=a-r,c=Array(t+1).join("██"),g=Array(t+1).join("  "),l="",h="";for(e=0;e<a;e+=1){for(o=Math.floor((e-u)/t),h="",n=0;n<a;n+=1)i=1,u<=n&&n<f&&u<=e&&e<f&&s.isDark(o,Math.floor((n-u)/t))&&(i=0),h+=i?c:g;for(o=0;o<t;o+=1)l+=h+"\n"}return l.substring(0,l.length-1)},s.renderTo2dContext=function(t,r){r=r||2;for(var e=s.getModuleCount(),n=0;n<e;n++)for(var o=0;o<e;o++)t.fillStyle=s.isDark(n,o)?"black":"white",t.fillRect(n*r,o*r,r,r)},s}i.stringToBytes=(i.stringToBytesFuncs={default:function(t){for(var r=[],e=0;e<t.length;e+=1){var n=t.charCodeAt(e);r.push(255&n)}return r}}).default,i.createStringToBytes=function(u,f){var i=function(){function t(){var t=r.read();if(-1==t)throw"eof";return t}for(var r=S(u),e=0,n={};;){var o=r.read();if(-1==o)break;var i=t(),a=t()<<8|t();n[String.fromCharCode(o<<8|i)]=a,e+=1}if(e!=f)throw e+" != "+f;return n}(),a="?".charCodeAt(0);return function(t){for(var r=[],e=0;e<t.length;e+=1){var n=t.charCodeAt(e);if(n<128)r.push(n);else{var o=i[t.charAt(e)];"number"==typeof o?(255&o)==o?r.push(o):(r.push(o>>>8),r.push(255&o)):r.push(a)}}return r}};var r,t,a=1,u=2,o=4,f=8,y={L:1,M:0,Q:3,H:2},e=0,n=1,c=2,g=3,l=4,h=5,s=6,v=7,B=(r=[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],(t={}).getBCHTypeInfo=function(t){for(var r=t<<10;0<=d(r)-d(1335);)r^=1335<<d(r)-d(1335);return 21522^(t<<10|r)},t.getBCHTypeNumber=function(t){for(var r=t<<12;0<=d(r)-d(7973);)r^=7973<<d(r)-d(7973);return t<<12|r},t.getPatternPosition=function(t){return r[t-1]},t.getMaskFunction=function(t){switch(t){case e:return function(t,r){return(t+r)%2==0};case n:return function(t,r){return t%2==0};case c:return function(t,r){return r%3==0};case g:return function(t,r){return(t+r)%3==0};case l:return function(t,r){return(Math.floor(t/2)+Math.floor(r/3))%2==0};case h:return function(t,r){return t*r%2+t*r%3==0};case s:return function(t,r){return(t*r%2+t*r%3)%2==0};case v:return function(t,r){return(t*r%3+(t+r)%2)%2==0};default:throw"bad maskPattern:"+t}},t.getErrorCorrectPolynomial=function(t){for(var r=C([1],0),e=0;e<t;e+=1)r=r.multiply(C([1,w.gexp(e)],0));return r},t.getLengthInBits=function(t,r){if(1<=r&&r<10)switch(t){case a:return 10;case u:return 9;case o:case f:return 8;default:throw"mode:"+t}else if(r<27)switch(t){case a:return 12;case u:return 11;case o:return 16;case f:return 10;default:throw"mode:"+t}else{if(!(r<41))throw"type:"+r;switch(t){case a:return 14;case u:return 13;case o:return 16;case f:return 12;default:throw"mode:"+t}}},t.getLostPoint=function(t){for(var r=t.getModuleCount(),e=0,n=0;n<r;n+=1)for(var o=0;o<r;o+=1){for(var i=0,a=t.isDark(n,o),u=-1;u<=1;u+=1)if(!(n+u<0||r<=n+u))for(var f=-1;f<=1;f+=1)o+f<0||r<=o+f||0==u&&0==f||a==t.isDark(n+u,o+f)&&(i+=1);5<i&&(e+=3+i-5)}for(n=0;n<r-1;n+=1)for(o=0;o<r-1;o+=1){var c=0;t.isDark(n,o)&&(c+=1),t.isDark(n+1,o)&&(c+=1),t.isDark(n,o+1)&&(c+=1),t.isDark(n+1,o+1)&&(c+=1),0!=c&&4!=c||(e+=3)}for(n=0;n<r;n+=1)for(o=0;o<r-6;o+=1)t.isDark(n,o)&&!t.isDark(n,o+1)&&t.isDark(n,o+2)&&t.isDark(n,o+3)&&t.isDark(n,o+4)&&!t.isDark(n,o+5)&&t.isDark(n,o+6)&&(e+=40);for(o=0;o<r;o+=1)for(n=0;n<r-6;n+=1)t.isDark(n,o)&&!t.isDark(n+1,o)&&t.isDark(n+2,o)&&t.isDark(n+3,o)&&t.isDark(n+4,o)&&!t.isDark(n+5,o)&&t.isDark(n+6,o)&&(e+=40);var g=0;for(o=0;o<r;o+=1)for(n=0;n<r;n+=1)t.isDark(n,o)&&(g+=1);return e+=Math.abs(100*g/r/r-50)/5*10},t);function d(t){for(var r=0;0!=t;)r+=1,t>>>=1;return r}var w=function(){for(var r=new Array(256),e=new Array(256),t=0;t<8;t+=1)r[t]=1<<t;for(t=8;t<256;t+=1)r[t]=r[t-4]^r[t-5]^r[t-6]^r[t-8];for(t=0;t<255;t+=1)e[r[t]]=t;var n={glog:function(t){if(t<1)throw"glog("+t+")";return e[t]},gexp:function(t){for(;t<0;)t+=255;for(;256<=t;)t-=255;return r[t]}};return n}();function C(n,o){if(void 0===n.length)throw n.length+"/"+o;var r=function(){for(var t=0;t<n.length&&0==n[t];)t+=1;for(var r=new Array(n.length-t+o),e=0;e<n.length-t;e+=1)r[e]=n[e+t];return r}(),i={getAt:function(t){return r[t]},getLength:function(){return r.length},multiply:function(t){for(var r=new Array(i.getLength()+t.getLength()-1),e=0;e<i.getLength();e+=1)for(var n=0;n<t.getLength();n+=1)r[e+n]^=w.gexp(w.glog(i.getAt(e))+w.glog(t.getAt(n)));return C(r,0)},mod:function(t){if(i.getLength()-t.getLength()<0)return i;for(var r=w.glog(i.getAt(0))-w.glog(t.getAt(0)),e=new Array(i.getLength()),n=0;n<i.getLength();n+=1)e[n]=i.getAt(n);for(n=0;n<t.getLength();n+=1)e[n]^=w.gexp(w.glog(t.getAt(n))+r);return C(e,0).mod(t)}};return i}function p(){var e=[],o={writeByte:function(t){e.push(255&t)},writeShort:function(t){o.writeByte(t),o.writeByte(t>>>8)},writeBytes:function(t,r,e){r=r||0,e=e||t.length;for(var n=0;n<e;n+=1)o.writeByte(t[n+r])},writeString:function(t){for(var r=0;r<t.length;r+=1)o.writeByte(t.charCodeAt(r))},toByteArray:function(){return e},toString:function(){var t="";t+="[";for(var r=0;r<e.length;r+=1)0<r&&(t+=","),t+=e[r];return t+="]"}};return o}var k,A,b=(k=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12,7,37,13],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]],(A={}).getRSBlocks=function(t,r){var e=function(t,r){switch(r){case y.L:return k[4*(t-1)+0];case y.M:return k[4*(t-1)+1];case y.Q:return k[4*(t-1)+2];case y.H:return k[4*(t-1)+3];default:return}}(t,r);if(void 0===e)throw"bad rs block @ typeNumber:"+t+"/errorCorrectionLevel:"+r;for(var n,o,i=e.length/3,a=[],u=0;u<i;u+=1)for(var f=e[3*u+0],c=e[3*u+1],g=e[3*u+2],l=0;l<f;l+=1)a.push((n=g,o=void 0,(o={}).totalCount=c,o.dataCount=n,o));return a},A),M=function(){var e=[],n=0,o={getBuffer:function(){return e},getAt:function(t){var r=Math.floor(t/8);return 1==(e[r]>>>7-t%8&1)},put:function(t,r){for(var e=0;e<r;e+=1)o.putBit(1==(t>>>r-e-1&1))},getLengthInBits:function(){return n},putBit:function(t){var r=Math.floor(n/8);e.length<=r&&e.push(0),t&&(e[r]|=128>>>n%8),n+=1}};return o},x=function(t){var r=a,n=t,e={getMode:function(){return r},getLength:function(t){return n.length},write:function(t){for(var r=n,e=0;e+2<r.length;)t.put(o(r.substring(e,e+3)),10),e+=3;e<r.length&&(r.length-e==1?t.put(o(r.substring(e,e+1)),4):r.length-e==2&&t.put(o(r.substring(e,e+2)),7))}},o=function(t){for(var r=0,e=0;e<t.length;e+=1)r=10*r+i(t.charAt(e));return r},i=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);throw"illegal char :"+t};return e},m=function(t){var r=u,n=t,e={getMode:function(){return r},getLength:function(t){return n.length},write:function(t){for(var r=n,e=0;e+1<r.length;)t.put(45*o(r.charAt(e))+o(r.charAt(e+1)),11),e+=2;e<r.length&&t.put(o(r.charAt(e)),6)}},o=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);if("A"<=t&&t<="Z")return t.charCodeAt(0)-"A".charCodeAt(0)+10;switch(t){case" ":return 36;case"$":return 37;case"%":return 38;case"*":return 39;case"+":return 40;case"-":return 41;case".":return 42;case"/":return 43;case":":return 44;default:throw"illegal char :"+t}};return e},L=function(t){var r=o,e=i.stringToBytes(t),n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=0;r<e.length;r+=1)t.put(e[r],8)}};return n},D=function(t){var r=f,e=i.stringToBytesFuncs.SJIS;if(!e)throw"sjis not supported.";!function(){var t=e("友");if(2!=t.length||38726!=(t[0]<<8|t[1]))throw"sjis not supported."}();var o=e(t),n={getMode:function(){return r},getLength:function(t){return~~(o.length/2)},write:function(t){for(var r=o,e=0;e+1<r.length;){var n=(255&r[e])<<8|255&r[e+1];if(33088<=n&&n<=40956)n-=33088;else{if(!(57408<=n&&n<=60351))throw"illegal char at "+(e+1)+"/"+n;n-=49472}n=192*(n>>>8&255)+(255&n),t.put(n,13),e+=2}if(e<r.length)throw"illegal char at "+(e+1)}};return n},S=function(t){var e=t,n=0,o=0,i=0,r={read:function(){for(;i<8;){if(n>=e.length){if(0==i)return-1;throw"unexpected end of file./"+i}var t=e.charAt(n);if(n+=1,"="==t)return i=0,-1;t.match(/^\s$/)||(o=o<<6|a(t.charCodeAt(0)),i+=6)}var r=o>>>i-8&255;return i-=8,r}},a=function(t){if(65<=t&&t<=90)return t-65;if(97<=t&&t<=122)return t-97+26;if(48<=t&&t<=57)return t-48+52;if(43==t)return 62;if(47==t)return 63;throw"c:"+t};return r},I=function(t,r,e){for(var n=function(t,r){var n=t,o=r,l=new Array(t*r),e={setPixel:function(t,r,e){l[r*n+t]=e},write:function(t){t.writeString("GIF87a"),t.writeShort(n),t.writeShort(o),t.writeByte(128),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(255),t.writeByte(255),t.writeByte(255),t.writeString(","),t.writeShort(0),t.writeShort(0),t.writeShort(n),t.writeShort(o),t.writeByte(0);var r=i(2);t.writeByte(2);for(var e=0;255<r.length-e;)t.writeByte(255),t.writeBytes(r,e,255),e+=255;t.writeByte(r.length-e),t.writeBytes(r,e,r.length-e),t.writeByte(0),t.writeString(";")}},i=function(t){for(var r=1<<t,e=1+(1<<t),n=t+1,o=h(),i=0;i<r;i+=1)o.add(String.fromCharCode(i));o.add(String.fromCharCode(r)),o.add(String.fromCharCode(e));var a=p(),u=function(t){var e=t,n=0,o=0,r={write:function(t,r){if(t>>>r!=0)throw"length over";for(;8<=n+r;)e.writeByte(255&(t<<n|o)),r-=8-n,t>>>=8-n,n=o=0;o|=t<<n,n+=r},flush:function(){0<n&&e.writeByte(o)}};return r}(a);u.write(r,n);var f=0,c=String.fromCharCode(l[f]);for(f+=1;f<l.length;){var g=String.fromCharCode(l[f]);f+=1,o.contains(c+g)?c+=g:(u.write(o.indexOf(c),n),o.size()<4095&&(o.size()==1<<n&&(n+=1),o.add(c+g)),c=g)}return u.write(o.indexOf(c),n),u.write(e,n),u.flush(),a.toByteArray()},h=function(){var r={},e=0,n={add:function(t){if(n.contains(t))throw"dup key:"+t;r[t]=e,e+=1},size:function(){return e},indexOf:function(t){return r[t]},contains:function(t){return void 0!==r[t]}};return n};return e}(t,r),o=0;o<r;o+=1)for(var i=0;i<t;i+=1)n.setPixel(i,o,e(i,o));var a=p();n.write(a);for(var u=function(){function e(t){a+=String.fromCharCode(r(63&t))}var n=0,o=0,i=0,a="",t={},r=function(t){if(t<0);else{if(t<26)return 65+t;if(t<52)return t-26+97;if(t<62)return t-52+48;if(62==t)return 43;if(63==t)return 47}throw"n:"+t};return t.writeByte=function(t){for(n=n<<8|255&t,o+=8,i+=1;6<=o;)e(n>>>o-6),o-=6},t.flush=function(){if(0<o&&(e(n<<6-o),o=n=0),i%3!=0)for(var t=3-i%3,r=0;r<t;r+=1)a+="="},t.toString=function(){return a},t}(),f=a.toByteArray(),c=0;c<f.length;c+=1)u.writeByte(f[c]);return u.flush(),"data:image/gif;base64,"+u};return i}();qrcode.stringToBytesFuncs["UTF-8"]=function(t){return function(t){for(var r=[],e=0;e<t.length;e++){var n=t.charCodeAt(e);n<128?r.push(n):n<2048?r.push(192|n>>6,128|63&n):n<55296||57344<=n?r.push(224|n>>12,128|n>>6&63,128|63&n):(e++,n=65536+((1023&n)<<10|1023&t.charCodeAt(e)),r.push(240|n>>18,128|n>>12&63,128|n>>6&63,128|63&n))}return r}(t)},function(t){"function"==typeof define&&define.amd?define([],t):"object"==typeof exports&&(module.exports=t())}(function(){return qrcode});
+
+    function generateQRCode(text) {
+      try {
+        // Auto-detect optimal QR Version (0), Error Correction Level M (15% redundancy)
+        const qr = qrcode(0, 'M');
+        qr.addData(text);
+        qr.make();
+        return qr;
+      } catch (e) {
+        console.warn('QR Code generation fallback with Level L:', e);
+        const qr = qrcode(0, 'L');
+        qr.addData(text);
+        qr.make();
+        return qr;
+      }
+    }
+
+    function drawQRCodeOnCanvas(ctx, qr, x, y, size, fgCol = '#000000', bgCol = '#ffffff') {
+      const count = qr.getModuleCount();
+      const margin = 4; // Strict ISO/IEC 18004 4-module quiet zone
+      const totalCount = count + margin * 2;
+      const cellSize = size / totalCount;
+
+      ctx.fillStyle = bgCol;
+      ctx.fillRect(x, y, size, size);
+
+      ctx.fillStyle = fgCol;
+      for (let r = 0; r < count; r++) {
+        for (let c = 0; c < count; c++) {
+          if (qr.isDark(r, c)) {
+            const cellX = Math.round(x + (c + margin) * cellSize);
+            const cellY = Math.round(y + (r + margin) * cellSize);
+            const cellW = Math.ceil(cellSize);
+            const cellH = Math.ceil(cellSize);
+            ctx.fillRect(cellX, cellY, cellW, cellH);
+          }
+        }
+      }
+    }
+
+    function initSnapshotSystem() {
+      try {
+        const savedMode = localStorage.getItem('stepviewer_snap_mode');
+        if (savedMode) snapExportMode = savedMode;
+        const savedScale = localStorage.getItem('stepviewer_snap_scale');
+        if (savedScale) snapExportScale = parseInt(savedScale, 10) || 2;
+        const savedTb = localStorage.getItem('stepviewer_snap_tb');
+        if (savedTb) snapTitleBlockMode = savedTb;
+        const savedQR = localStorage.getItem('stepviewer_snap_qr');
+        if (savedQR !== null) snapExportIncludeQR = (savedQR === 'true');
+        const savedMat = localStorage.getItem('stepviewer_snap_mat');
+        if (savedMat !== null) snapExportIncludeMat = (savedMat === 'true');
+        const savedShadow = localStorage.getItem('stepviewer_snap_shadow');
+        if (savedShadow !== null) snapExportIncludeShadow = (savedShadow === 'true');
+        const savedDims = localStorage.getItem('stepviewer_snap_dims');
+        if (savedDims !== null) snapExportIncludeDims = (savedDims === 'true');
+      } catch (e) {}
+
+      updateSnapshotUIFromState();
+    }
+
+    function updateSnapshotUIFromState() {
+      document.querySelectorAll('.snap-mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-mode') === snapExportMode);
+      });
+      document.querySelectorAll('.snap-res-btn').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.getAttribute('data-scale'), 10) === snapExportScale);
+      });
+      document.querySelectorAll('.snap-tb-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-tb') === snapTitleBlockMode);
+      });
+
+      const qrBox = document.getElementById('snap-opt-qr');
+      if (qrBox) qrBox.checked = snapExportIncludeQR;
+      const matBox = document.getElementById('snap-opt-mat');
+      if (matBox) matBox.checked = snapExportIncludeMat;
+      const shadowBox = document.getElementById('snap-opt-shadow');
+      if (shadowBox) shadowBox.checked = snapExportIncludeShadow;
+      const dimsBox = document.getElementById('snap-opt-dims');
+      if (dimsBox) dimsBox.checked = snapExportIncludeDims;
+
+      const rowQR = document.getElementById('row-opt-qr');
+      if (rowQR) rowQR.style.display = (snapTitleBlockMode === 'full') ? 'flex' : 'none';
+
+      const customQRContainer = document.getElementById('snap-qr-custom-container');
+      if (customQRContainer) {
+        const showQR = (snapTitleBlockMode === 'badge') || (snapTitleBlockMode === 'full' && snapExportIncludeQR);
+        customQRContainer.style.display = showQR ? 'flex' : 'none';
+      }
+    }
+
+    function toggleSnapshotModal(enable) {
+      isSnapshotActive = (enable !== undefined) ? enable : !isSnapshotActive;
+      const panel = document.getElementById('snapshot-panel');
+      const btn = document.getElementById('btn-snapshot');
+      if (isSnapshotActive) {
+        initSnapshotSystem();
+        if (panel) panel.style.display = 'flex';
+        if (btn) btn.classList.add('active');
+        if (typeof togglePropsModal === 'function') togglePropsModal(false);
+      } else {
+        if (panel) panel.style.display = 'none';
+        if (btn) btn.classList.remove('active');
+      }
+    }
+
+    function drawEngineeringTitleBlock(ctx, targetW, targetH, mode) {
+      if (!ctx || snapTitleBlockMode === 'none') return;
+      const uiScale = Math.max(targetW / 1200, 1.0);
+
+      const rawName = pendingFileName || 'CAD_Model';
+      const cleanName = rawName.length > 30 ? rawName.slice(0, 28) + '...' : rawName;
+      const dateStr = new Date().toISOString().slice(0, 10);
+
+      let dimStr = '';
+      if (modelPhysicalProps && modelPhysicalProps.bbox) {
+        const bb = modelPhysicalProps.bbox;
+        const dx = currentUnit === 'mm' ? bb.x.toFixed(1) : (bb.x / 25.4).toFixed(2);
+        const dy = currentUnit === 'mm' ? bb.y.toFixed(1) : (bb.y / 25.4).toFixed(2);
+        const dz = currentUnit === 'mm' ? bb.z.toFixed(1) : (bb.z / 25.4).toFixed(2);
+        dimStr = `${dx} × ${dy} × ${dz} ${currentUnit}`;
+      } else {
+        dimStr = 'Bounding: -';
+      }
+
+      const partCount = (typeof modelBodies !== 'undefined' && modelBodies && modelBodies.length > 0) ?
+        `${modelBodies.length} Part${modelBodies.length > 1 ? 's' : ''}` : '1 Solid';
+      const triNum = (modelPhysicalProps && modelPhysicalProps.triangles) ?
+        Math.round(modelPhysicalProps.triangles).toLocaleString() : '0';
+
+      // Material information if enabled
+      let matLine = '';
+      let activeMatName = '';
+      let activeMatMass = '';
+      if (snapExportIncludeMat && typeof modelBodies !== 'undefined' && modelBodies) {
+        const matBody = modelBodies.find(b => b.materialPreset);
+        if (matBody) {
+          activeMatName = matBody.materialPreset;
+          const volMm3 = matBody.data.volumeMm3 || 0;
+          if (volMm3 > 0) {
+            const massG = (volMm3 / 1000.0 * matBody.materialDensity).toFixed(1);
+            activeMatMass = `${massG} g`;
+            if (matBody.materialPreset === 'UV Resin') {
+              matLine = `Material: ${matBody.materialPreset} (${matBody.materialDensity} g/cm³)  •  ${activeMatMass}`;
+            } else {
+              const filM = (volMm3 / 2405.28).toFixed(2);
+              matLine = `Material: ${matBody.materialPreset} (${matBody.materialDensity} g/cm³)  •  Mass: ${activeMatMass}  •  Filament: ${filM} m`;
+            }
+          } else {
+            matLine = `Material: ${matBody.materialPreset} (${matBody.materialDensity} g/cm³)`;
+          }
+        }
+      }
+
+      // Generate QR Code data
+      let qr = null;
+      const shouldDrawQR = (snapTitleBlockMode === 'badge') || (snapTitleBlockMode === 'full' && snapExportIncludeQR);
+      if (shouldDrawQR) {
+        try {
+          const customNote = (document.getElementById('snap-qr-note')?.value || '').trim();
+          let passportText = '';
+          const matTag = activeMatName ? ` | Mat: ${activeMatName} (${activeMatMass})` : '';
+
+          const formatTag = activeCadFormat === 'IGES' ? 'USAF IGES 5.3' : (activeCadFormat === 'BREP' ? 'OpenCASCADE B-Rep' : 'ISO 10303-21');
+          if (customNote.startsWith('http://') || customNote.startsWith('https://')) {
+            // Direct pure URL allows instant 1-tap browser pill popup on all phone cameras
+            passportText = customNote;
+          } else if (customNote.length > 0) {
+            passportText = `CAD Passport: ${rawName}\nNote: ${customNote}\nDim: ${dimStr}\nBodies: ${partCount}${matTag}\n${formatTag} • QuickLook CAD`;
+          } else {
+            passportText = `CAD Passport: ${rawName}\nDim: ${dimStr}\nBodies: ${partCount}${matTag}\n${formatTag} • QuickLook CAD`;
+          }
+          qr = generateQRCode(passportText);
+        } catch (e) {
+          console.warn('QR Code generation skipped:', e);
+        }
+      }
+
+      let bgCol, borderCol, titleCol, dimCol, badgeCol, barCol;
+      if (mode === 'white') {
+        bgCol = 'rgba(248, 250, 252, 0.96)';
+        borderCol = '#cbd5e1';
+        titleCol = '#0f172a';
+        dimCol = '#475569';
+        badgeCol = '#0284c7';
+        barCol = '#0284c7';
+      } else {
+        bgCol = 'rgba(15, 23, 42, 0.90)';
+        borderCol = 'rgba(56, 189, 248, 0.45)';
+        titleCol = '#f8fafc';
+        dimCol = '#94a3b8';
+        badgeCol = '#38bdf8';
+        barCol = '#38bdf8';
+      }
+
+      ctx.save();
+
+      // Mode 1: QR Badge Only (Minimalist corner seal)
+      if (snapTitleBlockMode === 'badge') {
+        const badgeSize = Math.round(112 * uiScale);
+        const pad = Math.round(24 * uiScale);
+        const bx = targetW - badgeSize - pad;
+        const by = targetH - badgeSize - pad;
+        const r = Math.round(10 * uiScale);
+
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+        ctx.shadowBlur = Math.round(14 * uiScale);
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = Math.round(4 * uiScale);
+
+        ctx.fillStyle = bgCol;
+        ctx.beginPath();
+        ctx.moveTo(bx + r, by);
+        ctx.lineTo(bx + badgeSize - r, by);
+        ctx.quadraticCurveTo(bx + badgeSize, by, bx + badgeSize, by + r);
+        ctx.lineTo(bx + badgeSize, by + badgeSize - r);
+        ctx.quadraticCurveTo(bx + badgeSize, by + badgeSize, bx + badgeSize - r, by + badgeSize);
+        ctx.lineTo(bx + r, by + badgeSize);
+        ctx.quadraticCurveTo(bx, by + badgeSize, bx, by + badgeSize - r);
+        ctx.lineTo(bx, by + r);
+        ctx.quadraticCurveTo(bx, by, bx + r, by);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.shadowColor = 'transparent';
+        ctx.lineWidth = Math.max(1, Math.round(1.5 * uiScale));
+        ctx.strokeStyle = borderCol;
+        ctx.stroke();
+
+        if (qr) {
+          const qrSize = Math.round(82 * uiScale);
+          const qx = bx + Math.round((badgeSize - qrSize) / 2);
+          const qy = by + Math.round(8 * uiScale);
+          drawQRCodeOnCanvas(ctx, qr, qx, qy, qrSize, '#0f172a', '#ffffff');
+
+          ctx.fillStyle = badgeCol;
+          ctx.font = `bold ${Math.round(8.5 * uiScale)}px system-ui, -apple-system, Segoe UI, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillText('CAD PASSPORT', bx + Math.round(badgeSize / 2), qy + qrSize + Math.round(4 * uiScale));
+        }
+
+        ctx.restore();
+        return;
+      }
+
+      // Mode 2: Full Title Block + Optional QR
+      const hasQR = Boolean(qr && snapExportIncludeQR);
+      const hasMat = Boolean(matLine);
+
+      const boxW = Math.round((hasQR ? 470 : 370) * uiScale);
+      const boxH = Math.round((hasMat ? 104 : 88) * uiScale);
+      const pad = Math.round(24 * uiScale);
+      const x0 = targetW - boxW - pad;
+      const y0 = targetH - boxH - pad;
+      const x1 = x0 + boxW;
+      const y1 = y0 + boxH;
+      const r = Math.round(10 * uiScale);
+
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+      ctx.shadowBlur = Math.round(14 * uiScale);
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = Math.round(4 * uiScale);
+
+      ctx.fillStyle = bgCol;
+      ctx.beginPath();
+      ctx.moveTo(x0 + r, y0);
+      ctx.lineTo(x1 - r, y0);
+      ctx.quadraticCurveTo(x1, y0, x1, y0 + r);
+      ctx.lineTo(x1, y1 - r);
+      ctx.quadraticCurveTo(x1, y1, x1 - r, y1);
+      ctx.lineTo(x0 + r, y1);
+      ctx.quadraticCurveTo(x0, y1, x0, y1 - r);
+      ctx.lineTo(x0, y0 + r);
+      ctx.quadraticCurveTo(x0, y0, x0 + r, y0);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.shadowColor = 'transparent';
+      ctx.lineWidth = Math.max(1, Math.round(1.5 * uiScale));
+      ctx.strokeStyle = borderCol;
+      ctx.stroke();
+
+      // Left vertical accent bar
+      ctx.fillStyle = barCol;
+      const barX = x0 + Math.round(12 * uiScale);
+      const barY = y0 + Math.round(14 * uiScale);
+      const barW = Math.round(3.5 * uiScale);
+      const barH = boxH - Math.round(28 * uiScale);
+      ctx.fillRect(barX, barY, barW, barH);
+
+      const textX = x0 + Math.round(24 * uiScale);
+      ctx.textBaseline = 'top';
+      ctx.textAlign = 'left';
+
+      // Line 1: Model Name
+      ctx.fillStyle = titleCol;
+      ctx.font = `bold ${Math.round(13 * uiScale)}px system-ui, -apple-system, Segoe UI, sans-serif`;
+      ctx.fillText(cleanName, textX, y0 + Math.round(13 * uiScale));
+
+      // Line 2: Bounding Dimensions & Bodies
+      const metaLine = `${dimStr}  •  ${partCount}  •  ${triNum} Tri`;
+      ctx.fillStyle = dimCol;
+      ctx.font = `${Math.round(10 * uiScale)}px system-ui, -apple-system, Segoe UI, sans-serif`;
+      ctx.fillText(metaLine, textX, y0 + Math.round(34 * uiScale));
+
+      let curY = y0 + Math.round(52 * uiScale);
+
+      // Line 3: Material & Mass (if active)
+      if (hasMat) {
+        ctx.fillStyle = badgeCol;
+        ctx.font = `600 ${Math.round(9.5 * uiScale)}px system-ui, -apple-system, Segoe UI, sans-serif`;
+        ctx.fillText(matLine, textX, curY);
+        curY += Math.round(18 * uiScale);
+      }
+
+      // Line 4: Standard, Date & Branding
+      const formatTag = activeCadFormat === 'IGES' ? 'USAF IGES 5.3' : (activeCadFormat === 'BREP' ? 'OpenCASCADE B-Rep' : 'ISO 10303-21');
+      const specLine = `${formatTag}  •  ${dateStr}  •  QuickLook CAD`;
+      ctx.fillStyle = hasMat ? dimCol : badgeCol;
+      ctx.font = `600 ${Math.round(9 * uiScale)}px system-ui, -apple-system, Segoe UI, sans-serif`;
+      ctx.fillText(specLine, textX, curY);
+
+      // Right column: QR Code box
+      if (hasQR) {
+        const qrSize = Math.round(72 * uiScale);
+        const qx = x1 - qrSize - Math.round(14 * uiScale);
+        const qy = y0 + Math.round((boxH - qrSize) / 2) - (uiScale > 1.2 ? 4 : 0);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(qx, qy, qrSize, qrSize);
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = Math.max(1, Math.round(1 * uiScale));
+        ctx.strokeRect(qx, qy, qrSize, qrSize);
+
+        drawQRCodeOnCanvas(ctx, qr, qx, qy, qrSize, '#0f172a', '#ffffff');
+
+        ctx.fillStyle = badgeCol;
+        ctx.font = `bold ${Math.round(7.5 * uiScale)}px system-ui, -apple-system, Segoe UI, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('SCAN SPECS', qx + Math.round(qrSize / 2), qy + qrSize + Math.round(2 * uiScale));
+      }
+
+      ctx.restore();
+    }
+
+    async function executeEngineeringExport(destination = 'clipboard', targetPath = '') {
+      const copyLabel = document.getElementById('snap-copy-label');
+      const origCopyText = copyLabel ? copyLabel.innerText : 'Copy Image';
+      if (destination === 'clipboard' && copyLabel) {
+        copyLabel.innerText = 'Rendering...';
+      }
+
+      await new Promise(r => setTimeout(r, 20));
+
+      try {
+        const baseW = window.innerWidth;
+        const baseH = window.innerHeight;
+        let targetW = Math.round(baseW * snapExportScale);
+        let targetH = Math.round(baseH * snapExportScale);
+
+        // Cap to 4096 to prevent WebGL buffer overflow
+        if (targetW > 4096 || targetH > 4096) {
+          const maxDim = Math.max(targetW, targetH);
+          const ratio = 4096 / maxDim;
+          targetW = Math.round(targetW * ratio);
+          targetH = Math.round(targetH * ratio);
+        }
+
+        // 1. Backup state
+        const prevBg = scene.background;
+        const prevGrid = gridHelper ? gridHelper.visible : false;
+        const prevSnap = snapIndicator ? snapIndicator.visible : false;
+        const prevHover = hoverEdgeMesh ? hoverEdgeMesh.visible : false;
+        const prevMeasureVisible = measureGroup ? measureGroup.visible : false;
+        const prevShadowVisible = contactShadowMesh ? contactShadowMesh.visible : false;
+        const prevShadowOpacity = contactShadowMaterial ? contactShadowMaterial.opacity : 0.45;
+
+        // 2. Configure scene for clean engineering shot
+        if (gridHelper) gridHelper.visible = false;
+        if (snapIndicator) snapIndicator.visible = false;
+        if (hoverEdgeMesh) hoverEdgeMesh.visible = false;
+        if (measureGroup) {
+          measureGroup.visible = snapExportIncludeDims;
+        }
+
+        if (contactShadowMesh && contactShadowMaterial) {
+          if (!snapExportIncludeShadow) {
+            contactShadowMesh.visible = false;
+          } else {
+            contactShadowMesh.visible = true;
+            if (snapExportMode === 'white') {
+              contactShadowMaterial.opacity = 0.28;
+            } else if (snapExportMode === 'dark') {
+              contactShadowMaterial.opacity = 0.65;
+            } else {
+              contactShadowMaterial.opacity = 0.38;
+            }
+          }
+        }
+
+        if (snapExportMode === 'transparent') {
+          scene.background = null;
+        } else if (snapExportMode === 'white') {
+          scene.background = new THREE.Color(0xffffff);
+        } else {
+          scene.background = new THREE.Color(0x181a20);
+        }
+
+        // 3. Render off-screen supersampled frame
+        renderer.setPixelRatio(1);
+        renderer.setSize(targetW, targetH, false);
+        camera.aspect = targetW / targetH;
+        camera.updateProjectionMatrix();
+
+        if (typeof updateScreenSpaceAnnotations === 'function' && snapExportIncludeDims) {
+          updateScreenSpaceAnnotations();
+        }
+
+        renderer.render(scene, camera);
+
+        // 4. Composite onto 2D canvas with title block
+        const compCanvas = document.createElement('canvas');
+        compCanvas.width = targetW;
+        compCanvas.height = targetH;
+        const ctx = compCanvas.getContext('2d');
+
+        ctx.drawImage(renderer.domElement, 0, 0, targetW, targetH);
+
+        if (snapTitleBlockMode !== 'none') {
+          drawEngineeringTitleBlock(ctx, targetW, targetH, snapExportMode);
+        }
+
+        // 5. Restore scene & viewport immediately
+        scene.background = prevBg;
+        if (gridHelper) gridHelper.visible = prevGrid;
+        if (snapIndicator) snapIndicator.visible = prevSnap;
+        if (hoverEdgeMesh) hoverEdgeMesh.visible = prevHover;
+        if (measureGroup) measureGroup.visible = prevMeasureVisible;
+        if (contactShadowMesh && contactShadowMaterial) {
+          contactShadowMesh.visible = prevShadowVisible;
+          contactShadowMaterial.opacity = prevShadowOpacity;
+        }
+
+        renderer.setPixelRatio(window.devicePixelRatio || 1);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        if (typeof updateScreenSpaceAnnotations === 'function') {
+          updateScreenSpaceAnnotations();
+        }
+        renderer.render(scene, camera);
+
+        // 6. Output destination
+        const baseName = (pendingFileName || 'CAD_Model').replace(/\.[^/.]+$/, "");
+        const dateStr = new Date().toISOString().slice(0, 10);
+        const defaultName = `${baseName}_${snapExportMode}_${targetW}x${targetH}_${dateStr}.png`;
+        const dataUrl = compCanvas.toDataURL('image/png');
+
+        if (destination === 'clipboard') {
+          // Send to C# host for native Windows Clipboard copy
+          if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.postMessage({
+              type: 'COPY_SNAPSHOT_CLIPBOARD',
+              action: 'COPY_SNAPSHOT_CLIPBOARD',
+              data: dataUrl
+            });
+          }
+
+          // Also execute browser clipboard write
+          compCanvas.toBlob(blob => {
+            if (blob && navigator.clipboard && navigator.clipboard.write) {
+              navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).catch(() => {});
+            }
+          }, 'image/png');
+
+          showToast(`Copied ${targetW}×${targetH} CAD Export to Clipboard ✓`);
+          if (copyLabel) copyLabel.innerText = 'Copied! ✓';
+          setTimeout(() => {
+            if (copyLabel) copyLabel.innerText = origCopyText;
+          }, 1800);
+        } else if (destination === 'test' || destination === 'memory') {
+          // In-memory or automated test run - return dataUrl immediately without modal dialog
+        } else {
+          // File destination
+          if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.postMessage({
+              type: 'SAVE_SNAPSHOT',
+              action: 'SAVE_SNAPSHOT',
+              data: dataUrl,
+              defaultName: defaultName,
+              targetPath: targetPath || ''
+            });
+          } else {
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = defaultName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showToast('Saved: ' + defaultName);
+          }
+        }
+        return dataUrl;
+      } catch (err) {
+        console.error('Snapshot export error:', err);
+        showToast('Export error: ' + err.message);
+        if (copyLabel) copyLabel.innerText = origCopyText;
+      }
+    }
+    window.executeEngineeringExport = executeEngineeringExport;
+    window.toggleSnapshotModal = toggleSnapshotModal;
+    window.initSnapshotSystem = initSnapshotSystem;
+
     function toggleUnits() {
       currentUnit = (currentUnit === 'mm') ? 'in' : 'mm';
       const btn = document.getElementById('btn-units');
@@ -3066,6 +5509,9 @@
         const ents = [...selectedCadEntities];
         clearMeasurement(false);
         ents.forEach(e => handleUnifiedClick(e));
+      }
+      if (isSectionActive) {
+        updateSectionPlane();
       }
     }
 
@@ -3117,7 +5563,7 @@
       return sprite;
     }
 
-    function indexModelVertices() {
+    function indexModelVertices(meshes) {
       modelCadVertices = [];
       const seen = new Set();
       function addVertex(pt, type, label, feat) {
@@ -3146,6 +5592,28 @@
         } else if (feat.type === 'circle') {
           const c = new THREE.Vector3(...feat.center);
           addVertex(c, 'center', 'Hole Center', feat);
+        }
+      }
+
+      if (meshes && Array.isArray(meshes)) {
+        for (let i = 0; i < meshes.length; i++) {
+          const faces = meshes[i].brepFaces || [];
+          for (let f = 0; f < faces.length; f++) {
+            if (faces[f].surfaceType === 'cylinder' && faces[f].cylinder) {
+              const cyl = faces[f].cylinder;
+              const c = new THREE.Vector3(...cyl.center);
+              addVertex(c, 'center', cyl.isHole ? 'Hole Center' : 'Cylinder Center', {
+                type: 'cylinder',
+                cylinder: cyl,
+                center: cyl.center,
+                radius: cyl.radius,
+                diameter: cyl.diameter,
+                depth: cyl.depth,
+                axis: cyl.axis,
+                isHole: cyl.isHole
+              });
+            }
+          }
         }
       }
     }
@@ -3239,17 +5707,51 @@
       const localNormal = hit.face ? hit.face.normal.clone() : new THREE.Vector3(0, 1, 0);
       const worldNormal = localNormal.clone().transformDirection(hit.object.matrixWorld).normalize();
 
+      let matchedBrepFace = null;
+      if (hit.object && hit.object.userData && hit.object.userData.brepFaces) {
+        const tIdx = hit.faceIndex;
+        matchedBrepFace = hit.object.userData.brepFaces.find(f => f.first <= tIdx && tIdx <= f.last);
+      }
+
+      if (matchedBrepFace && matchedBrepFace.surfaceType === 'cylinder' && matchedBrepFace.cylinder) {
+        const cyl = matchedBrepFace.cylinder;
+        const worldCenter = new THREE.Vector3(...cyl.center).applyMatrix4(hit.object.matrixWorld);
+        const worldAxis = new THREE.Vector3(...cyl.axis).transformDirection(hit.object.matrixWorld).normalize();
+
+        return {
+          type: 'cylinder',
+          subType: cyl.isHole ? 'hole' : 'shaft',
+          point: hit.point,
+          normal: worldNormal,
+          center: worldCenter,
+          axis: worldAxis,
+          radius: cyl.radius,
+          diameter: cyl.diameter,
+          depth: cyl.depth,
+          isHole: cyl.isHole,
+          areaMm2: matchedBrepFace.areaMm2,
+          faceIndex: hit.faceIndex,
+          brepFace: matchedBrepFace,
+          mesh: hit.object,
+          label: cyl.isHole ? 'Cylindrical Hole' : 'Cylindrical Shaft'
+        };
+      }
+
       let areaMm2 = 0;
       if (hit.face && hit.object && hit.faceIndex !== undefined) {
         areaMm2 = computeCoplanarArea(hit.object, hit.faceIndex, localNormal, hit.point);
       }
 
       return { 
+        type: 'surface',
+        subType: 'planar',
         point: hit.point, 
         normal: worldNormal, 
         areaMm2: areaMm2, 
         faceIndex: hit.faceIndex, 
-        mesh: hit.object 
+        brepFace: matchedBrepFace,
+        mesh: hit.object,
+        label: 'Planar Face'
       };
     }
 
@@ -3378,6 +5880,29 @@
       }
 
       if (bestFeature) {
+        if (bestFeature.type === 'circle' && !bestFeature.cylinder) {
+          const cCenter = new THREE.Vector3(...bestFeature.center);
+          const cRadius = bestFeature.radius;
+          for (let b = 0; b < modelBodies.length; b++) {
+            const faces = modelBodies[b].data.brepFaces || [];
+            for (let f = 0; f < faces.length; f++) {
+              if (faces[f].surfaceType === 'cylinder' && faces[f].cylinder) {
+                const cyl = faces[f].cylinder;
+                if (Math.abs(cyl.radius - cRadius) <= Math.max(0.2, cRadius * 0.1)) {
+                  const cylC = new THREE.Vector3(...cyl.center);
+                  const cylA = new THREE.Vector3(...cyl.axis);
+                  const v = cCenter.clone().sub(cylC);
+                  const perp = v.clone().sub(cylA.clone().multiplyScalar(v.dot(cylA)));
+                  if (perp.length() < Math.max(0.3, cRadius * 0.15)) {
+                    bestFeature.cylinder = cyl;
+                    break;
+                  }
+                }
+              }
+            }
+            if (bestFeature.cylinder) break;
+          }
+        }
         return {
           type: bestFeature.type, // 'line' | 'circle'
           feature: bestFeature,
@@ -3388,6 +5913,9 @@
       // 3. Priority 3: Fallback Surface Raycast
       const snapSurface = findSurfaceTarget(e);
       if (snapSurface) {
+        if (snapSurface.type === 'cylinder') {
+          return snapSurface;
+        }
         return {
           type: 'point',
           subType: 'surface',
@@ -3395,6 +5923,7 @@
           normal: snapSurface.normal,
           areaMm2: snapSurface.areaMm2,
           faceIndex: snapSurface.faceIndex,
+          brepFace: snapSurface.brepFace,
           mesh: snapSurface.mesh,
           label: 'Planar Face'
         };
@@ -3434,6 +5963,54 @@
       const mat = new THREE.LineBasicMaterial({ color: colorHex, linewidth: 2, depthTest: false });
       const line = new THREE.Line(geom, mat);
       line.renderOrder = 997;
+      line.name = 'measure_element';
+      measureGroup.add(line);
+      return line;
+    }
+
+    function draw3DCircleRing(center, axis, radius, colorHex = 0x38bdf8) {
+      const c = (center && center.isVector3) ? center.clone() : new THREE.Vector3(...center);
+      const a = ((axis && axis.isVector3) ? axis.clone() : new THREE.Vector3(...axis)).normalize();
+      const u = new THREE.Vector3();
+      if (Math.abs(a.x) < 0.8) u.set(1, 0, 0).cross(a).normalize();
+      else u.set(0, 1, 0).cross(a).normalize();
+      const v = new THREE.Vector3().crossVectors(a, u).normalize();
+
+      const segs = 48;
+      const pts = [];
+      for (let i = 0; i <= segs; i++) {
+        const theta = (i / segs) * Math.PI * 2;
+        const p = c.clone()
+          .add(u.clone().multiplyScalar(Math.cos(theta) * radius))
+          .add(v.clone().multiplyScalar(Math.sin(theta) * radius));
+        pts.push(p);
+      }
+      const geom = new THREE.BufferGeometry().setFromPoints(pts);
+      const mat = new THREE.LineBasicMaterial({ color: colorHex, linewidth: 2, depthTest: false });
+      const line = new THREE.Line(geom, mat);
+      line.renderOrder = 997;
+      line.name = 'measure_element';
+      measureGroup.add(line);
+      return line;
+    }
+
+    function drawCylinderAxisLine(center, axis, halfLen, colorHex = 0x38bdf8) {
+      const c = (center && center.isVector3) ? center.clone() : new THREE.Vector3(...center);
+      const a = ((axis && axis.isVector3) ? axis.clone() : new THREE.Vector3(...axis)).normalize();
+      const p1 = c.clone().sub(a.clone().multiplyScalar(halfLen));
+      const p2 = c.clone().add(a.clone().multiplyScalar(halfLen));
+
+      const geom = new THREE.BufferGeometry().setFromPoints([p1, p2]);
+      const mat = new THREE.LineDashedMaterial({
+        color: colorHex,
+        dashSize: 1.5,
+        gapSize: 0.8,
+        linewidth: 2,
+        depthTest: false
+      });
+      const line = new THREE.Line(geom, mat);
+      line.computeLineDistances();
+      line.renderOrder = 998;
       line.name = 'measure_element';
       measureGroup.add(line);
       return line;
@@ -3576,6 +6153,9 @@
       if (entity.type === 'circle' && entity.feature) {
         return new THREE.Vector3(...entity.feature.center);
       }
+      if (entity.type === 'cylinder') {
+        return (entity.center && entity.center.isVector3) ? entity.center.clone() : (entity.center ? new THREE.Vector3(...entity.center) : entity.point.clone());
+      }
       return entity.point ? entity.point.clone() : null;
     }
 
@@ -3604,16 +6184,78 @@
       }
     }
 
+    function isHoleEntity(ent) {
+      if (!ent) return false;
+      if (ent.type === 'circle') return true;
+      if (ent.type === 'cylinder') return true;
+      if (ent.subType === 'hole' || ent.subType === 'center') return true;
+      if (ent.feature && (ent.feature.type === 'circle' || ent.feature.type === 'cylinder')) return true;
+      return false;
+    }
+
+    function getHoleInfo(ent) {
+      if (!ent) return null;
+      if (ent.type === 'circle' && ent.feature) {
+        const feat = ent.feature;
+        const center = new THREE.Vector3(...feat.center);
+        const radius = feat.radius;
+        const diameter = feat.diameter;
+        const depth = feat.cylinder ? feat.cylinder.depth : 0;
+        const normal = feat.normal ? new THREE.Vector3(...feat.normal) : new THREE.Vector3(0, 0, 1);
+        const axis = feat.cylinder && feat.cylinder.axis ? new THREE.Vector3(...feat.cylinder.axis) : normal;
+        return {
+          center: center,
+          radius: radius,
+          diameter: diameter,
+          depth: depth,
+          axis: axis,
+          isHole: feat.cylinder ? feat.cylinder.isHole : true,
+          feature: feat
+        };
+      }
+      if (ent.type === 'cylinder') {
+        const c = ent.center ? (ent.center.isVector3 ? ent.center.clone() : new THREE.Vector3(...ent.center)) : ent.point.clone();
+        const a = ent.axis ? (ent.axis.isVector3 ? ent.axis.clone() : new THREE.Vector3(...ent.axis)) : new THREE.Vector3(0, 0, 1);
+        return {
+          center: c,
+          radius: ent.radius,
+          diameter: ent.diameter,
+          depth: ent.depth || 0,
+          axis: a,
+          isHole: ent.isHole !== undefined ? ent.isHole : true,
+          feature: ent
+        };
+      }
+      if (ent.subType === 'center' || ent.type === 'center') {
+        const feat = ent.feature || {};
+        const c = ent.point ? ent.point.clone() : (feat.center ? new THREE.Vector3(...feat.center) : new THREE.Vector3());
+        const r = feat.radius || (feat.cylinder ? feat.cylinder.radius : 0);
+        const d = feat.diameter || (feat.cylinder ? feat.cylinder.diameter : r * 2);
+        const depth = feat.depth || (feat.cylinder ? feat.cylinder.depth : 0);
+        const a = feat.axis ? (feat.axis.isVector3 ? feat.axis.clone() : new THREE.Vector3(...feat.axis)) : (feat.normal ? new THREE.Vector3(...feat.normal) : new THREE.Vector3(0, 0, 1));
+        return {
+          center: c,
+          radius: r,
+          diameter: d,
+          depth: depth,
+          axis: a,
+          isHole: feat.isHole !== undefined ? feat.isHole : true,
+          feature: feat
+        };
+      }
+      return null;
+    }
+
     function isSurfaceTarget(t) {
-      return t && (t.type === 'surface' || t.subType === 'surface');
+      return t && (t.type === 'surface' || t.subType === 'surface') && t.type !== 'cylinder';
     }
 
     function isPurePointTarget(t) {
-      return t && (t.type === 'point' || t.type === 'corner' || t.type === 'midpoint' || t.type === 'center') && t.subType !== 'surface';
+      return t && (t.type === 'point' || t.type === 'corner' || t.type === 'midpoint' || t.type === 'center') && t.subType !== 'surface' && t.type !== 'cylinder';
     }
 
     function isPointTarget(t) {
-      return t && (t.type === 'point' || t.type === 'corner' || t.type === 'midpoint' || t.type === 'center' || t.subType === 'surface' || t.type === 'surface');
+      return t && (t.type === 'point' || t.type === 'corner' || t.type === 'midpoint' || t.type === 'center' || t.subType === 'surface' || t.type === 'surface') && t.type !== 'cylinder';
     }
 
     function handleUnifiedClick(snap) {
@@ -3647,20 +6289,28 @@
           }
           if (angleEl) angleEl.style.display = 'none';
           currentMeasuredValue = formatDim(feat.length);
-        } else if (snap.type === 'circle') {
-          const feat = snap.feature;
-          drawCADCircleAnnotation(feat.center, feat.radius, feat.diameter);
-          drawCircleRing(feat);
+        } else if (isHoleEntity(snap)) {
+          const hInfo = getHoleInfo(snap);
+          drawPointPin(hInfo.center, 0x38bdf8);
+          drawCADCircleAnnotation(hInfo.center, hInfo.radius, hInfo.diameter);
+          if (snap.type === 'circle' && snap.feature) {
+            drawCircleRing(snap.feature, 0x38bdf8);
+          } else {
+            draw3DCircleRing(hInfo.center, hInfo.axis, hInfo.radius, 0x38bdf8);
+            drawCylinderAxisLine(hInfo.center, hInfo.axis, Math.max(hInfo.depth * 0.6, hInfo.radius * 1.5), 0x38bdf8);
+          }
 
-          if (titleEl) titleEl.innerText = '⭕ Circular Hole / Arc';
-          if (distEl) distEl.innerText = `Ø ${formatDim(feat.diameter)}`;
-          if (deltasEl) deltasEl.innerHTML = `Radius (R): <strong>${formatDim(feat.radius)}</strong>`;
+          const kind = hInfo.isHole ? '⭕ Cylindrical Hole' : '🔵 Cylindrical Shaft';
+          const depthStr = hInfo.depth > 0 ? ` &nbsp;|&nbsp; Depth: <strong>${formatDim(hInfo.depth)}</strong>` : '';
+          if (titleEl) titleEl.innerText = kind;
+          if (distEl) distEl.innerText = `Ø ${formatDim(hInfo.diameter)}`;
+          if (deltasEl) deltasEl.innerHTML = `Radius (R): <strong>${formatDim(hInfo.radius)}</strong>${depthStr}`;
           if (extraEl) {
-            extraEl.innerHTML = `Center: (${formatCoord(feat.center[0])}, ${formatCoord(feat.center[1])}, ${formatCoord(feat.center[2])})<br><span style="color:#38bdf8; font-weight:600;">👉 Click 2nd Point, Edge, or Hole for dual dimension</span>`;
+            extraEl.innerHTML = `Center: (${formatCoord(hInfo.center.x)}, ${formatCoord(hInfo.center.y)}, ${formatCoord(hInfo.center.z)})<br><span style="color:#38bdf8; font-weight:600;">👉 Click 2nd Hole, Edge, or Face for dual dimension</span>`;
             extraEl.style.display = 'block';
           }
           if (angleEl) angleEl.style.display = 'none';
-          currentMeasuredValue = `Ø ${formatDim(feat.diameter)} (R ${formatDim(feat.radius)})`;
+          currentMeasuredValue = `Ø ${formatDim(hInfo.diameter)} (R ${formatDim(hInfo.radius)})`;
         } else if (isPointTarget(snap) || isSurfaceTarget(snap)) {
           drawPointPin(snap.point, 0x38bdf8);
 
@@ -3721,8 +6371,163 @@
 
         clearMeasurement(false);
 
+        // 1. Hole + Hole (Center-to-Center Pitch & Dual Hole analysis)
+        if (isHoleEntity(e1) && isHoleEntity(e2)) {
+          const h1 = getHoleInfo(e1);
+          const h2 = getHoleInfo(e2);
+          const c1 = h1.center;
+          const c2 = h2.center;
+          const cDist = c1.distanceTo(c2);
+
+          // Highlight Hole 1
+          drawPointPin(c1, 0x38bdf8);
+          if (e1.type === 'circle' && e1.feature) drawCircleRing(e1.feature, 0x38bdf8);
+          else draw3DCircleRing(c1, h1.axis, h1.radius, 0x38bdf8);
+
+          // Highlight Hole 2
+          drawPointPin(c2, 0x34d399);
+          if (e2.type === 'circle' && e2.feature) drawCircleRing(e2.feature, 0x34d399);
+          else draw3DCircleRing(c2, h2.axis, h2.radius, 0x34d399);
+
+          const dx = Math.abs(c2.x - c1.x);
+          const dy = Math.abs(c2.y - c1.y);
+          const dz = Math.abs(c2.z - c1.z);
+
+          // Check if top rim and bottom rim of the same through-hole
+          const axisDot = Math.abs(h1.axis.dot(h2.axis));
+          const diffVec = c2.clone().sub(c1);
+          const axialOffset = Math.abs(diffVec.dot(h1.axis));
+          const radialOffset = diffVec.clone().sub(h1.axis.clone().multiplyScalar(diffVec.dot(h1.axis))).length();
+
+          if (axisDot > 0.95 && radialOffset < 0.15 && Math.abs(h1.radius - h2.radius) < 0.15 && axialOffset > 0.1) {
+            drawCADDimensionLine(c1, c2, axialOffset, `Depth: ${formatDim(axialOffset)}`);
+            if (titleEl) titleEl.innerText = '⭕ Through-Hole Depth & Diameter';
+            if (distEl) distEl.innerText = `Depth: ${formatDim(axialOffset)}`;
+            if (deltasEl) deltasEl.innerHTML = `Diameter: <strong>Ø ${formatDim(h1.diameter)}</strong> &nbsp;|&nbsp; Radius: <strong>${formatDim(h1.radius)}</strong>`;
+            if (extraEl) {
+              extraEl.innerHTML = `THRU Hole verified: Top rim to Bottom rim`;
+              extraEl.style.display = 'block';
+            }
+            if (angleEl) angleEl.style.display = 'none';
+            currentMeasuredValue = `Depth: ${formatDim(axialOffset)} (Ø ${formatDim(h1.diameter)})`;
+          } else {
+            const minDist = Math.max(0, cDist - h1.radius - h2.radius);
+            const maxDist = cDist + h1.radius + h2.radius;
+
+            drawCADDimensionLine(c1, c2, cDist, `Pitch: ${formatDim(cDist)}`);
+
+            let parallelNote = '';
+            if (axisDot > 0.96 && dz > 0.05) {
+              const planarPitch = Math.hypot(dx, dy);
+              parallelNote = ` &nbsp;|&nbsp; Planar Pitch (X-Y): <strong>${formatDim(planarPitch)}</strong>`;
+            }
+
+            if (titleEl) titleEl.innerText = '⭕ Center-to-Center Holes (Pitch)';
+            if (distEl) distEl.innerText = `Pitch: ${formatDim(cDist)}`;
+            if (deltasEl) deltasEl.innerHTML = `<span style="color:#e05656">ΔX:</span> ${formatCoord(dx)} &nbsp;<span style="color:#3eb86f">ΔY:</span> ${formatCoord(dy)} &nbsp;<span style="color:#4a9eed">ΔZ:</span> ${formatCoord(dz)}`;
+            if (extraEl) {
+              extraEl.innerHTML = `<strong>Min Gap:</strong> ${formatDim(minDist)} &nbsp;|&nbsp; <strong>Max Gap:</strong> ${formatDim(maxDist)}${parallelNote}<br><span style="color:#94a3b8">Hole 1: Ø ${formatDim(h1.diameter)} &nbsp;|&nbsp; Hole 2: Ø ${formatDim(h2.diameter)}</span>`;
+              extraEl.style.display = 'block';
+            }
+            if (angleEl) angleEl.style.display = 'none';
+            currentMeasuredValue = `Pitch: ${formatDim(cDist)} (Min: ${formatDim(minDist)}, Max: ${formatDim(maxDist)})`;
+          }
+        }
+        // 2. Hole + Surface (or Surface + Hole)
+        else if ((isHoleEntity(e1) && isSurfaceTarget(e2)) || (isSurfaceTarget(e1) && isHoleEntity(e2))) {
+          const hEnt = isHoleEntity(e1) ? e1 : e2;
+          const sEnt = isHoleEntity(e1) ? e2 : e1;
+          const hInfo = getHoleInfo(hEnt);
+          const c = hInfo.center;
+          const sPt = sEnt.point;
+          const n = sEnt.normal.clone().normalize();
+
+          const diff = c.clone().sub(sPt);
+          const perpDist = Math.abs(diff.dot(n));
+          const proj = c.clone().sub(n.clone().multiplyScalar(diff.dot(n)));
+
+          drawPointPin(sPt, 0x38bdf8);
+          drawPointPin(c, 0x34d399);
+          if (hEnt.type === 'circle' && hEnt.feature) drawCircleRing(hEnt.feature, 0x34d399);
+          else draw3DCircleRing(c, hInfo.axis, hInfo.radius, 0x34d399);
+
+          drawCADDimensionLine(proj, c, perpDist, `Normal: ${formatDim(perpDist)}`);
+
+          if (titleEl) titleEl.innerText = '📏 Hole Center to Face';
+          if (distEl) distEl.innerText = `Distance: ${formatDim(perpDist)}`;
+          if (deltasEl) deltasEl.innerHTML = `Perpendicular distance from Hole (Ø ${formatDim(hInfo.diameter)}) to Face`;
+          if (extraEl) {
+            extraEl.innerHTML = `Surface Normal: [${n.x.toFixed(2)}, ${n.y.toFixed(2)}, ${n.z.toFixed(2)}]`;
+            extraEl.style.display = 'block';
+          }
+          if (angleEl) angleEl.style.display = 'none';
+          currentMeasuredValue = `Hole to Face: ${formatDim(perpDist)}`;
+        }
+        // 3. Hole + Line (or Line + Hole)
+        else if ((isHoleEntity(e1) && e2.type === 'line') || (e1.type === 'line' && isHoleEntity(e2))) {
+          const hEnt = isHoleEntity(e1) ? e1 : e2;
+          const lEnt = isHoleEntity(e1) ? e2 : e1;
+          const hInfo = getHoleInfo(hEnt);
+          const c = hInfo.center;
+          const s = new THREE.Vector3(...lEnt.feature.start);
+          const dir = new THREE.Vector3(...lEnt.feature.end).sub(s).normalize();
+          const v = c.clone().sub(s);
+          const proj = s.clone().add(dir.clone().multiplyScalar(v.dot(dir)));
+          const distToLine = c.distanceTo(proj);
+
+          drawPointPin(c, 0x34d399);
+          if (hEnt.type === 'circle' && hEnt.feature) drawCircleRing(hEnt.feature, 0x34d399);
+          else draw3DCircleRing(c, hInfo.axis, hInfo.radius, 0x34d399);
+
+          const lineGeom = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(...lEnt.feature.start),
+            new THREE.Vector3(...lEnt.feature.end)
+          ]);
+          const lineMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 2, depthTest: false });
+          const lineMesh = new THREE.Line(lineGeom, lineMat);
+          lineMesh.renderOrder = 997;
+          lineMesh.name = 'measure_element';
+          measureGroup.add(lineMesh);
+
+          drawCADDimensionLine(proj, c, distToLine, `Dist: ${formatDim(distToLine)}`);
+
+          if (titleEl) titleEl.innerText = '📏 Hole Center to Edge';
+          if (distEl) distEl.innerText = formatDim(distToLine);
+          if (deltasEl) deltasEl.innerText = `Perpendicular distance from Hole (Ø ${formatDim(hInfo.diameter)}) to Edge`;
+          if (extraEl) extraEl.style.display = 'none';
+          if (angleEl) angleEl.style.display = 'none';
+          currentMeasuredValue = formatDim(distToLine);
+        }
+        // 4. Hole + Pure Point (or Pure Point + Hole)
+        else if ((isHoleEntity(e1) && isPurePointTarget(e2)) || (isPurePointTarget(e1) && isHoleEntity(e2))) {
+          const hEnt = isHoleEntity(e1) ? e1 : e2;
+          const pEnt = isHoleEntity(e1) ? e2 : e1;
+          const hInfo = getHoleInfo(hEnt);
+          const c = hInfo.center;
+          const pt = pEnt.point;
+          const cDist = pt.distanceTo(c);
+          const minDist = Math.max(0, cDist - hInfo.radius);
+          const maxDist = cDist + hInfo.radius;
+
+          drawPointPin(pt, 0x38bdf8);
+          drawPointPin(c, 0x34d399);
+          if (hEnt.type === 'circle' && hEnt.feature) drawCircleRing(hEnt.feature, 0x34d399);
+          else draw3DCircleRing(c, hInfo.axis, hInfo.radius, 0x34d399);
+
+          drawCADDimensionLine(pt, c, cDist, `Dist: ${formatDim(cDist)}`);
+
+          if (titleEl) titleEl.innerText = '⭕ Point to Hole Distance';
+          if (distEl) distEl.innerText = `${formatDim(cDist)} (Center)`;
+          if (deltasEl) deltasEl.innerHTML = `Min: <strong>${formatDim(minDist)}</strong> &nbsp;|&nbsp; Max: <strong>${formatDim(maxDist)}</strong>`;
+          if (extraEl) {
+            extraEl.innerHTML = `Hole Diameter: Ø ${formatDim(hInfo.diameter)} (R ${formatDim(hInfo.radius)})`;
+            extraEl.style.display = 'block';
+          }
+          if (angleEl) angleEl.style.display = 'none';
+          currentMeasuredValue = `${formatDim(cDist)} (Min: ${formatDim(minDist)}, Max: ${formatDim(maxDist)})`;
+        }
         // Permutation: Surface + Surface
-        if (isSurfaceTarget(e1) && isSurfaceTarget(e2)) {
+        else if (isSurfaceTarget(e1) && isSurfaceTarget(e2)) {
           const n1 = e1.normal.clone().normalize();
           const n2 = e2.normal.clone().normalize();
           const dot = Math.abs(n1.dot(n2));
@@ -3813,30 +6618,7 @@
           if (angleEl) angleEl.style.display = 'none';
           currentMeasuredValue = `Edge to Face: ${formatDim(perpDist)}`;
         }
-        // Permutation: Surface + Circle (or Circle + Surface)
-        else if ((isSurfaceTarget(e1) && e2.type === 'circle') || (e1.type === 'circle' && isSurfaceTarget(e2))) {
-          const sEnt = isSurfaceTarget(e1) ? e1 : e2;
-          const cEnt = isSurfaceTarget(e1) ? e2 : e1;
-          const sPt = sEnt.point;
-          const n = sEnt.normal.clone().normalize();
-          const c = new THREE.Vector3(...cEnt.feature.center);
-          
-          const diff = c.clone().sub(sPt);
-          const perpDist = Math.abs(diff.dot(n));
-          const projCenter = c.clone().sub(n.clone().multiplyScalar(diff.dot(n)));
-
-          drawPointPin(sPt, 0x38bdf8);
-          drawCircleRing(cEnt.feature);
-          drawCADDimensionLine(projCenter, c, perpDist, `Normal: ${formatDim(perpDist)}`);
-
-          if (titleEl) titleEl.innerText = '📏 Hole to Face Distance';
-          if (distEl) distEl.innerText = `Distance: ${formatDim(perpDist)}`;
-          if (deltasEl) deltasEl.innerHTML = `Perpendicular distance from Hole (Ø ${formatDim(cEnt.feature.diameter)}) to Face`;
-          if (extraEl) extraEl.style.display = 'none';
-          if (angleEl) angleEl.style.display = 'none';
-          currentMeasuredValue = `Hole to Face: ${formatDim(perpDist)}`;
-        }
-        // Permutation 1: Pure Point + Pure Point
+        // Permutation: Pure Point + Pure Point
         else if (isPurePointTarget(e1) && isPurePointTarget(e2)) {
           const p1 = e1.point;
           const p2 = e2.point;
@@ -3856,7 +6638,7 @@
           if (angleEl) angleEl.style.display = 'none';
           currentMeasuredValue = `${formatDim(dist)} (ΔX: ${formatCoord(dx)}, ΔY: ${formatCoord(dy)}, ΔZ: ${formatCoord(dz)})`;
         }
-        // Permutation 2: Pure Point + Line (or Line + Pure Point)
+        // Permutation: Pure Point + Line (or Line + Pure Point)
         else if ((isPurePointTarget(e1) && e2.type === 'line') || (e1.type === 'line' && isPurePointTarget(e2))) {
           const pEnt = isPurePointTarget(e1) ? e1 : e2;
           const lEnt = e1.type === 'line' ? e1 : e2;
@@ -3887,58 +6669,7 @@
           if (angleEl) angleEl.style.display = 'none';
           currentMeasuredValue = formatDim(distToLine);
         }
-        // Permutation 3: Pure Point + Circle (or Circle + Pure Point)
-        else if ((isPurePointTarget(e1) && e2.type === 'circle') || (e1.type === 'circle' && isPurePointTarget(e2))) {
-          const pEnt = isPurePointTarget(e1) ? e1 : e2;
-          const cEnt = e1.type === 'circle' ? e1 : e2;
-          const pt = pEnt.point;
-          const c = new THREE.Vector3(...cEnt.feature.center);
-          const r = cEnt.feature.radius;
-          const cDist = pt.distanceTo(c);
-          const minDist = Math.max(0, cDist - r);
-          const maxDist = cDist + r;
-          drawPointPin(pt, 0x38bdf8);
-          drawCircleRing(cEnt.feature);
-          drawCADDimensionLine(pt, c, cDist, `Dist: ${formatDim(cDist)}`);
-
-          if (titleEl) titleEl.innerText = '⭕ Point to Hole Distance';
-          if (distEl) distEl.innerText = `${formatDim(cDist)} (Center)`;
-          if (deltasEl) deltasEl.innerHTML = `Min: <strong>${formatDim(minDist)}</strong> &nbsp;|&nbsp; Max: <strong>${formatDim(maxDist)}</strong>`;
-          if (extraEl) {
-            extraEl.innerText = `Hole Diameter: Ø ${formatDim(cEnt.feature.diameter)} (R ${formatDim(r)})`;
-            extraEl.style.display = 'block';
-          }
-          if (angleEl) angleEl.style.display = 'none';
-          currentMeasuredValue = `${formatDim(cDist)} (Min: ${formatDim(minDist)}, Max: ${formatDim(maxDist)})`;
-        }
-        // Permutation 4: Circle + Circle
-        else if (e1.type === 'circle' && e2.type === 'circle') {
-          const f1 = e1.feature;
-          const f2 = e2.feature;
-          const c1 = new THREE.Vector3(...f1.center);
-          const c2 = new THREE.Vector3(...f2.center);
-          const cDist = c1.distanceTo(c2);
-          const minDist = Math.max(0, cDist - f1.radius - f2.radius);
-          const maxDist = cDist + f1.radius + f2.radius;
-          const dx = Math.abs(c2.x - c1.x);
-          const dy = Math.abs(c2.y - c1.y);
-          const dz = Math.abs(c2.z - c1.z);
-
-          drawCircleRing(f1);
-          drawCircleRing(f2);
-          drawCADDimensionLine(c1, c2, cDist, `C-C: ${formatDim(cDist)}`);
-
-          if (titleEl) titleEl.innerText = '⭕ Center-to-Center Holes';
-          if (distEl) distEl.innerText = formatDim(cDist);
-          if (deltasEl) deltasEl.innerHTML = `Min: <strong>${formatDim(minDist)}</strong> &nbsp;|&nbsp; Max: <strong>${formatDim(maxDist)}</strong>`;
-          if (extraEl) {
-            extraEl.innerHTML = `<span style="color:#e05656">ΔX:</span> ${formatCoord(dx)} &nbsp;<span style="color:#3eb86f">ΔY:</span> ${formatCoord(dy)} &nbsp;<span style="color:#4a9eed">ΔZ:</span> ${formatCoord(dz)}`;
-            extraEl.style.display = 'block';
-          }
-          if (angleEl) angleEl.style.display = 'none';
-          currentMeasuredValue = `${formatDim(cDist)} (C-C, Min: ${formatDim(minDist)}, Max: ${formatDim(maxDist)})`;
-        }
-        // Permutation 5: Line + Line
+        // Permutation: Line + Line
         else if (e1.type === 'line' && e2.type === 'line') {
           const f1 = e1.feature;
           const f2 = e2.feature;
@@ -3990,38 +6721,6 @@
             if (angleEl) angleEl.style.display = 'none';
             currentMeasuredValue = `${angleDeg.toFixed(1)}°`;
           }
-        }
-        // Permutation 6: Hole + Line (or Line + Hole)
-        else {
-          const circleF = e1.type === 'circle' ? e1.feature : e2.feature;
-          const lineF = e1.type === 'line' ? e1.feature : e2.feature;
-          const c = new THREE.Vector3(...circleF.center);
-          const s = new THREE.Vector3(...lineF.start);
-          const dir = new THREE.Vector3(...lineF.end).sub(s).normalize();
-          const v = c.clone().sub(s);
-          const proj = s.clone().add(dir.clone().multiplyScalar(v.dot(dir)));
-          const distToLine = c.distanceTo(proj);
-
-          drawCircleRing(circleF);
-
-          const lineGeom = new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(...lineF.start),
-            new THREE.Vector3(...lineF.end)
-          ]);
-          const lineMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 2, depthTest: false });
-          const lineMesh = new THREE.Line(lineGeom, lineMat);
-          lineMesh.renderOrder = 997;
-          lineMesh.name = 'measure_element';
-          measureGroup.add(lineMesh);
-
-          drawCADDimensionLine(proj, c, distToLine, `Dist: ${formatDim(distToLine)}`);
-
-          if (titleEl) titleEl.innerText = '📏 Hole Center to Edge';
-          if (distEl) distEl.innerText = formatDim(distToLine);
-          if (deltasEl) deltasEl.innerText = `Hole (Ø ${formatDim(circleF.diameter)}) to Edge`;
-          if (extraEl) extraEl.style.display = 'none';
-          if (angleEl) angleEl.style.display = 'none';
-          currentMeasuredValue = formatDim(distToLine);
         }
 
         selectedCadEntities = [];
@@ -4153,25 +6852,18 @@
         'btn-view-iso': (flip) => {
           if (flip) viewStates['btn-view-iso'] = 1 - viewStates['btn-view-iso'];
           const isIso2 = viewStates['btn-view-iso'] === 1;
-          const factorX = isIso2 ? -0.7 : 0.7;
-          const factorZ = isIso2 ? -0.7 : 0.7;
-          const targetPos = new THREE.Vector3(
-            currentModelCenter.x + currentModelDistance * factorX,
-            currentModelCenter.y + currentModelDistance * 0.6,
-            currentModelCenter.z + currentModelDistance * factorZ
-          );
+          const factorX = isIso2 ? -1 : 1;
+          const factorZ = isIso2 ? -1 : 1;
+          const dir = new THREE.Vector3(factorX, 0.85, factorZ).normalize();
+          const targetPos = currentModelCenter.clone().add(dir.multiplyScalar(currentModelDistance));
           setBtnLabel('btn-view-iso', isIso2 ? 'Iso 2' : 'Iso');
           tweenCamera(targetPos, currentModelCenter, new THREE.Vector3(0, 1, 0));
         },
         'btn-view-top': (flip) => {
           if (flip) viewStates['btn-view-top'] = 1 - viewStates['btn-view-top'];
           const isBottom = viewStates['btn-view-top'] === 1;
-          const factorY = isBottom ? -1.25 : 1.25;
-          const targetPos = new THREE.Vector3(
-            currentModelCenter.x,
-            currentModelCenter.y + currentModelDistance * factorY,
-            currentModelCenter.z
-          );
+          const factorY = isBottom ? -1 : 1;
+          const targetPos = currentModelCenter.clone().add(new THREE.Vector3(0, factorY, 0).multiplyScalar(currentModelDistance));
           const upVec = isBottom ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 0, -1);
           setBtnLabel('btn-view-top', isBottom ? 'Btm' : 'Top');
           tweenCamera(targetPos, currentModelCenter, upVec);
@@ -4179,24 +6871,16 @@
         'btn-view-front': (flip) => {
           if (flip) viewStates['btn-view-front'] = 1 - viewStates['btn-view-front'];
           const isBack = viewStates['btn-view-front'] === 1;
-          const factorZ = isBack ? -1.25 : 1.25;
-          const targetPos = new THREE.Vector3(
-            currentModelCenter.x,
-            currentModelCenter.y,
-            currentModelCenter.z + currentModelDistance * factorZ
-          );
+          const factorZ = isBack ? -1 : 1;
+          const targetPos = currentModelCenter.clone().add(new THREE.Vector3(0, 0, factorZ).multiplyScalar(currentModelDistance));
           setBtnLabel('btn-view-front', isBack ? 'Back' : 'Front');
           tweenCamera(targetPos, currentModelCenter, new THREE.Vector3(0, 1, 0));
         },
         'btn-view-right': (flip) => {
           if (flip) viewStates['btn-view-right'] = 1 - viewStates['btn-view-right'];
           const isLeft = viewStates['btn-view-right'] === 1;
-          const factorX = isLeft ? -1.25 : 1.25;
-          const targetPos = new THREE.Vector3(
-            currentModelCenter.x + currentModelDistance * factorX,
-            currentModelCenter.y,
-            currentModelCenter.z
-          );
+          const factorX = isLeft ? -1 : 1;
+          const targetPos = currentModelCenter.clone().add(new THREE.Vector3(factorX, 0, 0).multiplyScalar(currentModelDistance));
           setBtnLabel('btn-view-right', isLeft ? 'Left' : 'Right');
           tweenCamera(targetPos, currentModelCenter, new THREE.Vector3(0, 1, 0));
         }
@@ -4282,6 +6966,16 @@
         secSlider.addEventListener('input', () => updateSectionPlane());
       }
 
+      const btnSecCenter = document.getElementById('btn-sec-center');
+      if (btnSecCenter) {
+        btnSecCenter.addEventListener('click', () => {
+          if (secSlider) {
+            secSlider.value = 50;
+            updateSectionPlane();
+          }
+        });
+      }
+
       ['x', 'y', 'z'].forEach(axis => {
         const btnAxis = document.getElementById(`btn-sec-${axis}`);
         if (btnAxis) {
@@ -4293,6 +6987,7 @@
             });
             btnAxis.classList.add('active');
             updateSectionPlane();
+            rebuildSectionStencilMeshes();
           });
         }
       });
@@ -4303,6 +6998,29 @@
           sectionFlipped = !sectionFlipped;
           btnFlip.classList.toggle('active', sectionFlipped);
           updateSectionPlane();
+          rebuildSectionStencilMeshes();
+        });
+      }
+
+      const btnSecCap = document.getElementById('btn-sec-cap');
+      if (btnSecCap) {
+        btnSecCap.addEventListener('click', () => {
+          isSectionCappingActive = !isSectionCappingActive;
+          btnSecCap.classList.toggle('active', isSectionCappingActive);
+          rebuildSectionStencilMeshes();
+        });
+      }
+
+      const btnSecPlane = document.getElementById('btn-sec-plane');
+      if (btnSecPlane) {
+        btnSecPlane.addEventListener('click', () => {
+          isSectionPlaneHelperActive = !isSectionPlaneHelperActive;
+          btnSecPlane.classList.toggle('active', isSectionPlaneHelperActive);
+          if (sectionPlaneHelperMesh) {
+            sectionPlaneHelperMesh.visible = isSectionPlaneHelperActive;
+          } else {
+            rebuildSectionStencilMeshes();
+          }
         });
       }
 
@@ -4387,57 +7105,292 @@
           resetBodyIsolation();
         });
       }
+      const btnTreeAutoColor = document.getElementById('btn-tree-autocolor');
+      if (btnTreeAutoColor) {
+        btnTreeAutoColor.addEventListener('click', () => {
+          autoColorizeAssembly();
+        });
+      }
 
-      // Snapshot Viewport & Save File Dialog
-      const btnSnapshot = document.getElementById('btn-snapshot');
-      if (btnSnapshot) {
-        btnSnapshot.addEventListener('click', () => {
-          try {
-            renderer.render(scene, camera);
-            const dataUrl = renderer.domElement.toDataURL('image/png');
+      // =============================================================
+      // Exploded Assembly View Listeners
+      // =============================================================
+      const btnToolbarExplode = document.getElementById('btn-explode');
+      if (btnToolbarExplode) {
+        btnToolbarExplode.addEventListener('click', () => {
+          toggleExplode();
+        });
+      }
 
-            // Copy to clipboard for immediate pasting
-            renderer.domElement.toBlob(blob => {
-              if (blob && navigator.clipboard) {
-                navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).catch(() => {});
-              }
-            }, 'image/png');
+      const explodeSlider = document.getElementById('explode-slider');
+      if (explodeSlider) {
+        explodeSlider.addEventListener('input', (e) => {
+          if (explodeAnimId) {
+            cancelAnimationFrame(explodeAnimId);
+            explodeAnimId = null;
+          }
+          if (!isExplodeInitialized) {
+            initExplodeVectors();
+          }
+          const val = parseFloat(e.target.value);
+          setExplodeProgress(val, true);
+        });
+      }
 
-            const baseName = (pendingFileName || 'CAD_Model').replace(/\.[^/.]+$/, "");
-            const dateStr = new Date().toISOString().slice(0, 10);
-            const defaultName = `${baseName}_Snapshot_${dateStr}.png`;
+      const btnExplodeToggle = document.getElementById('btn-explode-toggle');
+      if (btnExplodeToggle) {
+        btnExplodeToggle.addEventListener('click', () => {
+          toggleExplode();
+        });
+      }
 
-            if (window.chrome && window.chrome.webview) {
-              window.chrome.webview.postMessage({
-                type: 'SAVE_SNAPSHOT',
-                action: 'SAVE_SNAPSHOT',
-                data: dataUrl,
-                defaultName: defaultName
-              });
-            } else {
-              // Browser save dialog fallback
-              const a = document.createElement('a');
-              a.href = dataUrl;
-              a.download = defaultName;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              showToast('Snapshot downloaded: ' + defaultName);
-            }
+      const chkExplodeTrails = document.getElementById('chk-explode-trails');
+      if (chkExplodeTrails) {
+        chkExplodeTrails.addEventListener('change', (e) => {
+          isExplodeTrailsActive = e.target.checked;
+          setExplodeProgress(currentExplodePercent, false);
+        });
+      }
 
-            const span = btnSnapshot.querySelector('span');
-            const orig = span ? span.innerText : 'Snap';
-            if (span) span.innerText = 'Saved! ✓';
-            btnSnapshot.classList.add('active');
-            setTimeout(() => {
-              if (span) span.innerText = orig;
-              btnSnapshot.classList.remove('active');
-            }, 1800);
-          } catch (e) {
-            console.warn('Snapshot error:', e);
+      const btnExplodeReset = document.getElementById('btn-explode-reset');
+      if (btnExplodeReset) {
+        btnExplodeReset.addEventListener('click', () => {
+          if (currentExplodePercent > 0) {
+            animateExplodeTo(0, 450);
           }
         });
       }
+
+      // =============================================================
+      // CAD Body Appearance & 3D Printing Popover Listeners
+      // =============================================================
+      const btnCloseColorPopover = document.getElementById('btn-close-color-popover');
+      if (btnCloseColorPopover) {
+        btnCloseColorPopover.addEventListener('click', () => {
+          closeColorPickerPopover();
+        });
+      }
+
+      const btnResetOrigColor = document.getElementById('btn-reset-orig-color');
+      if (btnResetOrigColor) {
+        btnResetOrigColor.addEventListener('click', () => {
+          if (activeColorPopoverBodyId !== null) {
+            resetBodyColor(activeColorPopoverBodyId);
+          }
+        });
+      }
+
+      // Engineering metal and plastic swatches
+      document.querySelectorAll('.swatch-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (activeColorPopoverBodyId === null) return;
+          const color = btn.dataset.color;
+          const metal = parseFloat(btn.dataset.metal || '0.4');
+          const rough = parseFloat(btn.dataset.rough || '0.3');
+          setBodyColor(activeColorPopoverBodyId, color, metal, rough);
+        });
+      });
+
+      // 3D Printing Material preset buttons
+      document.querySelectorAll('.mat-preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (activeColorPopoverBodyId === null) return;
+          const mat = btn.dataset.mat;
+          const density = parseFloat(btn.dataset.density);
+          const color = btn.dataset.color;
+          const rough = parseFloat(btn.dataset.rough || '0.45');
+          setBody3DPrintMaterial(activeColorPopoverBodyId, mat, density, color, rough);
+        });
+      });
+
+      // Custom color picker input & apply button
+      const popoverColorInput = document.getElementById('popover-color-input');
+      const popoverColorHexVal = document.getElementById('popover-color-hex-val');
+      if (popoverColorInput) {
+        popoverColorInput.addEventListener('input', (e) => {
+          const val = e.target.value;
+          if (popoverColorHexVal) popoverColorHexVal.innerText = val.toUpperCase();
+          if (activeColorPopoverBodyId !== null) {
+            setBodyColor(activeColorPopoverBodyId, val);
+          }
+        });
+      }
+
+      const btnApplyCustomColor = document.getElementById('btn-apply-custom-color');
+      if (btnApplyCustomColor && popoverColorInput) {
+        btnApplyCustomColor.addEventListener('click', () => {
+          if (activeColorPopoverBodyId !== null) {
+            setBodyColor(activeColorPopoverBodyId, popoverColorInput.value);
+            showToast(`Applied custom color ${popoverColorInput.value.toUpperCase()}`);
+          }
+        });
+      }
+
+      // Body Opacity Slider
+      const popoverOpacitySlider = document.getElementById('popover-opacity-slider');
+      if (popoverOpacitySlider) {
+        popoverOpacitySlider.addEventListener('input', (e) => {
+          if (activeColorPopoverBodyId !== null) {
+            setBodyOpacity(activeColorPopoverBodyId, parseInt(e.target.value, 10));
+          }
+        });
+      }
+
+      // Close popover when clicking outside
+      window.addEventListener('click', (e) => {
+        if (activeColorPopoverBodyId !== null) {
+          const popover = document.getElementById('color-picker-popover');
+          if (popover && !popover.contains(e.target) && !e.target.closest('.tree-color-swatch')) {
+            closeColorPickerPopover();
+          }
+        }
+      });
+
+      // =============================================================
+      // Engineering Snapshot & High-DPI CAD Export Engine
+      // =============================================================
+      const btnSnapshot = document.getElementById('btn-snapshot');
+      if (btnSnapshot) {
+        btnSnapshot.addEventListener('click', () => {
+          toggleSnapshotModal();
+        });
+      }
+
+      const btnCloseSnap = document.getElementById('btn-close-snapshot');
+      if (btnCloseSnap) {
+        btnCloseSnap.addEventListener('click', () => {
+          toggleSnapshotModal(false);
+        });
+      }
+
+      // Mode Selector buttons
+      document.querySelectorAll('.snap-mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const mode = btn.getAttribute('data-mode');
+          if (mode) {
+            snapExportMode = mode;
+            try { localStorage.setItem('stepviewer_snap_mode', mode); } catch (e) {}
+            updateSnapshotUIFromState();
+          }
+        });
+      });
+
+      // Resolution buttons
+      document.querySelectorAll('.snap-res-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const sc = parseInt(btn.getAttribute('data-scale'), 10);
+          if (sc) {
+            snapExportScale = sc;
+            try { localStorage.setItem('stepviewer_snap_scale', sc.toString()); } catch (e) {}
+            updateSnapshotUIFromState();
+          }
+        });
+      });
+
+      // Camera Angle Quick Framing buttons
+      document.querySelectorAll('.snap-angle-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const angle = btn.getAttribute('data-angle');
+          const viewId = 'btn-view-' + angle;
+          if (viewActions[viewId]) {
+            viewActions[viewId](false);
+
+            document.querySelectorAll('.snap-angle-btn').forEach(b => {
+              b.classList.toggle('active', b === btn);
+            });
+
+            Object.keys(viewActions).forEach(id => {
+              const b = document.getElementById(id);
+              if (b) {
+                b.classList.toggle('active', id === viewId);
+                viewStates[id] = 0;
+              }
+            });
+            setBtnLabel('btn-view-top', 'Top');
+            setBtnLabel('btn-view-front', 'Front');
+            setBtnLabel('btn-view-right', 'Right');
+            setBtnLabel('btn-view-iso', 'Iso');
+          }
+        });
+      });
+
+      // Title Block & QR Mode buttons
+      document.querySelectorAll('.snap-tb-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const tb = btn.getAttribute('data-tb');
+          if (tb) {
+            snapTitleBlockMode = tb;
+            try { localStorage.setItem('stepviewer_snap_tb', tb); } catch (e) {}
+            updateSnapshotUIFromState();
+          }
+        });
+      });
+
+      // Overlay toggles
+      const optQR = document.getElementById('snap-opt-qr');
+      if (optQR) {
+        optQR.addEventListener('change', () => {
+          snapExportIncludeQR = optQR.checked;
+          try { localStorage.setItem('stepviewer_snap_qr', optQR.checked.toString()); } catch (e) {}
+          updateSnapshotUIFromState();
+        });
+      }
+
+      const optMat = document.getElementById('snap-opt-mat');
+      if (optMat) {
+        optMat.addEventListener('change', () => {
+          snapExportIncludeMat = optMat.checked;
+          try { localStorage.setItem('stepviewer_snap_mat', optMat.checked.toString()); } catch (e) {}
+        });
+      }
+
+      const optShadow = document.getElementById('snap-opt-shadow');
+      if (optShadow) {
+        optShadow.addEventListener('change', () => {
+          snapExportIncludeShadow = optShadow.checked;
+          try { localStorage.setItem('stepviewer_snap_shadow', optShadow.checked.toString()); } catch (e) {}
+          if (contactShadowMesh) {
+            contactShadowMesh.visible = snapExportIncludeShadow;
+          }
+        });
+      }
+
+      const optDims = document.getElementById('snap-opt-dims');
+      if (optDims) {
+        optDims.addEventListener('change', () => {
+          snapExportIncludeDims = optDims.checked;
+          try { localStorage.setItem('stepviewer_snap_dims', optDims.checked.toString()); } catch (e) {}
+        });
+      }
+
+      // Custom QR Note / URL Input
+      const qrNoteInput = document.getElementById('snap-qr-note');
+      if (qrNoteInput) {
+        try {
+          const savedNote = localStorage.getItem('stepviewer_snap_note');
+          if (savedNote) qrNoteInput.value = savedNote;
+        } catch (e) {}
+        qrNoteInput.addEventListener('input', () => {
+          try { localStorage.setItem('stepviewer_snap_note', qrNoteInput.value); } catch (e) {}
+        });
+      }
+
+      // Export Actions
+      const btnSnapCopy = document.getElementById('snap-btn-copy');
+      if (btnSnapCopy) {
+        btnSnapCopy.addEventListener('click', () => {
+          executeEngineeringExport('clipboard');
+        });
+      }
+
+      const btnSnapSave = document.getElementById('snap-btn-save');
+      if (btnSnapSave) {
+        btnSnapSave.addEventListener('click', () => {
+          executeEngineeringExport('file');
+        });
+      }
+
+      initSnapshotSystem();
 
       function showToast(msg) {
         const toast = document.getElementById('toast-notify');
@@ -4473,7 +7426,21 @@
         if (snap) {
           currentHoverTarget = snap;
 
-          if (snap.type === 'surface' || snap.subType === 'surface') {
+          if (snap.type === 'cylinder') {
+            if (hoverEdgeMesh) hoverEdgeMesh.visible = false;
+            snapIndicator.position.copy(snap.point);
+            snapIndicator.material.color.setHex(snap.isHole ? 0x38bdf8 : 0x10b981);
+            snapIndicator.visible = true;
+
+            if (tooltip) {
+              const kind = snap.isHole ? '⭕ Cylindrical Hole' : '🔵 Cylindrical Shaft';
+              const depthStr = snap.depth > 0 ? ` &nbsp;|&nbsp; Depth: <span style="color:#f1f5f9; font-weight:600;">${formatDim(snap.depth)}</span>` : '';
+              tooltip.innerHTML = `<span style="color:#38bdf8; font-weight:700;">${kind}:</span> <span style="color:#f1f5f9; font-weight:700;">Ø ${formatDim(snap.diameter)}</span> <span style="color:#94a3b8;">(R ${formatDim(snap.radius)})</span>${depthStr}`;
+              tooltip.style.left = (e.clientX + 14) + 'px';
+              tooltip.style.top = (e.clientY + 14) + 'px';
+              tooltip.style.display = 'block';
+            }
+          } else if (snap.type === 'surface' || snap.subType === 'surface') {
             if (hoverEdgeMesh) hoverEdgeMesh.visible = false;
             snapIndicator.position.copy(snap.point);
             snapIndicator.material.color.setHex(0x38bdf8);
@@ -4517,7 +7484,9 @@
             updateHoverEdgeGeometry(snap.feature);
 
             if (tooltip) {
-              tooltip.innerHTML = `<span style="color:#38bdf8">\u00D8:</span> ${snap.feature.diameter.toFixed(2)} mm &nbsp;<span style="color:#94a3b8">(R ${snap.feature.radius.toFixed(2)})</span>`;
+              const depthVal = snap.feature.cylinder ? snap.feature.cylinder.depth : 0;
+              const depthStr = depthVal > 0 ? ` &nbsp;|&nbsp; Depth: <span style="color:#f1f5f9; font-weight:600;">${formatDim(depthVal)}</span>` : '';
+              tooltip.innerHTML = `<span style="color:#38bdf8; font-weight:700;">Ø:</span> <span style="color:#f1f5f9; font-weight:700;">${formatDim(snap.feature.diameter)}</span> &nbsp;<span style="color:#94a3b8;">(R ${formatDim(snap.feature.radius)})</span>${depthStr}`;
               tooltip.style.left = (e.clientX + 14) + 'px';
               tooltip.style.top = (e.clientY + 14) + 'px';
               tooltip.style.display = 'block';
@@ -4625,8 +7594,12 @@
           togglePropsModal();
         } else if (key === 't') {
           toggleTreePanel();
+        } else if (key === 'x') {
+          toggleExplode();
         } else if (key === 'u') {
           toggleUnits();
+        } else if (key === 'k') {
+          toggleSnapshotModal();
         } else if (key === 'c') {
           if (isMeasureActive) {
             if (selectedCadEntities.length > 0) {
@@ -4643,6 +7616,10 @@
             showToast('Body deselected');
           }
         } else if (key === 'escape') {
+          if (activeColorPopoverBodyId !== null) {
+            closeColorPickerPopover();
+            return;
+          }
           if (isolatedBodyId !== null) {
             resetBodyIsolation();
           }
@@ -4659,6 +7636,9 @@
           }
           if (isPropsActive) {
             togglePropsModal(false);
+          }
+          if (isSnapshotActive) {
+            toggleSnapshotModal(false);
           }
           if (isMeasureActive) {
             if (selectedCadEntities.length > 0) {

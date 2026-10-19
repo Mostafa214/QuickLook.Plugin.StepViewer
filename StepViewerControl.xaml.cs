@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media.Imaging;
 using Microsoft.Web.WebView2.Core;
 
 namespace QuickLook.Plugin.StepViewer
@@ -418,39 +419,95 @@ namespace QuickLook.Plugin.StepViewer
                 {
                     string dataUrl = ExtractLargeJsonProp(json, "data");
                     string defaultName = ExtractJsonProp(json, "defaultName");
+                    string directTargetPath = ExtractJsonProp(json, "targetPath");
                     if (string.IsNullOrEmpty(defaultName)) defaultName = "CAD_Snapshot.png";
 
                     if (!string.IsNullOrEmpty(dataUrl))
                     {
                         Dispatcher.Invoke(() =>
                         {
-                            var sfd = new Microsoft.Win32.SaveFileDialog
+                            try
                             {
-                                Title = "Save CAD Viewport Snapshot",
-                                Filter = "PNG Image (*.png)|*.png|JPEG Image (*.jpg)|*.jpg|All Files (*.*)|*.*",
-                                FileName = defaultName,
-                                DefaultExt = ".png",
-                                AddExtension = true
-                            };
+                                string base64Data = Regex.Replace(dataUrl, @"^data:image\/[a-zA-Z]+;base64,", "");
+                                byte[] imageBytes = Convert.FromBase64String(base64Data);
 
-                            var owner = Window.GetWindow(this);
-                            bool? dialogResult = owner != null ? sfd.ShowDialog(owner) : sfd.ShowDialog();
-                            if (dialogResult == true)
-                            {
-                                try
+                                if (!string.IsNullOrEmpty(directTargetPath))
                                 {
-                                    string base64Data = Regex.Replace(dataUrl, @"^data:image\/[a-zA-Z]+;base64,", "");
-                                    byte[] imageBytes = Convert.FromBase64String(base64Data);
+                                    var parent = Path.GetDirectoryName(directTargetPath);
+                                    if (!string.IsNullOrEmpty(parent) && !Directory.Exists(parent))
+                                        Directory.CreateDirectory(parent);
+                                    File.WriteAllBytes(directTargetPath, imageBytes);
+                                    _ = WebViewControl.CoreWebView2.ExecuteScriptAsync(
+                                        $"if (typeof showToast === 'function') showToast('Saved: {EscapeJsonString(Path.GetFileName(directTargetPath))}');"
+                                    );
+                                    return;
+                                }
+
+                                var sfd = new Microsoft.Win32.SaveFileDialog
+                                {
+                                    Title = "Save CAD Viewport Snapshot",
+                                    Filter = "PNG Image (*.png)|*.png|JPEG Image (*.jpg)|*.jpg|All Files (*.*)|*.*",
+                                    FileName = defaultName,
+                                    DefaultExt = ".png",
+                                    AddExtension = true
+                                };
+
+                                var owner = Window.GetWindow(this);
+                                bool? dialogResult = owner != null ? sfd.ShowDialog(owner) : sfd.ShowDialog();
+                                if (dialogResult == true)
+                                {
                                     File.WriteAllBytes(sfd.FileName, imageBytes);
 
                                     _ = WebViewControl.CoreWebView2.ExecuteScriptAsync(
                                         $"if (typeof showToast === 'function') showToast('Saved: {EscapeJsonString(Path.GetFileName(sfd.FileName))}');"
                                     );
                                 }
-                                catch (Exception ex)
+                            }
+                            catch (Exception ex)
+                            {
+                                MessageBox.Show($"Failed to save snapshot file:\n{ex.Message}", "QuickLook STEP Viewer", MessageBoxButton.OK, MessageBoxImage.Error);
+                            }
+                        });
+                    }
+                }
+                else if (string.Equals(msgType, "COPY_SNAPSHOT_CLIPBOARD", StringComparison.OrdinalIgnoreCase))
+                {
+                    string dataUrl = ExtractLargeJsonProp(json, "data");
+                    if (!string.IsNullOrEmpty(dataUrl))
+                    {
+                        Dispatcher.Invoke(() =>
+                        {
+                            try
+                            {
+                                string base64Data = Regex.Replace(dataUrl, @"^data:image\/[a-zA-Z]+;base64,", "");
+                                byte[] imageBytes = Convert.FromBase64String(base64Data);
+                                var bitmap = new BitmapImage();
+                                using (var ms = new MemoryStream(imageBytes))
                                 {
-                                    MessageBox.Show($"Failed to save snapshot file:\n{ex.Message}", "QuickLook STEP Viewer", MessageBoxButton.OK, MessageBoxImage.Error);
+                                    bitmap.BeginInit();
+                                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                                    bitmap.StreamSource = ms;
+                                    bitmap.EndInit();
                                 }
+                                bitmap.Freeze();
+
+                                for (int i = 0; i < 3; i++)
+                                {
+                                    try
+                                    {
+                                        Clipboard.SetImage(bitmap);
+                                        Log("Copied high-res CAD export image directly to Windows Clipboard.");
+                                        break;
+                                    }
+                                    catch (System.Runtime.InteropServices.COMException)
+                                    {
+                                        System.Threading.Thread.Sleep(60);
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Log($"Clipboard copy error: {ex.Message}");
                             }
                         });
                     }

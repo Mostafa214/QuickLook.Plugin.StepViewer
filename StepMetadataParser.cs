@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -7,6 +8,7 @@ namespace QuickLook.Plugin.StepViewer
 {
     public class StepMetadata
     {
+        public string Format { get; set; } = "STEP";
         public string FileName { get; set; } = string.Empty;
         public string Timestamp { get; set; } = string.Empty;
         public string Author { get; set; } = string.Empty;
@@ -27,8 +29,8 @@ namespace QuickLook.Plugin.StepViewer
 
     public static class StepMetadataParser
     {
-        private const int HeaderBufferSize = 512;
-        private const int MaxPreambleScanSize = 32 * 1024; // 32KB to read HEADER and early DATA context units
+        private const int HeaderBufferSize = 1024;
+        private const int MaxPreambleScanSize = 32 * 1024;
 
         /// <summary>
         /// Instantly verifies if a file conforms to ISO 10303-21 physical format.
@@ -45,7 +47,7 @@ namespace QuickLook.Plugin.StepViewer
                 {
                     byte[] buffer = new byte[HeaderBufferSize];
                     int bytesRead = stream.Read(buffer, 0, buffer.Length);
-                    if (bytesRead < 14) // "ISO-10303-21;" length
+                    if (bytesRead < 14)
                         return false;
 
                     string headerSnippet = Encoding.ASCII.GetString(buffer, 0, bytesRead).TrimStart('\r', '\n', ' ', '\t', '\0', '\uFEFF');
@@ -59,7 +61,87 @@ namespace QuickLook.Plugin.StepViewer
         }
 
         /// <summary>
-        /// Efficiently parses the HEADER and early context section without reading the full geometry data.
+        /// Instantly verifies if a file conforms to OpenCASCADE B-Rep format (.brep).
+        /// </summary>
+        public static bool IsBrepFile(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                return false;
+
+            try
+            {
+                using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                {
+                    byte[] buffer = new byte[HeaderBufferSize];
+                    int bytesRead = stream.Read(buffer, 0, buffer.Length);
+                    if (bytesRead < 16)
+                        return false;
+
+                    string headerSnippet = Encoding.ASCII.GetString(buffer, 0, bytesRead).TrimStart('\r', '\n', ' ', '\t', '\0', '\uFEFF');
+                    return headerSnippet.StartsWith("DBRep_DrawableShape", StringComparison.OrdinalIgnoreCase) ||
+                           headerSnippet.IndexOf("CASCADE Topology", StringComparison.OrdinalIgnoreCase) >= 0;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Instantly verifies if a file conforms to IGES 80-column card format (.iges, .igs).
+        /// </summary>
+        public static bool IsIgesFile(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                return false;
+
+            try
+            {
+                using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                {
+                    byte[] buffer = new byte[HeaderBufferSize];
+                    int bytesRead = stream.Read(buffer, 0, buffer.Length);
+                    if (bytesRead < 80)
+                        return false;
+
+                    string text = Encoding.ASCII.GetString(buffer, 0, bytesRead);
+                    string[] lines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var line in lines)
+                    {
+                        if (line.Length >= 73)
+                        {
+                            char sectionId = line[72];
+                            if (sectionId == 'S' || sectionId == 'G' || sectionId == 'D')
+                                return true;
+                        }
+                    }
+
+                    if (text.IndexOf("IGES", StringComparison.OrdinalIgnoreCase) >= 0)
+                        return true;
+
+                    return false;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Universal CAD format validator checking STEP, IGES, or BREP.
+        /// </summary>
+        public static bool IsValidCadFile(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                return false;
+
+            return IsStepFile(path) || IsIgesFile(path) || IsBrepFile(path);
+        }
+
+        /// <summary>
+        /// Efficiently parses CAD metadata for STEP, IGES, or BREP.
         /// </summary>
         public static StepMetadata ExtractMetadata(string path)
         {
@@ -74,13 +156,42 @@ namespace QuickLook.Plugin.StepViewer
                 metadata.FileSizeBytes = fileInfo.Length;
                 metadata.FileName = Path.GetFileName(path);
 
-                string preambleText = ReadPreamble(path);
-                if (string.IsNullOrEmpty(preambleText))
-                    return metadata;
+                if (IsBrepFile(path))
+                {
+                    metadata.Format = "BREP";
+                    metadata.Schema = "OpenCASCADE B-Rep";
+                    metadata.OriginatingSystem = "OpenCASCADE Technology";
+                    metadata.LengthUnit = "MILLIMETRE";
 
-                ParseFileName(preambleText, metadata);
-                ParseSchema(preambleText, metadata);
-                ParseUnits(preambleText, metadata);
+                    string head = ReadPreamble(path);
+                    var match = Regex.Match(head, @"CASCADE\s+Topology\s+([A-Za-z0-9_]+)", RegexOptions.IgnoreCase);
+                    if (match.Success)
+                    {
+                        metadata.Schema = $"OpenCASCADE B-Rep ({match.Groups[1].Value})";
+                    }
+                    return metadata;
+                }
+
+                if (IsIgesFile(path))
+                {
+                    metadata.Format = "IGES";
+                    metadata.Schema = "IGES 5.3";
+                    metadata.OriginatingSystem = "IGES CAD Processor";
+                    metadata.LengthUnit = "MILLIMETRE";
+
+                    ParseIgesMetadata(path, metadata);
+                    return metadata;
+                }
+
+                // Default: STEP
+                metadata.Format = "STEP";
+                string preambleText = ReadPreamble(path);
+                if (!string.IsNullOrEmpty(preambleText))
+                {
+                    ParseStepFileName(preambleText, metadata);
+                    ParseStepSchema(preambleText, metadata);
+                    ParseStepUnits(preambleText, metadata);
+                }
             }
             catch
             {
@@ -88,6 +199,92 @@ namespace QuickLook.Plugin.StepViewer
             }
 
             return metadata;
+        }
+
+        private static void ParseIgesMetadata(string path, StepMetadata metadata)
+        {
+            string content = ReadPreamble(path);
+            if (string.IsNullOrEmpty(content))
+                return;
+
+            string[] lines = content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+            var gSb = new StringBuilder();
+            foreach (var line in lines)
+            {
+                if (line.Length >= 73 && line[72] == 'G')
+                {
+                    gSb.Append(line.Substring(0, 72));
+                }
+            }
+
+            string gText = gSb.ToString();
+            if (string.IsNullOrEmpty(gText))
+                return;
+
+            List<string> parameters = ParseIgesHollerith(gText);
+            if (parameters.Count >= 3 && !string.IsNullOrWhiteSpace(parameters[2]))
+                metadata.FileName = parameters[2].Trim();
+            if (parameters.Count >= 4 && !string.IsNullOrWhiteSpace(parameters[3]))
+            {
+                if (string.IsNullOrEmpty(metadata.FileName))
+                    metadata.FileName = parameters[3].Trim();
+            }
+            if (parameters.Count >= 5 && !string.IsNullOrWhiteSpace(parameters[4]))
+                metadata.OriginatingSystem = parameters[4].Trim();
+
+            for (int i = 0; i < parameters.Count; i++)
+            {
+                string p = parameters[i].ToUpperInvariant().Trim();
+                if (p == "MM" || p == "MILLIMETRE" || p == "MILLIMETER" || p == "2")
+                    metadata.LengthUnit = "MILLIMETRE";
+                else if (p == "INCH" || p == "INCHES" || p == "1")
+                    metadata.LengthUnit = "INCH";
+                else if (p == "M" || p == "METRE" || p == "METER" || p == "6")
+                    metadata.LengthUnit = "METRE";
+            }
+
+            if (parameters.Count >= 18 && !string.IsNullOrWhiteSpace(parameters[17]))
+                metadata.Timestamp = parameters[17].Trim();
+            if (parameters.Count >= 21 && !string.IsNullOrWhiteSpace(parameters[20]))
+                metadata.Author = parameters[20].Trim();
+            if (parameters.Count >= 22 && !string.IsNullOrWhiteSpace(parameters[21]))
+                metadata.Organization = parameters[21].Trim();
+        }
+
+        private static List<string> ParseIgesHollerith(string raw)
+        {
+            var list = new List<string>();
+            int i = 0;
+            while (i < raw.Length)
+            {
+                while (i < raw.Length && (raw[i] == ' ' || raw[i] == ',')) i++;
+                if (i >= raw.Length || raw[i] == ';') break;
+
+                var match = Regex.Match(raw.Substring(i), @"^(\d+)H", RegexOptions.IgnoreCase);
+                if (match.Success)
+                {
+                    int len = int.Parse(match.Groups[1].Value);
+                    int strStart = i + match.Length;
+                    if (strStart + len <= raw.Length)
+                    {
+                        list.Add(raw.Substring(strStart, len));
+                        i = strStart + len;
+                        if (i < raw.Length && raw[i] == ',') i++;
+                        continue;
+                    }
+                }
+
+                int nextComma = raw.IndexOf(',', i);
+                int nextSemi = raw.IndexOf(';', i);
+                int end = raw.Length;
+                if (nextComma != -1 && nextSemi != -1) end = Math.Min(nextComma, nextSemi);
+                else if (nextComma != -1) end = nextComma;
+                else if (nextSemi != -1) end = nextSemi;
+
+                list.Add(raw.Substring(i, end - i).Trim());
+                i = end + 1;
+            }
+            return list;
         }
 
         private static string ReadPreamble(string path)
@@ -113,9 +310,8 @@ namespace QuickLook.Plugin.StepViewer
             }
         }
 
-        private static void ParseFileName(string text, StepMetadata metadata)
+        private static void ParseStepFileName(string text, StepMetadata metadata)
         {
-            // FILE_NAME('name', 'timestamp', ('author'), ('org'), 'preproc', 'orig_sys', 'auth');
             var match = Regex.Match(text, @"FILE_NAME\s*\(\s*'([^']*)'\s*,\s*'([^']*)'\s*,\s*\(([^)]*)\)\s*,\s*\(([^)]*)\)\s*,\s*'([^']*)'\s*,\s*'([^']*)'", RegexOptions.IgnoreCase);
             if (match.Success)
             {
@@ -130,9 +326,8 @@ namespace QuickLook.Plugin.StepViewer
             }
         }
 
-        private static void ParseSchema(string text, StepMetadata metadata)
+        private static void ParseStepSchema(string text, StepMetadata metadata)
         {
-            // FILE_SCHEMA(('SCHEMA_NAME'));
             var match = Regex.Match(text, @"FILE_SCHEMA\s*\(\s*\(\s*'([^']*)'", RegexOptions.IgnoreCase);
             if (match.Success)
             {
@@ -158,7 +353,7 @@ namespace QuickLook.Plugin.StepViewer
             }
         }
 
-        private static void ParseUnits(string text, StepMetadata metadata)
+        private static void ParseStepUnits(string text, StepMetadata metadata)
         {
             if (text.IndexOf(".INCH.", StringComparison.OrdinalIgnoreCase) >= 0 ||
                 text.IndexOf("'INCH'", StringComparison.OrdinalIgnoreCase) >= 0)
