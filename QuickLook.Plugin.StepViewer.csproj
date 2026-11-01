@@ -15,6 +15,8 @@
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="All" />
     <!-- WebView2 runtime for CAD WebGL rendering -->
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2592.51" />
+    <!-- Official Microsoft JSON serialization library for secure IPC messaging -->
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
   </ItemGroup>
 
   <ItemGroup>
@@ -25,6 +27,12 @@
     </Reference>
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Exclude test project files from host plugin project -->
+    <Compile Remove="tests\**" />
+    <None Remove="tests\**" />
   </ItemGroup>
 
   <ItemGroup>

@@ -11,6 +11,7 @@ namespace QuickLook.Plugin.StepViewer
     {
         private readonly string[] _supportedExtensions = { ".step", ".stp", ".p21", ".stpx", ".iges", ".igs", ".brep" };
         private UIElement _currentContent;
+        private System.Windows.Threading.DispatcherTimer _watchdog;
 
         /// <summary>
         /// Higher priority than default viewers (0) so STEP, IGES, and BREP files are exclusively routed here.
@@ -81,16 +82,18 @@ namespace QuickLook.Plugin.StepViewer
             };
 
             // Watchdog fallback: ensure QuickLook blur overlay is never stuck indefinitely
-            var watchdog = new System.Windows.Threading.DispatcherTimer
+            _watchdog?.Stop();
+            _watchdog = new System.Windows.Threading.DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(45)
             };
-            watchdog.Tick += (s, e) =>
+            _watchdog.Tick += (s, e) =>
             {
-                watchdog.Stop();
+                _watchdog?.Stop();
+                _watchdog = null;
                 context.IsBusy = false;
             };
-            watchdog.Start();
+            _watchdog.Start();
 
             _currentContent = viewer;
             context.ViewerContent = viewer;
@@ -100,6 +103,12 @@ namespace QuickLook.Plugin.StepViewer
 
         public void Cleanup()
         {
+            if (_watchdog != null)
+            {
+                _watchdog.Stop();
+                _watchdog = null;
+            }
+
             if (_currentContent is StepViewerControl viewer)
             {
                 try
@@ -107,9 +116,9 @@ namespace QuickLook.Plugin.StepViewer
                     viewer.CancelCurrentOperation();
                     viewer.Dispose();
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Suppress exceptions during rapid cleanup
+                    StepViewerControl.Log($"Viewer cleanup error: {ex.Message}");
                 }
             }
             _currentContent = null;

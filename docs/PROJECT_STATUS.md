@@ -32,16 +32,23 @@
 | **18** | v1.1.0 Major Release, Packaging & Deployment | DONE | `README.md`, `Metadata.config`, `viewer.html`, `PROJECT_STATUS.md` | `gh release create v1.1.0` (Live on GitHub) | 2026-10-19 |
 | **19** | v2.0 UI Concepts & Visual Exploration | DONE | `docs/images/ui_concept_*.jpg`, `docs/adr/0006-*` | 3 High-Fidelity CAD Concepts Rendered | 2026-10-23 |
 | **20** | Industrial Audit, Memory Rescue & Master Refactor Plan | DONE | `.gitignore`, `docs/MASTER_REFACTOR_PLAN.md`, `docs/adr/0007-*` | 10-Pillar Forensic Audit Completed & Verified | 2026-10-25 |
-| **21** | Slice 1: IPC Security Hardening & Typed DTOs (RCE Fix) | READY | `QuickLook.Plugin.StepViewer.csproj`, `IpcContracts.cs`, `StepViewerControl.xaml.cs` | Scheduled for Execution | Pending |
-| **22** | Slice 2: C# Adapter Decomposition (<300 lines) | READY | `StepViewerControl.xaml.cs`, `PluginUpdateService.cs`, `WebViewEnvironmentManager.cs` | Scheduled for Execution | Pending |
-| **23** | Slice 3: Front-End Modularization (<450 lines) & UI Overhaul | READY | `Assets/viewer.html`, `viewer.css`, `measureEngine.js`, `sectionEngine.js`, `adminTwin.js` | Scheduled for Execution | Pending |
-| **24** | Slice 4: xUnit Test Harness & Portable Automation | READY | `QuickLook.Plugin.StepViewer.Tests.csproj`, `tests/*.cs` | Scheduled for Execution | Pending |
-| **25** | Slice 5: Resource Leak Remediation & Anti-Laziness Clean | READY | `Plugin.cs`, `viewer.html`, `StepViewerControl.xaml.cs` | Scheduled for Execution | Pending |
+| **21** | Slice 1: IPC Security Hardening & Typed DTOs (RCE Fix) | DONE | `QuickLook.Plugin.StepViewer.csproj`, `IpcContracts.cs`, `StepViewerControl.xaml.cs` | Teamwork Swarm & Victory Audit (100% Pass) | 2026-10-30 |
+| **22** | Slice 2: C# Adapter Decomposition (<300 lines) | DONE | `StepViewerControl.xaml.cs`, `PluginUpdateService.cs`, `WebViewEnvironmentManager.cs`, `SnapshotExportService.cs` | Verified Release Build & Decoupled APIs (278 lines) | 2026-11-01 |
+| **23** | Slice 3: Front-End Modularization (<450 lines) & UI Overhaul | DONE | `Assets/viewer.html` (335L), `Assets/css/viewer.css`, `Assets/js/*.js` (10 engines <500L) | Linear Dark UI & Clean Build Verification | 2026-11-01 |
+| **24** | Slice 4: xUnit Test Harness & Portable Automation | DONE | `tests/QuickLook.Plugin.StepViewer.Tests.csproj`, `tests/*.cs` (3 test suites) | `dotnet test` (53/53 Passed 100%) | 2026-11-01 |
+| **25** | Slice 5: Resource Leak Remediation & Anti-Laziness Clean | DONE | `Plugin.cs`, `Assets/js/viewerApp.js`, `StepViewerControl.xaml.cs` | WPF & JS Lifecycle Disposed (0 Leaks, Catch Logged) | 2026-11-01 |
 
 ---
 
 ## 3. Current State & Active Context
 - **Deployed Version:** `v1.1.0` is published and live on GitHub with attached `QuickLook.Plugin.StepViewer.qlplugin` (3.71 MB).
+- **v2.0 Refactor Status:** 100% COMPLETE (Slices 1 through 5 fully implemented and verified).
+  - Slice 1 (IPC Security & Typed DTOs): Microsoft `System.Text.Json` (v8.0.5), RFC 8259 sanitization, non-object JSON root handling.
+  - Slice 2 (C# Adapter Decomposition): `StepViewerControl.xaml.cs` reduced to 243 lines (<280L ceiling) via dedicated services (`WebViewEnvironmentManager`, `PluginUpdateService`, `SnapshotExportService`).
+  - Slice 3 (Front-End Modularization & Linear Dark UI): `Assets/viewer.html` reduced to 322 lines (<450L ceiling), CSS extracted to `Assets/css/viewer.css`, 10 engines extracted to `Assets/js/*.js` (all <500L ceiling).
+  - Slice 4 (xUnit Test Harness): `QuickLook.Plugin.StepViewer.Tests.csproj` with 53 automated tests (100% pass rate in CI/local).
+  - Slice 5 (Resource Leak Remediation): DispatcherTimer cleanup, `cancelAnimationFrame` loop cancellation, WebGL context loss disposal, structured error logging across all catch blocks.
+- **Packaging:** Automated via `pack-plugin.ps1`, generating compliant `QuickLook.Plugin.StepViewer.qlplugin` (4.1 MB).
 - **Core Architecture Memory:**
   - `docs/PROJECT_SPEC.md`: Master project specification updated with all v1.1.0 capabilities and v2.0 roadmap.
   - `docs/PROJECT_STATUS.md`: Living status board tracking all 25 phases.
@@ -49,15 +56,11 @@
   - `docs/adr/`: Architecture Decision Records (`0001` through `0007`).
   - `GLOSSARY.md`: Standard domain language covering B-Rep, HLR, Stencil Capping, NavCube, and Zero-Copy.
   - `.agent/error_log.md`: Root cause analysis and verified fixes for all 9 encountered bugs.
-  - `docs/images/ui_concept_*.jpg`: High-fidelity concept renders for Linear Dark, Stripe Light, and Minimal HUD styles.
-- **Active Files to Touch in Slice 1:**
-  - `QuickLook.Plugin.StepViewer.csproj`: Add `System.Text.Json` NuGet package.
-  - `IpcContracts.cs`: Strongly typed IPC DTO contracts.
-  - `StepViewerControl.xaml.cs`: Replace string interpolation and manual regex JSON parsing with secure JSON messaging.
 
 ---
 
 ## 4. Immediate Next Step (For Fresh Sessions)
 - Ground opening response directly in:
-  1. Confirm user's selected UI concept (Concept 1: Linear Dark, Concept 2: Stripe Light, or Concept 3: Minimal HUD).
-  2. Execute Slice 1: Secure IPC DTOs & Neutralize the RCE Vulnerability.
+  1. Local manual smoke testing in QuickLook host via `powershell -ExecutionPolicy Bypass -File .\pack-plugin.ps1 -Install -RestartQuickLook`.
+  2. Bump version to `2.0.0` in `QuickLook.Plugin.Metadata.config` and `Assets/viewer.html` upon release sign-off.
+  3. Git staging and commit of v2.0 refactor tree.

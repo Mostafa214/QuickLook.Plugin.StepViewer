@@ -14,6 +14,7 @@ StepViewer-Release-Staging/
 
 # Test & Diagnostic Scripts / Scratch Logs
 VerifyPhase*.ps1
+VerifyVirtualHost.ps1
 test_*.ps1
 diagnose_*.ps1
 reproduce_issue.ps1
@@ -24,6 +25,7 @@ stream_test.log
 test_artifacts/
 scratch/
 docs/superpowers/
+.agents/
 
 # Private CAD Test Models
 Hosieni - Nar.stp

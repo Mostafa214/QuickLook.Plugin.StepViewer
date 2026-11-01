@@ -56,7 +56,9 @@ $requiredAssets = @(
     "three.min.js",
     "OrbitControls.js",
     "occt-import-js.js",
-    "occt-import-js.wasm"
+    "occt-import-js.wasm",
+    "css\viewer.css",
+    "js\viewerApp.js"
 )
 
 $assetsPath = Join-Path $binDir "Assets"
