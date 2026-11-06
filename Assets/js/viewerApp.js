@@ -12,11 +12,8 @@
   let currentModelCenter = new THREE.Vector3(), currentModelDistance = 100;
   let initialCameraState = { position: new THREE.Vector3(), target: new THREE.Vector3() };
   function detectCadFormat(fn) {
-    if (!fn) return 'STEP';
-    const ext = fn.split('.').pop().toLowerCase();
-    if (ext === 'igs' || ext === 'iges') return 'IGES';
-    if (ext === 'brep' || ext === 'occ') return 'BREP';
-    return 'STEP';
+    const ext = (fn || '').split('.').pop().toLowerCase();
+    return (ext === 'igs' || ext === 'iges') ? 'IGES' : (ext === 'brep' || ext === 'occ') ? 'BREP' : 'STEP';
   }
   function computeSafeCameraDistance(box, paddingFactor = 1.25) {
     if (!box || box.isEmpty()) return 100;
@@ -50,12 +47,13 @@
     controls.enableDamping = true; controls.dampingFactor = 0.05; controls.screenSpacePanning = true;
     controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.ROTATE, RIGHT: THREE.MOUSE.PAN };
     window.addEventListener('contextmenu', (e) => e.preventDefault());
-    // Technical Studio 4-Point Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.70); scene.add(ambientLight);
-    const keyLight = new THREE.DirectionalLight(0xffffff, 0.85); keyLight.position.set(1.2, 2.0, 1.5).normalize(); scene.add(keyLight);
-    const fillLight = new THREE.DirectionalLight(0x94a3b8, 0.45); fillLight.position.set(-1.5, -0.6, -1.2).normalize(); scene.add(fillLight);
-    const topLight = new THREE.DirectionalLight(0xffffff, 0.35); topLight.position.set(0, 1, 0); scene.add(topLight);
-    const bounceLight = new THREE.DirectionalLight(0x475569, 0.30); bounceLight.position.set(0, -1, 0); scene.add(bounceLight);
+    // Technical Studio 4-Point Lighting & Environment
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.45); scene.add(ambientLight);
+    const keyLight = new THREE.DirectionalLight(0xfff8f0, 1.25); keyLight.position.set(1.5, 2.5, 1.8).normalize(); scene.add(keyLight);
+    const fillLight = new THREE.DirectionalLight(0xa5b4fc, 0.55); fillLight.position.set(-2.0, 0.8, -1.5).normalize(); scene.add(fillLight);
+    const rimLight = new THREE.DirectionalLight(0xe2e8f0, 0.70); rimLight.position.set(0, 3.0, -2.0).normalize(); scene.add(rimLight);
+    const bounceLight = new THREE.DirectionalLight(0x334155, 0.25); bounceLight.position.set(0, -2.0, 0); scene.add(bounceLight);
+    initStudioEnvironment();
     window.addEventListener('resize', onResize);
     setupToolbar();
     setupEngineModules();
@@ -71,15 +69,22 @@
     setTimeout(() => { if (window.AutoUpdater) window.AutoUpdater.checkForUpdates(false); }, 2000);
   }
   function setupEngineModules() {
-    if (window.SectionEngine) window.SectionEngine.setupUI();
-    if (window.AssemblyTree) window.AssemblyTree.setupUI();
-    if (window.ExplodedView) window.ExplodedView.setupUI();
-    if (window.AppearancePopover) window.AppearancePopover.setupUI();
-    if (window.MeasureEngine) window.MeasureEngine.setupUI();
-    if (window.MaterialsEngine) window.MaterialsEngine.setupUI();
-    if (window.SnapshotEngine) window.SnapshotEngine.setupUI();
-    if (window.AdminTwin) window.AdminTwin.setupUI();
-    if (window.AutoUpdater) window.AutoUpdater.setupUI();
+    [window.SectionEngine, window.AssemblyTree, window.ExplodedView, window.AppearancePopover,
+     window.MeasureEngine, window.MaterialsEngine, window.SnapshotEngine, window.AdminTwin, window.AutoUpdater]
+      .forEach(m => m?.setupUI?.());
+  }
+  function initStudioEnvironment() {
+    try {
+      const pmrem = new THREE.PMREMGenerator(renderer), envScene = new THREE.Scene();
+      envScene.background = new THREE.Color(0x0e1017);
+      const addP = (col, w, h, x, y, z, rx = 0) => {
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: col, side: THREE.DoubleSide }));
+        m.position.set(x, y, z); if (rx) m.rotation.x = rx; else m.lookAt(0, 0, 0); envScene.add(m);
+      };
+      addP(0xffffff, 80, 80, 0, 45, 0, Math.PI / 2); addP(0xfff5ea, 40, 50, 35, 20, 30);
+      addP(0x93c5fd, 40, 50, -35, 15, -25); addP(0x38bdf8, 45, 25, 0, 10, -45);
+      const rt = pmrem.fromScene(envScene, 0.04); scene.environment = rt.texture; pmrem.dispose();
+    } catch (e) { console.warn('Studio env setup fallback', e); }
   }
   function onResize() {
     if (!camera || !renderer) return;
@@ -135,17 +140,17 @@
     const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, 70, 70);
     const cx = 35, cy = 35, r = 22, rotMatrix = new THREE.Matrix4().extractRotation(camera.matrixWorldInverse);
     const axes = [
-      { dir: new THREE.Vector3(1, 0, 0), label: 'X', color: '#e05656' },
-      { dir: new THREE.Vector3(0, 1, 0), label: 'Y', color: '#3eb86f' },
-      { dir: new THREE.Vector3(0, 0, 1), label: 'Z', color: '#4a9eed' }
+      { dir: new THREE.Vector3(1, 0, 0), label: 'X', color: '#ef4444' },
+      { dir: new THREE.Vector3(0, 1, 0), label: 'Y', color: '#22c55e' },
+      { dir: new THREE.Vector3(0, 0, 1), label: 'Z', color: '#38bdf8' }
     ];
     axes.forEach(a => { a.proj = a.dir.clone().applyMatrix4(rotMatrix); });
     axes.sort((a, b) => a.proj.z - b.proj.z);
     axes.forEach(a => {
       const px = cx + a.proj.x * r, py = cy - a.proj.y * r;
-      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(px, py); ctx.strokeStyle = a.color; ctx.lineWidth = 2.0; ctx.lineCap = 'round'; ctx.stroke();
-      ctx.beginPath(); ctx.arc(px, py, 5.0, 0, Math.PI * 2); ctx.fillStyle = a.color; ctx.fill();
-      ctx.fillStyle = '#ffffff'; ctx.font = 'bold 7px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(a.label, px, py);
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(px, py); ctx.strokeStyle = a.color; ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(px, py, 5.5, 0, Math.PI * 2); ctx.fillStyle = a.color; ctx.fill();
+      ctx.fillStyle = '#ffffff'; ctx.font = 'bold 8px system-ui, -apple-system, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(a.label, px, py);
     });
   }
   function createContactShadowTexture() {
@@ -193,17 +198,18 @@
     controls.target.copy(targetCenter); controls.update();
     initialCameraState.position.copy(targetPos); initialCameraState.target.copy(targetCenter);
     if (gridHelper) scene.remove(gridHelper);
-    gridHelper = new THREE.GridHelper(Math.max(Math.max(size.x, size.y, size.z) * 2.5, 20), 20, 0x27272a, 0x18181b);
-    gridHelper.position.set(center.x, box.min.y, center.z); scene.add(gridHelper);
+    gridHelper = new THREE.GridHelper(Math.max(Math.max(size.x, size.y, size.z) * 2.4, 20), 24, 0x3f3f46, 0x27272a);
+    gridHelper.position.set(center.x, box.min.y - 0.05, center.z);
+    if (gridHelper.material) { gridHelper.material.transparent = true; gridHelper.material.opacity = 0.20; gridHelper.material.depthWrite = false; }
+    gridHelper.name = 'studio_floor_grid'; scene.add(gridHelper);
     updateGroundContactShadow(box, center, size);
   }
   function clearModel() {
-    if (contactShadowMesh) { scene.remove(contactShadowMesh); if (contactShadowMesh.geometry) contactShadowMesh.geometry.dispose(); contactShadowMesh = null; window.contactShadowMesh = null; }
-    if (window.AppearancePopover) window.AppearancePopover.closeColorPickerPopover();
-    else if (window.AssemblyTree) window.AssemblyTree.closeColorPickerPopover();
+    if (contactShadowMesh) { scene.remove(contactShadowMesh); contactShadowMesh.geometry?.dispose(); contactShadowMesh = null; window.contactShadowMesh = null; }
+    (window.AppearancePopover || window.AssemblyTree)?.closeColorPickerPopover?.();
     if (window.AssemblyTree) { window.AssemblyTree.deselectFace(); window.AssemblyTree.deselectBody(); }
     const hideBanner = document.getElementById('isolate-banner'); if (hideBanner) hideBanner.style.display = 'none';
-    (window.modelBodies || []).forEach(b => { if (b.material) b.material.dispose(); if (b.edgesMat) b.edgesMat.dispose(); });
+    (window.modelBodies || []).forEach(b => { b.material?.dispose(); b.edgesMat?.dispose(); });
     window.modelBodies = []; window.isolatedBodyId = null;
     const treeCont = document.getElementById('tree-content'); if (treeCont) treeCont.innerHTML = '';
     const treeCnt = document.getElementById('tree-body-count'); if (treeCnt) treeCnt.innerText = '0 Bodies';
@@ -216,13 +222,12 @@
     const dimEl = document.getElementById('badge-dim'); if (dimEl) dimEl.style.display = 'none';
     while (modelGroup.children.length > 0) {
       const obj = modelGroup.children[0];
-      obj.traverse(c => { if (c.geometry) c.geometry.dispose(); if (c.material) { if (Array.isArray(c.material)) c.material.forEach(m => m.dispose()); else c.material.dispose(); } });
+      obj.traverse(c => { c.geometry?.dispose(); if (Array.isArray(c.material)) c.material.forEach(m => m.dispose()); else c.material?.dispose(); });
       modelGroup.remove(obj);
     }
     if (gridHelper) { scene.remove(gridHelper); gridHelper = null; }
     if (window.SectionEngine) (window.SectionEngine.reset || window.SectionEngine.toggleSectionView)?.(false);
-    if (window.ExplodedView) window.ExplodedView.resetExplodedView();
-    else if (window.AssemblyTree) window.AssemblyTree.resetExplodedView();
+    (window.ExplodedView || window.AssemblyTree)?.resetExplodedView?.();
   }
   function updateBoundingBoxBadge() {
     const pp = window.modelPhysicalProps;
@@ -320,12 +325,13 @@
           totalVolMm3 += (ax * (by * cz - bz * cy) + ay * (bz * cx - bx * cz) + az * (bx * cy - by * cx)) / 6.0;
         }
       } else { totalTriangles += m.position.length / 9; }
-      let meshColor = new THREE.Color(0xa0a8b4);
-      if (m.color && Array.isArray(m.color) && m.color.length >= 3) {
+      const isCustomColor = m.color && Array.isArray(m.color) && m.color.length >= 3;
+      let meshColor = new THREE.Color(0xd4d4d8);
+      if (isCustomColor) {
         meshColor = new THREE.Color(m.color[0] > 1 ? m.color[0] / 255 : m.color[0], m.color[1] > 1 ? m.color[1] / 255 : m.color[1], m.color[2] > 1 ? m.color[2] / 255 : m.color[2]);
       }
       const material = new THREE.MeshStandardMaterial({
-        color: meshColor, metalness: 0.28, roughness: 0.42, side: THREE.DoubleSide, wireframe: isWireframeActive,
+        color: meshColor, metalness: isCustomColor ? 0.40 : 0.82, roughness: isCustomColor ? 0.32 : 0.22, side: THREE.DoubleSide, wireframe: isWireframeActive,
         polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
         clippingPlanes: (window.isSectionActive && window.sectionPlane) ? [window.sectionPlane] : []
       });
@@ -333,10 +339,10 @@
       mesh.userData = { bodyId: i, name: m.name, originalColor: meshColor.clone(), isGhosted: false, isHidden: false, brepFaces: m.brepFaces || [], volumeMm3: m.volumeMm3 || 0, areaMm2: m.areaMm2 || 0 };
       let edgesMat = null, edgeLines = null;
       try {
-        edgesMat = new THREE.LineBasicMaterial({ color: 0x14171d, linewidth: 1, transparent: true, opacity: 0.85, clippingPlanes: (window.isSectionActive && window.sectionPlane) ? [window.sectionPlane] : [] });
+        edgesMat = new THREE.LineBasicMaterial({ color: 0x09090b, linewidth: 1, transparent: true, opacity: 0.70, clippingPlanes: (window.isSectionActive && window.sectionPlane) ? [window.sectionPlane] : [] });
         const eGeom = new THREE.BufferGeometry(); eGeom.setAttribute('position', geometry.attributes.position);
         if (m.edgeIndices?.length) eGeom.setIndex(new THREE.BufferAttribute(new Uint32Array(m.edgeIndices), 1));
-        else eGeom.copy(new THREE.EdgesGeometry(geometry, 28));
+        else eGeom.copy(new THREE.EdgesGeometry(geometry, 26));
         edgeLines = new THREE.LineSegments(eGeom, edgesMat);
         edgeLines.name = 'solidworks_edges'; edgeLines.visible = isEdgesActive && !isWireframeActive;
         mesh.add(edgeLines);
@@ -429,21 +435,16 @@
     window.addEventListener('keydown', e => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       const k = e.key.toLowerCase();
+      const keyMap = { '1': 'btn-view-iso', '2': 'btn-view-top', '3': 'btn-view-front', '4': 'btn-view-right', 'e': 'btn-edges', 'w': 'btn-wireframe', 'r': 'btn-reset' };
+      if (keyMap[k]) { document.getElementById(keyMap[k])?.click(); return; }
       if (k === 'f') autoFitCamera();
-      else if (k === '1') document.getElementById('btn-view-iso')?.click();
-      else if (k === '2') document.getElementById('btn-view-top')?.click();
-      else if (k === '3') document.getElementById('btn-view-front')?.click();
-      else if (k === '4') document.getElementById('btn-view-right')?.click();
-      else if (k === 'e') document.getElementById('btn-edges')?.click();
-      else if (k === 'w') document.getElementById('btn-wireframe')?.click();
       else if (k === 'm' && window.MeasureEngine) window.MeasureEngine.toggleMeasureMode();
       else if (k === 's' && window.SectionEngine) window.SectionEngine.toggleSectionView();
       else if (k === 'p' && window.MaterialsEngine) window.MaterialsEngine.togglePropsModal();
       else if (k === 't' && window.AssemblyTree) window.AssemblyTree.toggleTreePanel();
-      else if (k === 'x') { if (window.ExplodedView) window.ExplodedView.toggleExplode(); else if (window.AssemblyTree) window.AssemblyTree.toggleExplode(); }
+      else if (k === 'x') (window.ExplodedView || window.AssemblyTree)?.toggleExplode?.();
       else if (k === 'u' && window.MaterialsEngine) window.MaterialsEngine.toggleUnits();
       else if (k === 'k' && window.SnapshotEngine) window.SnapshotEngine.toggleSnapshotModal();
-      else if (k === 'r') document.getElementById('btn-reset')?.click();
       else if (k === 'escape') {
         if (window.AppearancePopover) window.AppearancePopover.closeColorPickerPopover();
         else if (window.AssemblyTree) window.AssemblyTree.closeColorPickerPopover();
