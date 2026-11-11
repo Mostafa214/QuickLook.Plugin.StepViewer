@@ -299,4 +299,5 @@
   window.getCachedModel = getCachedModel;
   window.saveCachedModel = saveCachedModel;
   window.clearAllCache = clearAllCache;
+  window.setupCachePurgeButton = setupCachePurgeButton;
 })();

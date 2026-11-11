@@ -19,7 +19,9 @@ namespace QuickLook.Plugin.StepViewer
             {
                 ".png",
                 ".jpg",
-                ".jpeg"
+                ".jpeg",
+                ".svg",
+                ".pdf"
             };
 
         public static readonly HashSet<string> DangerousFileExtensions =
@@ -174,12 +176,40 @@ namespace QuickLook.Plugin.StepViewer
                 return true;
             }
 
+            // PDF signature: %PDF- (0x25, 0x50, 0x44, 0x46, 0x2D)
+            if (bytes.Length >= 5 &&
+                bytes[0] == 0x25 && bytes[1] == 0x50 && bytes[2] == 0x44 && bytes[3] == 0x46 && bytes[4] == 0x2D)
+            {
+                return true;
+            }
+
+            // SVG signature: <?xml, <svg, or <!DOCTYPE
+            if (bytes.Length >= 4)
+            {
+                try
+                {
+                    string prefix = System.Text.Encoding.UTF8.GetString(bytes, 0, Math.Min(bytes.Length, 128)).TrimStart();
+                    if (prefix.StartsWith("<svg", StringComparison.OrdinalIgnoreCase) ||
+                        prefix.StartsWith("<?xml", StringComparison.OrdinalIgnoreCase) ||
+                        prefix.StartsWith("<!DOCTYPE", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+                catch { }
+            }
+
             return false;
         }
 
-        public static void HandleSaveSnapshot(Window ownerWindow, CoreWebView2 webView, SaveSnapshotMessage snap)
+        public static bool HandleSaveSnapshot(SaveSnapshotMessage snap)
         {
-            if (snap == null || string.IsNullOrEmpty(snap.Data)) return;
+            return HandleSaveSnapshot(null, null, snap);
+        }
+
+        public static bool HandleSaveSnapshot(Window ownerWindow, CoreWebView2 webView, SaveSnapshotMessage snap)
+        {
+            if (snap == null || string.IsNullOrEmpty(snap.Data)) return false;
 
             string dataUrl = snap.Data;
             string defaultName = snap.DefaultName;
@@ -187,40 +217,73 @@ namespace QuickLook.Plugin.StepViewer
 
             try
             {
-                string base64Data = Regex.Replace(dataUrl, @"^data:image\/[a-zA-Z]+;base64,", "");
+                string base64Data = Regex.Replace(dataUrl, @"^data:(image\/[a-zA-Z0-9\+\-]+|application\/pdf|application\/octet-stream);base64,", "");
                 byte[] imageBytes = Convert.FromBase64String(base64Data);
 
                 if (!IsValidImageHeader(imageBytes))
                 {
                     StepViewerControl.Log("[Security] Snapshot data rejected: invalid image header signature.");
-                    return;
+                    _ = webView?.ExecuteScriptAsync(
+                        IpcScriptBuilder.BuildShowToastScript("Error: Invalid image header signature.")
+                    );
+                    return false;
                 }
 
                 // Direct write path (for automation/tests): strictly validated
-                if (TryValidateSnapshotTargetPath(directTargetPath, out string safeTargetPath))
+                if (!string.IsNullOrEmpty(directTargetPath))
                 {
-                    var parent = Path.GetDirectoryName(safeTargetPath);
-                    if (!string.IsNullOrEmpty(parent) && !Directory.Exists(parent))
-                        Directory.CreateDirectory(parent);
-                    File.WriteAllBytes(safeTargetPath, imageBytes);
-                    _ = webView?.ExecuteScriptAsync(
-                        IpcScriptBuilder.BuildShowToastScript($"Saved: {Path.GetFileName(safeTargetPath)}")
-                    );
-                    return;
-                }
-                else if (!string.IsNullOrEmpty(directTargetPath))
-                {
-                    StepViewerControl.Log($"[Security] Snapshot direct target path rejected due to security policy: {directTargetPath}");
+                    if (TryValidateSnapshotTargetPath(directTargetPath, out string safeTargetPath))
+                    {
+                        // SEC-02: Prevent silent file overwrite
+                        if (File.Exists(safeTargetPath))
+                        {
+                            StepViewerControl.Log($"[Security] Snapshot direct target path rejected: file already exists at {safeTargetPath}");
+                            _ = webView?.ExecuteScriptAsync(
+                                IpcScriptBuilder.BuildShowToastScript($"Error: File already exists: {Path.GetFileName(safeTargetPath)}")
+                            );
+                            return false;
+                        }
+
+                        var parent = Path.GetDirectoryName(safeTargetPath);
+                        if (!string.IsNullOrEmpty(parent) && !Directory.Exists(parent))
+                            Directory.CreateDirectory(parent);
+
+                        File.WriteAllBytes(safeTargetPath, imageBytes);
+                        _ = webView?.ExecuteScriptAsync(
+                            IpcScriptBuilder.BuildShowToastScript($"Saved: {Path.GetFileName(safeTargetPath)}")
+                        );
+                        return true;
+                    }
+                    else
+                    {
+                        StepViewerControl.Log($"[Security] Snapshot direct target path rejected due to security policy: {directTargetPath}");
+                        string directFileName;
+                        try
+                        {
+                            directFileName = Path.GetFileName(directTargetPath);
+                        }
+                        catch
+                        {
+                            directFileName = directTargetPath;
+                        }
+                        _ = webView?.ExecuteScriptAsync(
+                            IpcScriptBuilder.BuildShowToastScript($"Error: Invalid snapshot target path: {directFileName}")
+                        );
+                        return false;
+                    }
                 }
 
                 // Safe Fallback: interactive SaveFileDialog
                 string safeDefaultName = SanitizeSnapshotDefaultName(defaultName);
+                bool isSvg = safeDefaultName.EndsWith(".svg", StringComparison.OrdinalIgnoreCase);
+                bool isPdf = safeDefaultName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
                 var sfd = new Microsoft.Win32.SaveFileDialog
                 {
-                    Title = "Save CAD Viewport Snapshot",
-                    Filter = "PNG Image (*.png)|*.png|JPEG Image (*.jpg)|*.jpg",
+                    Title = isPdf ? "Save CAD Engineering Drawing (PDF)" : (isSvg ? "Save CAD Engineering Blueprint (SVG)" : "Save CAD Engineering Image (PNG)"),
+                    Filter = "PNG Image (*.png)|*.png|PDF Document (*.pdf)|*.pdf|Scalable Vector Graphics (*.svg)|*.svg|JPEG Image (*.jpg)|*.jpg|All Supported Formats (*.png;*.pdf;*.svg;*.jpg)|*.png;*.pdf;*.svg;*.jpg",
+                    FilterIndex = isPdf ? 2 : (isSvg ? 3 : 1),
                     FileName = safeDefaultName,
-                    DefaultExt = ".png",
+                    DefaultExt = isPdf ? ".pdf" : (isSvg ? ".svg" : ".png"),
                     AddExtension = true
                 };
 
@@ -231,18 +294,26 @@ namespace QuickLook.Plugin.StepViewer
                     string ext = Path.GetExtension(savePath);
                     if (!AllowedSnapshotExtensions.Contains(ext))
                     {
-                        savePath = Path.ChangeExtension(savePath, ".png");
+                        savePath = Path.ChangeExtension(savePath, isPdf ? ".pdf" : (isSvg ? ".svg" : ".png"));
                     }
 
                     File.WriteAllBytes(savePath, imageBytes);
                     _ = webView?.ExecuteScriptAsync(
                         IpcScriptBuilder.BuildShowToastScript($"Saved: {Path.GetFileName(savePath)}")
                     );
+                    return true;
                 }
+
+                return false;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Failed to save snapshot file:\n{ex.Message}", "QuickLook STEP Viewer", MessageBoxButton.OK, MessageBoxImage.Error);
+                StepViewerControl.Log($"Failed to save snapshot file: {ex.Message}");
+                if (ownerWindow != null)
+                {
+                    MessageBox.Show($"Failed to save snapshot file:\n{ex.Message}", "QuickLook STEP Viewer", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                return false;
             }
         }
 

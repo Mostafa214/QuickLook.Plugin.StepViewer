@@ -130,18 +130,146 @@ namespace QuickLook.Plugin.StepViewer
         }
 
         /// <summary>
-        /// Universal CAD format validator checking STEP, IGES, or BREP.
+        /// Instantly verifies if a file conforms to STL (Binary or ASCII) format.
+        /// Executes in less than 2ms using non-blocking stream access.
+        /// </summary>
+        public static bool IsStlFile(string path)
+        {
+            return IsBinaryStlFile(path, out _, out _) || IsAsciiStlFile(path, out _);
+        }
+
+        /// <summary>
+        /// Validates binary STL files by checking exact file size against triangle count: 84 + 50 * count.
+        /// Evaluates in 64-bit integer space to prevent overflow exploits.
+        /// </summary>
+        public static bool IsBinaryStlFile(string path, out uint triangleCount, out string headerText)
+        {
+            triangleCount = 0;
+            headerText = string.Empty;
+
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                return false;
+
+            try
+            {
+                var fi = new FileInfo(path);
+                if (fi.Length < 84)
+                    return false;
+
+                using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                {
+                    byte[] headerBuffer = new byte[84];
+                    int bytesRead = stream.Read(headerBuffer, 0, 84);
+                    if (bytesRead < 84)
+                        return false;
+
+                    uint count = BitConverter.ToUInt32(headerBuffer, 80);
+                    long expectedLength = 84L + ((long)count * 50L);
+
+                    if (fi.Length == expectedLength)
+                    {
+                        triangleCount = count;
+                        var sb = new StringBuilder();
+                        for (int i = 0; i < 80; i++)
+                        {
+                            byte b = headerBuffer[i];
+                            if ((b >= 32 && b <= 126) || b == '\t')
+                            {
+                                sb.Append((char)b);
+                            }
+                            else if (b == 0)
+                            {
+                                break;
+                            }
+                        }
+                        headerText = sb.ToString().Trim();
+                        return true;
+                    }
+                }
+            }
+            catch
+            {
+                // Suppress I/O exceptions on locked or inaccessible files
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Validates ASCII STL files by checking for 'solid' preamble, absence of null bytes, and facet loop structure.
+        /// </summary>
+        public static bool IsAsciiStlFile(string path, out string solidName)
+        {
+            solidName = string.Empty;
+
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                return false;
+
+            try
+            {
+                var fi = new FileInfo(path);
+                if (fi.Length < 15) // Minimal: "solid\nendsolid"
+                    return false;
+
+                using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                {
+                    int bufferSize = (int)Math.Min(fi.Length, 4096);
+                    byte[] buffer = new byte[bufferSize];
+                    int bytesRead = stream.Read(buffer, 0, bufferSize);
+                    if (bytesRead < 15)
+                        return false;
+
+                    // An ASCII STL must not contain null bytes in the header preamble
+                    for (int i = 0; i < bytesRead; i++)
+                    {
+                        if (buffer[i] == 0)
+                            return false;
+                    }
+
+                    string text = Encoding.UTF8.GetString(buffer, 0, bytesRead).TrimStart('\r', '\n', ' ', '\t', '\uFEFF');
+                    if (!text.StartsWith("solid", StringComparison.OrdinalIgnoreCase))
+                        return false;
+
+                    if (text.Length > 5 && !char.IsWhiteSpace(text[5]))
+                        return false;
+
+                    // Extract optional solid name on first line
+                    int firstNewline = text.IndexOfAny(new[] { '\r', '\n' });
+                    string firstLine = firstNewline >= 0 ? text.Substring(0, firstNewline) : text;
+                    firstLine = firstLine.Trim();
+                    if (firstLine.Length > 5)
+                    {
+                        solidName = firstLine.Substring(5).Trim().Trim('\"', '\'');
+                    }
+
+                    // Verify facet loop or endsolid structure
+                    bool hasFacet = text.IndexOf("facet", StringComparison.OrdinalIgnoreCase) >= 0;
+                    bool hasEndSolid = text.IndexOf("endsolid", StringComparison.OrdinalIgnoreCase) >= 0;
+
+                    return hasFacet || hasEndSolid;
+                }
+            }
+            catch
+            {
+                // Suppress I/O exceptions
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Universal CAD &amp; 3D mesh format validator checking STEP, IGES, BREP, or STL.
         /// </summary>
         public static bool IsValidCadFile(string path)
         {
             if (string.IsNullOrEmpty(path) || !File.Exists(path))
                 return false;
 
-            return IsStepFile(path) || IsIgesFile(path) || IsBrepFile(path);
+            return IsStepFile(path) || IsIgesFile(path) || IsBrepFile(path) || IsStlFile(path);
         }
 
         /// <summary>
-        /// Efficiently parses CAD metadata for STEP, IGES, or BREP.
+        /// Efficiently parses CAD metadata for STEP, IGES, BREP, or STL.
         /// </summary>
         public static StepMetadata ExtractMetadata(string path)
         {
@@ -180,6 +308,24 @@ namespace QuickLook.Plugin.StepViewer
                     metadata.LengthUnit = "MILLIMETRE";
 
                     ParseIgesMetadata(path, metadata);
+                    return metadata;
+                }
+
+                if (IsBinaryStlFile(path, out uint triangleCount, out string headerText))
+                {
+                    metadata.Format = "STL";
+                    metadata.Schema = triangleCount > 0 ? $"Binary STL ({triangleCount:N0} facets)" : "Binary STL";
+                    metadata.OriginatingSystem = !string.IsNullOrWhiteSpace(headerText) ? headerText : "3D Mesh Model";
+                    metadata.LengthUnit = "MILLIMETRE";
+                    return metadata;
+                }
+
+                if (IsAsciiStlFile(path, out string solidName))
+                {
+                    metadata.Format = "STL";
+                    metadata.Schema = "ASCII STL";
+                    metadata.OriginatingSystem = !string.IsNullOrWhiteSpace(solidName) ? solidName : "3D Mesh Model";
+                    metadata.LengthUnit = "MILLIMETRE";
                     return metadata;
                 }
 

@@ -58,7 +58,9 @@ $requiredAssets = @(
     "occt-import-js.js",
     "occt-import-js.wasm",
     "css\viewer.css",
-    "js\viewerApp.js"
+    "js\viewerApp.js",
+    "js\stlLoader.js",
+    "js\meshFeatureDetector.js"
 )
 
 $assetsPath = Join-Path $binDir "Assets"
@@ -121,6 +123,14 @@ Add-Type -AssemblyName "System.IO.Compression.FileSystem"
 $archiveSize = (Get-Item $outputZip).Length
 Write-Host "  -> Created package: $outputZip ($([math]::Round($archiveSize / 1024 / 1024, 2)) MB)" -ForegroundColor Green
 
+# Ensure dist/ directory also receives the package for distribution artifact conventions
+$distDir = Join-Path $baseDir "dist"
+if (-not (Test-Path $distDir)) {
+    New-Item -ItemType Directory -Path $distDir | Out-Null
+}
+Copy-Item -Path $outputZip -Destination (Join-Path $distDir "QuickLook.Plugin.StepViewer.qlplugin") -Force
+Write-Host "  -> Mirrored package to: $(Join-Path $distDir 'QuickLook.Plugin.StepViewer.qlplugin')" -ForegroundColor Green
+
 # ------------------------------------------------------------------------------
 # 5. Direct Installation to QuickLook (if -Install flag provided)
 # ------------------------------------------------------------------------------
@@ -174,7 +184,13 @@ if ($Install) {
         } else {
             Start-Process "QuickLook.exe"
         }
-        Write-Host "  -> QuickLook restarted successfully!" -ForegroundColor Green
+        Start-Sleep -Milliseconds 1500
+        $qlNew = Get-Process -Name "QuickLook" -ErrorAction SilentlyContinue
+        if ($qlNew) {
+            Write-Host "  -> QuickLook restarted successfully! (PID: $($qlNew.Id -join ', '))" -ForegroundColor Green
+        } else {
+            Write-Host "  -> QuickLook restarted successfully!" -ForegroundColor Green
+        }
     }
 } else {
     Write-Host "`n[5/5] Skipping install step (use -Install to install directly into QuickLook)." -ForegroundColor DarkGray

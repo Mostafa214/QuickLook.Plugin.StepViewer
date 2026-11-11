@@ -3,324 +3,1030 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://step-viewer.local; script-src 'self' https://step-viewer.local 'unsafe-inline'; style-src 'self' https://step-viewer.local 'unsafe-inline'; connect-src 'self' https://step-viewer.local https://cad-stream.local https://api.github.com; img-src 'self' data: blob: https://step-viewer.local; worker-src 'self' blob:;">
   <title>QuickLook CAD Studio</title>
   <link rel="stylesheet" href="css/viewer.css">
+  <style>
+    /* Exploded View Single-Body Disabled State & Tool Inactive Styles (Milestone 4) */
+    .btn[disabled],
+    .btn.disabled {
+      opacity: 0.4 !important;
+      pointer-events: none !important;
+      cursor: not-allowed !important;
+    }
+  </style>
+  <script>
+    (function() {
+      try {
+        var savedTheme = localStorage.getItem('quicklook_stp_theme');
+        if (savedTheme === 'light') {
+          document.documentElement.classList.add('theme-light');
+          if (document.body) {
+            document.body.classList.add('theme-light');
+          } else {
+            document.addEventListener('DOMContentLoaded', function() {
+              if (document.body) document.body.classList.add('theme-light');
+            });
+          }
+        }
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
-  <div id="canvas-container"></div>
+  <div id="canvas-container" class="viewport-container">
+    <!-- Dynamic Draft Angle Gradient Legend Overlay (Milestone M4) -->
+    <div id="draft-angle-legend" class="draft-angle-legend" style="display: none;" aria-hidden="true" role="region" aria-label="Draft Angle Color Legend">
+      <!-- Legend Header -->
+      <div class="legend-header">
+        <div class="legend-title-row">
+          <svg class="legend-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M12 3v9l6 3"/>
+          </svg>
+          <span class="legend-title">Draft Angle</span>
+        </div>
+        <span id="legend-threshold-badge" class="legend-threshold-badge">±3.0°</span>
+      </div>
 
-  <!-- Top-Left File & Stats HUD Badge -->
-  <div class="info-badge hud-badge" id="info-badge">
-    <div class="badge-title">
-      <svg class="lucide" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-      <span id="badge-filename">Loading CAD...</span>
+      <!-- Legend Body: Color Bar + Dynamic Ticks -->
+      <div class="legend-body">
+        <div class="legend-bar-track" id="draft-legend-bar">
+          <div class="legend-bar-gradient legend-gradient-bar" id="legend-bar-gradient"></div>
+        </div>
+
+        <div class="legend-scale" id="legend-scale">
+          <!-- Default graduated ticks for ±3.0° -->
+          <div class="legend-tick-row major-tick" style="bottom: 100%;">
+            <span class="legend-tick-line"></span>
+            <span class="legend-tick-label">+3.0°</span>
+          </div>
+          <div class="legend-tick-row" style="bottom: 83.33%;">
+            <span class="legend-tick-line"></span>
+            <span class="legend-tick-label">+2.0°</span>
+          </div>
+          <div class="legend-tick-row" style="bottom: 66.67%;">
+            <span class="legend-tick-line"></span>
+            <span class="legend-tick-label">+1.0°</span>
+          </div>
+          <div class="legend-tick-row zero-tick" style="bottom: 50%;">
+            <span class="legend-tick-line"></span>
+            <span class="legend-tick-label">0.0°</span>
+          </div>
+          <div class="legend-tick-row" style="bottom: 33.33%;">
+            <span class="legend-tick-line"></span>
+            <span class="legend-tick-label">-1.0°</span>
+          </div>
+          <div class="legend-tick-row" style="bottom: 16.67%;">
+            <span class="legend-tick-line"></span>
+            <span class="legend-tick-label">-2.0°</span>
+          </div>
+          <div class="legend-tick-row major-tick" style="bottom: 0%;">
+            <span class="legend-tick-line"></span>
+            <span class="legend-tick-label">-3.0°</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Semantic Zone Badges -->
+      <div class="legend-zones" id="legend-zones">
+        <div class="legend-zone-item zone-safe" title="Positive Safe Draft (Greater than threshold angle)">
+          <span class="legend-zone-dot dot-safe"></span>
+          <span class="legend-zone-text">&gt; <span id="legend-lbl-safe">3.0</span>° Safe<span id="legend-threshold-val" style="display:none;">3.0</span></span>
+        </div>
+        <div class="legend-zone-item zone-warning" title="Warning / Marginal Draft (0° to threshold angle)">
+          <span class="legend-zone-dot dot-warning"></span>
+          <span class="legend-zone-text">0°–<span id="legend-lbl-warn">3.0</span>° Warning<span id="legend-threshold-val-warn" style="display:none;">3.0</span></span>
+        </div>
+        <div class="legend-zone-item zone-undercut" title="Zero / Undercut Negative Draft (Less than 0°)">
+          <span class="legend-zone-dot dot-undercut"></span>
+          <span class="legend-zone-text">&lt; 0° Undercut</span>
+        </div>
+      </div>
     </div>
-    <div class="badge-row" id="badge-dim" style="display: none;">
-      <svg class="lucide" viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
-      <span id="dim-text">0.0 × 0.0 × 0.0 mm</span>
+  </div>
+
+
+  <!-- Compact In-App 1-Click Auto-Updater Widget -->
+  <div class="update-compact-container" id="update-compact-container" style="display: none;">
+    <div class="update-pill-row">
+      <!-- The morphing update / progress / restart button -->
+      <button id="btn-update-action" class="btn-update-action" onclick="AutoUpdater.handleButtonClick()" title="Click to update">
+        <div id="btn-update-progress-fill" class="btn-update-progress-fill"></div>
+        <div id="btn-update-content" class="btn-update-content">
+          <svg class="update-svg-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span id="btn-update-text">Update to v1.1.0</span>
+        </div>
+      </button>
+
+      <!-- Highlights / Notes Toggle Button -->
+      <button id="btn-update-info" class="btn-update-info" onclick="AutoUpdater.toggleHighlights()" title="View update highlights">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+      </button>
+
+      <!-- Dismiss Button -->
+      <button id="btn-update-dismiss" class="btn-update-dismiss" onclick="AutoUpdater.dismiss()" title="Dismiss update notification">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
     </div>
-    <div class="badge-row" id="badge-status">
+
+    <!-- Single-line Highlights Drawer -->
+    <div id="update-highlights-drawer" class="update-highlights-drawer" style="display: none;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2" style="flex-shrink:0;">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+      </svg>
+      <span id="update-highlights-text" class="update-highlights-text">Highlights: Hardware-accelerated WASM cache, multi-CAD support & 3D section tools</span>
+    </div>
+  </div>
+
+  <!-- Minimalist Technical HUD Badge -->
+  <div class="hud-badge" id="info-badge">
+    <div class="badge-title" id="badge-filename">Loading STEP Model...</div>
+    <div class="hud-divider"></div>
+    <div class="badge-dim" id="badge-dim" style="display: none;">
+      <span id="dim-text"></span>
+    </div>
+    <div class="badge-sub" id="badge-status">
       <span class="spinner" id="spinner"></span>
-      <span id="status-text">Initializing engine...</span>
+      <span id="status-text">Initializing CAD Kernel...</span>
     </div>
-    <div id="loading-progress-bar" style="display: none;"><div id="loading-progress-fill"></div></div>
-  </div>
-
-  <!-- Bottom Floating Frosted Glass Dock Toolbar -->
-  <div class="toolbar" id="toolbar-dock">
-    <button class="tool-btn active" id="btn-view-iso" title="Isometric View [1] / Toggle Iso 2"><svg class="lucide" viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg><span>Iso</span></button>
-    <button class="tool-btn" id="btn-view-top" title="Top View [2] / Toggle Bottom"><svg class="lucide" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8"/><path d="m8 12 4-4 4 4"/></svg><span>Top</span></button>
-    <button class="tool-btn" id="btn-view-front" title="Front View [3] / Toggle Back"><svg class="lucide" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg><span>Front</span></button>
-    <button class="tool-btn" id="btn-view-right" title="Right View [4] / Toggle Left"><svg class="lucide" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m10 8 4 4-4 4"/></svg><span>Right</span></button>
-    <button class="tool-btn" id="btn-reset" title="Auto-Fit Zoom & Center View [F / R]"><svg class="lucide" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span>Fit</span></button>
-    <div class="tool-divider"></div>
-    <button class="tool-btn active" id="btn-edges" title="Toggle Shaded Edges [E]"><svg class="lucide" viewBox="0 0 24 24"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.9a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg><span>Edges</span></button>
-    <button class="tool-btn" id="btn-wireframe" title="Toggle Wireframe Mode [W]"><svg class="lucide" viewBox="0 0 24 24"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg><span>Mesh</span></button>
-    <button class="tool-btn" id="btn-autorotate" title="Toggle 360 Turntable Auto-Rotation"><svg class="lucide" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><path d="M21 3v9h-9"/></svg><span>Orbit</span></button>
-    <div class="tool-divider"></div>
-    <button class="tool-btn" id="btn-tree" title="Model Tree & Parts Hierarchy [T]"><svg class="lucide" viewBox="0 0 24 24"><path d="M21 10H3"/><path d="M21 6H3"/><path d="M21 14H3"/><path d="M21 18H3"/></svg><span>Tree</span></button>
-    <button class="tool-btn" id="btn-explode" title="Exploded Assembly View [X]"><svg class="lucide" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><path d="M20.2 20.2 15 15"/><path d="M4 4l5.2 5.2"/><path d="M4 20l5.2-5.2"/><path d="M20 4l-5.2 5.2"/></svg><span>Explode</span></button>
-    <button class="tool-btn" id="btn-measure" title="Smart CAD Measurement [M]"><svg class="lucide" viewBox="0 0 24 24"><path d="m19 5-3-3-11 11 3 3 11-11Z"/><path d="m14 7 1 1"/><path d="m11 10 1 1"/><path d="m8 13 1 1"/></svg><span>Measure</span></button>
-    <button class="tool-btn" id="btn-section" title="Cross-Section Cut Plane [S]"><svg class="lucide" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20Z"/></svg><span>Section</span></button>
-    <button class="tool-btn" id="btn-props" title="Material Physical Properties & Mass [P]"><svg class="lucide" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg><span>Mass</span></button>
-    <button class="tool-btn" id="btn-units" title="Toggle Units (mm / in) [U]"><svg class="lucide" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M4 17h16"/><path d="M7 4v16"/><path d="M17 4v16"/></svg><span>mm</span></button>
-    <button class="tool-btn" id="btn-snapshot" title="High-DPI Engineering Snapshot & QR Stamp [K]"><svg class="lucide" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><span>Snap</span></button>
-    <button class="tool-btn" id="btn-clearcache" title="Clear IndexedDB Instant Previews Cache"><svg class="lucide" id="clearcache-icon" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg><span id="clearcache-text">Cache</span></button>
-  </div>
-
-  <!-- In-App Auto-Updater Notification Dock -->
-  <div id="update-compact-container" style="display: none;">
-    <div id="btn-update-content">
-      <div id="btn-update-info">
-        <svg class="lucide" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-        <span id="btn-update-text">Update Available</span>
-      </div>
-      <button id="btn-update-action">Update</button>
-      <button id="btn-update-dismiss" title="Dismiss">✕</button>
-    </div>
-    <div id="btn-update-progress-fill"></div>
-  </div>
-  <div id="update-highlights-drawer" style="display: none;"><div id="update-highlights-text"></div></div>
-
-  <!-- B-Rep Model Tree & Assembly Explode Panel -->
-  <div class="hud-card tree-panel" id="tree-panel" style="display: none;">
-    <div class="hud-card-header">
-      <span class="hud-card-title"><svg class="lucide" viewBox="0 0 24 24"><path d="M21 10H3"/><path d="M21 6H3"/><path d="M21 14H3"/><path d="M21 18H3"/></svg> Assembly Tree</span>
-      <div style="display: flex; align-items: center; gap: 6px;">
-        <span class="pill-badge" id="tree-body-count">0 Bodies</span>
-        <button class="hud-close-btn" id="btn-close-tree">✕</button>
-      </div>
-    </div>
-    <div class="tree-batch-actions">
-      <button id="btn-tree-showall" title="Show all parts"><svg class="lucide" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Show All</button>
-      <button id="btn-tree-solidall" title="Reset X-Ray Ghost"><svg class="lucide" viewBox="0 0 24 24"><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z"/></svg> Solid</button>
-      <button id="btn-tree-autocolor" title="Auto-colorize multi-body assembly"><svg class="lucide" viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg> Colorize</button>
-      <button id="btn-tree-resetiso" title="Exit isolation"><svg class="lucide" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg> Reset</button>
-    </div>
-    <div id="tree-explode-section" style="display: none; padding: 10px 12px; background: rgba(15,23,42,0.6); border-bottom: 1px solid rgba(255,255,255,0.06);">
-      <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 6px;">
-        <span style="font-weight: 600; color: #38bdf8;">Explode Assembly</span>
-        <span id="explode-percent-label" style="color: #94a3b8; font-family: monospace;">0%</span>
-      </div>
-      <input type="range" id="explode-slider" min="0" max="100" value="0" style="width: 100%; accent-color: #38bdf8;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
-        <button id="btn-explode-toggle" class="btn-xs">Explode</button>
-        <label style="font-size: 10.5px; color: #94a3b8; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-          <input type="checkbox" id="chk-explode-trails" checked> Trails
-        </label>
-        <button id="btn-explode-reset" class="btn-xs">Reset</button>
-      </div>
-    </div>
-    <div class="tree-content" id="tree-content"></div>
-  </div>
-
-  <!-- CAD Appearance & Color Picker Popover -->
-  <div class="hud-card color-picker-popover" id="color-picker-popover" style="display: none;">
-    <div class="hud-card-header">
-      <span class="hud-card-title" id="color-popover-body-name">Appearance</span>
-      <button class="hud-close-btn" id="btn-close-color-popover">✕</button>
-    </div>
-    <div style="padding: 12px; display: flex; flex-direction: column; gap: 10px;">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span style="font-size: 11px; color: #94a3b8;">Original CAD Color:</span>
-        <div style="display: flex; align-items: center; gap: 6px;">
-          <span id="popover-orig-swatch" style="width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.2);"></span>
-          <span id="popover-orig-hex" style="font-size: 10px; font-family: monospace; color: #cbd5e1;">#CCCCCC</span>
-          <button id="btn-reset-orig-color" class="btn-xs">Reset</button>
-        </div>
-      </div>
-      <div>
-        <div style="font-size: 10px; color: #64748b; margin-bottom: 4px; text-transform: uppercase;">Engineering Metals & Finishes</div>
-        <div class="swatch-grid">
-          <button class="swatch-btn" data-color="#cbd5e1" data-metal="0.85" data-rough="0.25" style="background: #cbd5e1;" title="Aluminum 6061"></button>
-          <button class="swatch-btn" data-color="#94a3b8" data-metal="0.9" data-rough="0.3" style="background: #94a3b8;" title="Stainless Steel 316L"></button>
-          <button class="swatch-btn" data-color="#64748b" data-metal="0.75" data-rough="0.35" style="background: #64748b;" title="Titanium Ti-6Al-4V"></button>
-          <button class="swatch-btn" data-color="#f59e0b" data-metal="0.85" data-rough="0.2" style="background: #f59e0b;" title="Brass C360"></button>
-          <button class="swatch-btn" data-color="#d97706" data-metal="0.8" data-rough="0.25" style="background: #d97706;" title="Bronze"></button>
-          <button class="swatch-btn" data-color="#b45309" data-metal="0.9" data-rough="0.2" style="background: #b45309;" title="Copper C110"></button>
-          <button class="swatch-btn" data-color="#1e293b" data-metal="0.3" data-rough="0.4" style="background: #1e293b;" title="Black Anodized"></button>
-          <button class="swatch-btn" data-color="#f8fafc" data-metal="0.1" data-rough="0.3" style="background: #f8fafc;" title="Delrin White"></button>
-        </div>
-      </div>
-      <div>
-        <div style="font-size: 10px; color: #64748b; margin-bottom: 4px; text-transform: uppercase;">3D Printing Polymers</div>
-        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-          <button class="mat-preset-btn" data-mat="PLA" data-density="1.24" data-color="#0284c7" data-rough="0.4">PLA</button>
-          <button class="mat-preset-btn" data-mat="PETG" data-density="1.27" data-color="#0d9488" data-rough="0.35">PETG</button>
-          <button class="mat-preset-btn" data-mat="ABS" data-density="1.04" data-color="#ea580c" data-rough="0.45">ABS</button>
-          <button class="mat-preset-btn" data-mat="Nylon" data-density="1.14" data-color="#f1f5f9" data-rough="0.5">PA12</button>
-          <button class="mat-preset-btn" data-mat="TPU" data-density="1.21" data-color="#4f46e5" data-rough="0.6">TPU 95A</button>
-          <button class="mat-preset-btn" data-mat="PC" data-density="1.20" data-color="#e2e8f0" data-rough="0.3">Polycarb</button>
-          <button class="mat-preset-btn" data-mat="CF-PLA" data-density="1.30" data-color="#0f172a" data-rough="0.7">Carbon-PA</button>
-          <button class="mat-preset-btn" data-mat="UV Resin" data-density="1.18" data-color="#38bdf8" data-rough="0.25">SLA Resin</button>
-        </div>
-      </div>
-      <div style="display: flex; gap: 8px; align-items: center;">
-        <input type="color" id="popover-color-input" style="width: 32px; height: 32px; padding: 0; border: none; border-radius: 4px; cursor: pointer;">
-        <span id="popover-color-hex-val" style="font-size: 11px; font-family: monospace; color: #e2e8f0; flex: 1;">#38BDF8</span>
-        <button id="btn-apply-custom-color" class="btn-xs">Apply</button>
-      </div>
-      <div>
-        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
-          <span style="color: #94a3b8;">Opacity:</span>
-          <span id="popover-opacity-val" style="color: #cbd5e1; font-family: monospace;">100%</span>
-        </div>
-        <input type="range" id="popover-opacity-slider" min="10" max="100" value="100" style="width: 100%; accent-color: #38bdf8;">
-      </div>
-      <div id="popover-mat-meter" style="padding: 8px; background: rgba(0,0,0,0.3); border-radius: 4px; font-size: 10.5px;">
-        <div id="meter-mat-name" style="font-weight: 600; color: #38bdf8;">Custom Material</div>
-        <div style="color: #94a3b8; display: flex; justify-content: space-between; margin-top: 2px;">
-          <span>Mass: <strong id="meter-mat-mass" style="color:#f1f5f9;">0 g</strong></span>
-          <span>Length: <strong id="meter-mat-length" style="color:#f1f5f9;">0 m</strong></span>
-        </div>
-      </div>
+    <div class="progress-track" id="loading-progress-bar">
+      <div class="progress-fill"></div>
     </div>
   </div>
 
-  <!-- Hardware Cross-Section Cutting Plane HUD -->
-  <div class="hud-card" id="section-panel" style="display: none;">
-    <div class="hud-card-header">
-      <span class="hud-card-title"><svg class="lucide" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20Z"/></svg> Cross-Section Cut</span>
-      <div style="display: flex; gap: 4px;">
-        <button id="btn-sec-x" class="btn-xs active">X</button>
-        <button id="btn-sec-y" class="btn-xs">Y</button>
-        <button id="btn-sec-z" class="btn-xs">Z</button>
-      </div>
+  <!-- Floating Segmented Engineering Toolbar (Refined 4-Group Architecture) -->
+  <div class="toolbar" id="toolbar-dock" role="toolbar" aria-label="Engineering Workbench Toolbar">
+    <!-- Group 1: Navigation & Camera -->
+    <div class="toolbar-segment" data-segment="nav">
+      <button class="btn" id="btn-reset" title="Zoom to Fit [F] / Reset [R]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"/>
+          <line x1="21" y1="21" x2="16.5" y2="16.5"/>
+          <line x1="11" y1="8" x2="11" y2="14"/>
+          <line x1="8" y1="11" x2="14" y2="11"/>
+        </svg>
+        <span>Fit</span>
+      </button>
+      <button class="btn active" id="btn-view-iso" title="Isometric View [1] (Click to flip)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z"/>
+          <path d="M12 22V12"/>
+          <path d="M21 7l-9 5-9-5"/>
+        </svg>
+        <span>Iso</span>
+      </button>
+      <button class="btn" id="btn-view-top" title="Top View [2] (Click for Bottom)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="9"/>
+          <circle cx="12" cy="4"/>
+        </svg>
+        <span>Top</span>
+      </button>
+      <button class="btn" id="btn-view-front" title="Front View [3] (Click for Back)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M4 19h16M6 19v-4h3V7h6v8h3v4"/>
+        </svg>
+        <span>Front</span>
+      </button>
+      <button class="btn" id="btn-view-right" title="Right View [4] (Click for Left)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M6 5v14h12v-5h-7V5H6z"/>
+        </svg>
+        <span>Right</span>
+      </button>
     </div>
-    <div style="padding: 12px; display: flex; flex-direction: column; gap: 10px;">
-      <div style="display: flex; justify-content: space-between; font-size: 11px;">
-        <span style="color: #94a3b8;">Cut Position:</span>
-        <span id="sec-offset-val" style="font-family: monospace; color: #38bdf8;">0.0 mm</span>
+
+    <div class="toolbar-divider" role="separator"></div>
+
+    <!-- Group 2: Display & Render Mode -->
+    <div class="toolbar-segment" data-segment="display">
+      <button class="btn active" id="btn-edges" title="Shaded with Edges [E]">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" fill="#2d323c" stroke="#e2e8f0" stroke-width="1.6" stroke-linejoin="round"/>
+          <path d="M12 22V12" stroke="#e2e8f0" stroke-width="1.6"/>
+          <path d="M21 7l-9 5-9-5" stroke="#e2e8f0" stroke-width="1.6"/>
+          <polygon points="12 2 21 7 12 12 3 7" fill="#444b58"/>
+          <polygon points="3 7 12 12 12 22 3 17" fill="#2b303a"/>
+          <polygon points="12 12 21 7 21 17 12 22" fill="#363d4a"/>
+        </svg>
+        <span>Edges</span>
+      </button>
+      <button class="btn" id="btn-wireframe" title="Wireframe Mesh [W]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+          <polygon points="12 2 21 7 12 12 3 7"/>
+          <polyline points="3 7 3 17 12 22 21 17 21 7"/>
+          <line x1="12" y1="12" x2="12" y2="22"/>
+          <line x1="3" y1="7" x2="12" y2="12" stroke-dasharray="2,2"/>
+          <line x1="21" y1="7" x2="12" y2="12" stroke-dasharray="2,2"/>
+          <line x1="12" y1="2" x2="12" y2="12" stroke-dasharray="2,2"/>
+        </svg>
+        <span>Wire</span>
+      </button>
+      <button class="btn" id="btn-autorotate" title="Toggle Auto-Rotation">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="4" y="4" width="16" height="16" rx="2"/>
+          <line x1="4" y1="12" x2="20" y2="12" stroke-dasharray="2,2"/>
+        </svg>
+        <span>Rotate</span>
+      </button>
+    </div>
+
+    <div class="toolbar-divider" role="separator"></div>
+
+    <!-- Group 3: Inspection & Section -->
+    <div class="toolbar-segment" data-segment="inspect">
+      <button class="btn" id="btn-section" title="Cross-Section Cut View [S]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+          <rect x="5" y="3" width="10" height="18" rx="1"/>
+          <line x1="7" y1="6" x2="13" y2="12"/>
+          <line x1="7" y1="10" x2="13" y2="16"/>
+          <line x1="7" y1="14" x2="11" y2="18"/>
+          <path d="M17 7l4 4-4 4"/>
+        </svg>
+        <span>Section</span>
+      </button>
+      <button class="btn" id="btn-explode" title="Exploded Assembly View [X]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 8l4 4-4 4M20 8l-4 4 4 4M12 4v4M12 16v4M8 12h8"/>
+        </svg>
+        <span>Explode</span>
+      </button>
+      <button class="btn" id="btn-measure" title="Smart Measure Points & Distances [M]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+          <circle cx="12" cy="4" r="2"/>
+          <line x1="12" y1="2" x2="12" y2="3"/>
+          <path d="M11 6L5 21"/>
+          <path d="M13 6l6 15"/>
+          <path d="M7.5 15a9 9 0 0 1 9 0"/>
+        </svg>
+        <span>Measure</span>
+      </button>
+      <button class="btn" id="btn-analysis" title="Engineering CAD Analysis & Diagnostics [A]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="7"/>
+          <circle cx="12" cy="12" r="2.5"/>
+          <path d="M12 2v20"/>
+          <path d="M2 12h20"/>
+        </svg>
+        <span>Analysis</span>
+      </button>
+    </div>
+
+    <div class="toolbar-divider" role="separator"></div>
+
+    <!-- Group 4: Hierarchy & Metadata -->
+    <div class="toolbar-segment" data-segment="hierarchy">
+      <button class="btn" id="btn-tree" title="Model & Assembly Tree [T]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M4 6h16M4 12h10M4 18h14M8 6v12"/>
+        </svg>
+        <span>Tree</span>
+      </button>
+      <button class="btn" id="btn-props" title="Physical Properties & Weight Estimator [P]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M12 3v18M6 8l6-5 6 5M4 14l2-6 2 6a4 4 0 0 1-4 0zM16 14l2-6 2 6a4 4 0 0 1-4 0z"/>
+        </svg>
+        <span>Mass</span>
+      </button>
+      <button class="btn" id="btn-snapshot" title="Engineering CAD Export & Snapshot [K]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+        <span>Snap</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Top-Right HUD Controls Cluster (BBox, Units, Theme, Cache) -->
+  <div id="hud-top-right" class="hud-controls-cluster" role="toolbar" aria-label="HUD Overlays">
+    <button class="btn hud-btn" id="btn-bbox-hud" title="Toggle Aerospace Bounding Box & Dimensions [B]">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+        <path d="m3.3 7 8.7 5 8.7-5"/>
+        <path d="M12 22V12"/>
+      </svg>
+      <span>Box</span>
+    </button>
+    <button class="btn hud-btn" id="btn-units" title="Toggle Units (mm / in) [U]">
+      <span id="unit-indicator" style="font-weight:700; font-size:12px; letter-spacing:0.5px; color:#38bdf8;">mm</span>
+    </button>
+    <button class="btn hud-btn" id="btn-theme-switch" title="Toggle Theme (Dark / Light)">
+      <svg id="theme-icon-sun" class="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+      </svg>
+      <svg id="theme-icon-moon" class="theme-icon" style="display:none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+      <span id="theme-btn-label">Theme</span>
+    </button>
+    <button class="btn hud-btn" id="btn-clearcache" title="Clear All Cached Models">
+      <svg viewBox="0 0 24 24" id="clearcache-icon" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"/>
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+      </svg>
+      <span id="clearcache-text">Cache</span>
+    </button>
+  </div>
+
+  <!-- 3D Interactive ViewCube & NavCube Engine (Top Right) -->
+  <div id="viewcube-container" class="viewcube-container">
+    <canvas id="viewcube-canvas" width="110" height="110"></canvas>
+    <div class="viewcube-controls">
+      <button id="vc-btn-persp" class="vc-mini-btn active" title="Toggle Camera Projection (Orthographic / Perspective)">Ortho</button>
+      <button id="vc-btn-home" class="vc-mini-btn" title="Isometric Home [1]">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Unified Collapsible Right Inspector Drawer (v2.0.0) -->
+  <div id="inspector-drawer" class="inspector-drawer">
+    <div class="drawer-header">
+      <div class="drawer-tabs">
+        <button class="drawer-tab active" data-tab="tree" title="Model Tree [T]"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10H3"/><path d="M21 6H3"/><path d="M21 14H3"/><path d="M21 18H3"/></svg> <span>Tree</span></button>
+        <button class="drawer-tab" data-tab="measure" title="Smart Measure [M]"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m19 5-3-3-11 11 3 3 11-11Z"/><path d="m14 7 1 1"/><path d="m11 10 1 1"/><path d="m8 13 1 1"/></svg> <span>Measure</span></button>
+        <button class="drawer-tab" data-tab="section" title="Cross Section [S]"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20Z"/></svg> <span>Section</span></button>
+        <button class="drawer-tab" data-tab="mass" title="Mass & Materials [P]"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/></svg> <span>Mass</span></button>
+        <button class="drawer-tab" data-tab="analysis" title="CAD Analysis [A]"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M3 12h18"/><path d="M12 3v18"/></svg> <span>Analysis</span></button>
+        <button class="drawer-tab" data-tab="export" title="Engineering Export [K]"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> <span>Export</span></button>
       </div>
-      <input type="range" id="sec-slider" min="-100" max="100" value="0" style="width: 100%; accent-color: #38bdf8;">
-      <div style="display: flex; justify-content: space-between; gap: 6px;">
-        <button id="btn-sec-flip" class="btn-xs"><svg class="lucide" viewBox="0 0 24 24"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg> Flip Cut</button>
-        <button id="btn-sec-cap" class="btn-xs active"><svg class="lucide" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m3 3 18 18"/></svg> Stencil Cap</button>
-        <button id="btn-sec-plane" class="btn-xs active"><svg class="lucide" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/></svg> Gizmo</button>
-        <button id="btn-sec-center" class="btn-xs"><svg class="lucide" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="10"/></svg> Zero</button>
+      <button class="drawer-close-btn" id="btn-close-drawer" title="Close Drawer [Esc]">✕</button>
+    </div>
+    <div class="drawer-body" id="drawer-body">
+      <!-- Tab 1: Model Tree -->
+      <div id="drawer-tab-tree" class="drawer-tab-content drawer-tab-pane active" data-tab="tree" style="display: flex;">
+        <div id="tree-panel" class="tree-panel" style="display: flex;">
+          <div class="tree-header">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 13px;">🌳</span>
+              <span class="tree-title">Model Tree</span>
+              <span id="tree-body-count" class="tree-count-badge">0 Bodies</span>
+            </div>
+            <button id="btn-close-tree" class="btn-copy" style="font-size: 11px; padding: 1px 6px;">✕</button>
+          </div>
+
+          <!-- Batch Control Bar -->
+          <div class="tree-batch-bar">
+            <button id="btn-tree-showall" class="tree-batch-btn" title="Show all bodies">👁️ Show All</button>
+            <button id="btn-tree-solidall" class="tree-batch-btn" title="Make all bodies solid">👻 Solid All</button>
+            <button id="btn-tree-autocolor" class="tree-batch-btn" title="Auto-colorize all assembly bodies">🎨 Colors</button>
+            <button id="btn-tree-resetiso" class="tree-batch-btn" title="Reset isolation">🎯 All</button>
+          </div>
+
+          <!-- Interactive Exploded View Section -->
+          <div id="tree-explode-section" class="tree-explode-section" style="display: none;">
+            <div class="tree-explode-header">
+              <span class="tree-explode-title">💥 Exploded View</span>
+              <span id="explode-percent-label" class="explode-percent-label">0%</span>
+            </div>
+            <div class="tree-explode-controls">
+              <input type="range" id="explode-slider" min="0" max="100" value="0" class="explode-slider" title="Drag to explode assembly">
+              <div class="tree-explode-btns">
+                <button id="btn-explode-toggle" class="btn-explode-action" title="Toggle Auto-Explode / Collapse [X]">Explode ⏵</button>
+                <label class="explode-trail-toggle" title="Show SolidWorks-style dashed assembly trails">
+                  <input type="checkbox" id="chk-explode-trails" checked>
+                  <span>Trails</span>
+                </label>
+                <button id="btn-explode-reset" class="btn-explode-action" title="Reset assembly to 0%">Reset</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tree Node Scroll List -->
+          <div id="tree-content" class="tree-content"></div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Smart Measure -->
+      <div id="drawer-tab-measure" class="drawer-tab-content drawer-tab-pane" data-tab="measure" style="display: none;">
+        <div id="measure-card" class="measure-card" style="display: flex;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <div class="measure-title" id="measure-card-title">📐 Smart Measure</div>
+            <button id="btn-copy-measure" class="btn-copy" title="Copy dimension to clipboard">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              <span id="copy-text">Copy</span>
+            </button>
+          </div>
+          <div class="measure-main" id="measure-dist">Select Edge or Point</div>
+          <div class="measure-sub" id="measure-deltas">Hover over edges or holes for auto-detect</div>
+          <div class="measure-sub" id="measure-extra" style="display: none;"></div>
+          <div class="measure-sub" id="measure-angle" style="display: none;">Angle: 0.0°</div>
+          <button id="btn-clear-measure">Clear [C]</button>
+        </div>
+      </div>
+
+      <!-- Tab 3: Cross Section -->
+      <div id="drawer-tab-section" class="drawer-tab-content drawer-tab-pane" data-tab="section" style="display: none;">
+        <div id="section-panel" class="section-panel" style="display: flex;">
+          <div class="tool-group">
+            <button class="btn-sm active" id="btn-sec-x" title="Cut along X Plane">X</button>
+            <button class="btn-sm" id="btn-sec-y" title="Cut along Y Plane">Y</button>
+            <button class="btn-sm" id="btn-sec-z" title="Cut along Z Plane">Z</button>
+            <button class="btn-sm" id="btn-sec-flip" title="Flip Cut Direction">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-inline-end:3px;"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
+              Flip
+            </button>
+          </div>
+
+          <div class="sec-divider"></div>
+
+          <!-- Live Physical Position & Snap to Center -->
+          <div class="sec-pos-wrap">
+            <button class="btn-sm sec-btn-center" id="btn-sec-center" title="Snap to Part Center (0 mm)">Center</button>
+            <span id="sec-offset-val" class="sec-offset-badge" title="Physical offset from center">X: +0.00 mm</span>
+          </div>
+
+          <input type="range" id="sec-slider" min="0" max="100" value="50" class="sec-slider" title="Slice Position (0% to 100%)" />
+
+          <div class="sec-divider"></div>
+
+          <!-- SolidWorks Capping & Glass Helper Plane Toggles -->
+          <div class="tool-group">
+            <button class="btn-sm active" id="btn-sec-cap" title="Toggle SolidWorks Solid Capping Fill">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-inline-end:3px;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+              Cap
+            </button>
+            <button class="btn-sm active" id="btn-sec-plane" title="Toggle 3D Glass Cutting Plane Helper">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-inline-end:3px;"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+              Plane
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4: Mass & Materials -->
+      <div id="drawer-tab-mass" class="drawer-tab-content drawer-tab-pane" data-tab="mass" style="display: none;">
+        <div id="props-card" class="measure-card" style="display: flex; width: 100%; max-height: none;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div class="measure-title">⚖️ Physical Properties & Mass</div>
+            <button id="btn-close-props" class="btn-copy" style="font-size:12px; padding: 2px 7px;">✕</button>
+          </div>
+          <div class="props-stats-block">
+            <div><span class="props-stat-label">Volume:</span> <strong id="prop-vol" class="props-stat-value">-</strong></div>
+            <div><span class="props-stat-label">Surface Area:</span> <strong id="prop-area" class="props-stat-value">-</strong></div>
+            <div><span class="props-stat-label">Bounding Box:</span> <strong id="prop-bbox" class="props-stat-value">-</strong></div>
+          </div>
+
+          <!-- Multi-Body Selector in Mass Modal -->
+          <div id="props-body-row" style="display: none; margin: 0 0 8px;">
+            <label style="font-size: 9.5px; color: #94a3b8; font-weight: 600; display: block; margin-bottom: 3px;">SELECTED SOLID / BODY:</label>
+            <select id="props-body-select" class="mat-search-input" style="padding: 4px 6px; font-size: 11px; cursor: pointer;"></select>
+          </div>
+
+          <!-- Active Material Summary Banner -->
+          <div id="active-mat-banner" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 6px; padding: 7px 10px; margin-bottom: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span id="active-mat-name" style="font-weight: 600; color: #f1f5f9; font-size: 12px;">Aluminum 6061-T6</span>
+              <span id="active-mat-density" style="font-size: 10px; color: #94a3b8;">2.70 g/cm³</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 3px;">
+              <span style="font-size: 10px; color: #64748b; text-transform: uppercase;">Total Mass:</span>
+              <strong id="active-mat-weight" style="font-size: 15px; color: #38bdf8; font-weight: 700;">-</strong>
+            </div>
+          </div>
+
+          <!-- 3D Printing & Infill Estimation Panel (Milestone 4) -->
+          <div id="section-infill" style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(56, 189, 248, 0.28); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-size: 10px; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px;">🖨️ 3D Print & Infill Estimator</span>
+              <span id="infill-val" style="font-size: 12px; font-weight: 700; color: #f8fafc; font-family: monospace;">20%</span>
+            </div>
+
+            <!-- Infill Slider -->
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+              <input type="range" id="infill-slider" min="5" max="100" value="20" step="1" style="flex: 1; accent-color: #38bdf8; cursor: pointer; height: 4px;" title="Adjust Infill Density (5% to 100%)" />
+            </div>
+
+            <!-- Quick Presets -->
+            <div style="display: flex; gap: 4px; margin-bottom: 8px;">
+              <button type="button" class="btn-preset-infill btn-copy" data-infill="15" style="flex: 1; font-size: 10px; padding: 3px 0; text-align: center;">15%</button>
+              <button type="button" class="btn-preset-infill btn-copy active" data-infill="20" style="flex: 1; font-size: 10px; padding: 3px 0; text-align: center;">20%</button>
+              <button type="button" class="btn-preset-infill btn-copy" data-infill="50" style="flex: 1; font-size: 10px; padding: 3px 0; text-align: center;">50%</button>
+              <button type="button" class="btn-preset-infill btn-copy" data-infill="100" style="flex: 1; font-size: 10px; padding: 3px 0; text-align: center;">100%</button>
+            </div>
+
+            <!-- Print Estimation Metrics Grid -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: rgba(0, 0, 0, 0.25); border-radius: 4px; padding: 6px 8px; font-size: 10.5px;">
+              <div>
+                <span style="color: #94a3b8; display: block; font-size: 9px; text-transform: uppercase;">Part Mass:</span>
+                <strong id="print-est-mass" style="color: #38bdf8; font-family: monospace;">-</strong>
+              </div>
+              <div>
+                <span style="color: #94a3b8; display: block; font-size: 9px; text-transform: uppercase;">1.75mm Filament:</span>
+                <strong id="print-est-length" style="color: #38bdf8; font-family: monospace;">-</strong>
+              </div>
+              <div style="grid-column: span 2; border-top: 1px solid rgba(255, 255, 255, 0.07); padding-top: 4px; margin-top: 2px; display: flex; justify-content: space-between; align-items: baseline;">
+                <span style="color: #94a3b8; font-size: 9px; text-transform: uppercase;">1kg Spool Usage:</span>
+                <strong id="print-est-spool" style="color: #38bdf8; font-family: monospace;">-</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Search & Add Custom Button -->
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <input type="text" id="mat-search" class="mat-search-input" placeholder="🔍 Search material (e.g. 6061, Steel, Delrin)..." />
+            <button id="btn-toggle-custom" class="btn-copy" style="white-space: nowrap; font-size: 10px; padding: 5px 8px;" title="Add Custom Material">+ Custom</button>
+          </div>
+
+          <!-- Add Custom Material Form -->
+          <div id="custom-mat-form" style="display: none; background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; padding: 8px; margin-top: 6px;">
+            <div style="font-size: 10px; font-weight: 600; color: #38bdf8; margin-bottom: 5px;">Create Custom Material</div>
+            <input type="text" id="custom-mat-name" class="mat-search-input" placeholder="Material Name (e.g. Inconel 718)" style="margin-bottom: 5px;" />
+            <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+              <input type="number" id="custom-mat-density" class="mat-search-input" placeholder="Density (g/cm³)" step="0.01" min="0.01" />
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 6px;">
+              <button id="btn-cancel-custom" class="btn-copy" style="font-size: 10px;">Cancel</button>
+              <button id="btn-save-custom" class="btn-copy" style="font-size: 10px; background: #0284c7; color: white; border-color: #0284c7;">Save</button>
+            </div>
+          </div>
+
+          <!-- Materials Scroll List -->
+          <div id="mat-list" class="mat-list-container"></div>
+        </div>
+      </div>
+
+      <!-- Tab 5: CAD Analysis -->
+      <div id="drawer-tab-analysis" class="drawer-tab-content drawer-tab-pane" data-tab="analysis" style="display: none;">
+        <div class="analysis-panel" id="analysis-panel">
+          <div class="analysis-section-title">ENGINEERING CAD ANALYSIS (v2.0)</div>
+          <div class="analysis-card">
+            <div class="analysis-row">
+              <span class="analysis-label">Interference Check</span>
+              <button id="btn-run-collision" class="btn-xs">Check Collisions</button>
+            </div>
+            <div id="collision-results" style="font-size:11px; color:#94a3b8; margin-top:4px;">No active collision check.</div>
+          </div>
+          <div class="analysis-card">
+            <div class="analysis-row">
+              <span class="analysis-label">Center of Mass (3D Gizmo)</span>
+              <button id="btn-toggle-com" class="btn-xs">Show CoM</button>
+            </div>
+            <div id="com-coords-readout" style="font-size:11px; font-family:monospace; color:#38bdf8; margin-top:4px;">X: 0.0, Y: 0.0, Z: 0.0 mm</div>
+          </div>
+          <div class="analysis-card" id="card-draft-analysis">
+            <div class="analysis-row">
+              <span class="analysis-label">Draft Angle Heatmap</span>
+              <button id="btn-toggle-draft" class="btn-xs">Inspect Draft</button>
+            </div>
+            <div class="analysis-subtext">Injection molding pull angle (&gt;3° Safe, 0-3° Warning, &lt;0° Undercut)</div>
+
+            <!-- Milestone 3: Interactive Reference Planes & Pull Direction Controls (TSK-05) -->
+            <div id="draft-controls-panel" class="draft-controls-panel" style="margin-top: 8px; display: none;">
+              <div class="draft-section-label">PULL DIRECTION / REFERENCE PLANE</div>
+              <div class="tool-group" style="margin-bottom: 6px;">
+                <button class="btn-sm active" id="btn-draft-plane-xy" title="Pull along XY Plane Normal (+Z / -Z)">XY</button>
+                <button class="btn-sm" id="btn-draft-plane-yz" title="Pull along YZ Plane Normal (+X / -X)">YZ</button>
+                <button class="btn-sm" id="btn-draft-plane-zx" title="Pull along ZX Plane Normal (+Y / -Y)">ZX</button>
+                <button class="btn-sm" id="btn-draft-flip" title="Invert Pull Direction Vector">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-inline-end:3px;">
+                    <path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/>
+                  </svg>
+                  Flip
+                </button>
+              </div>
+
+              <div class="tool-group" style="margin-bottom: 8px;">
+                <button class="btn-sm" id="btn-draft-pick-face" style="width: 100%; justify-content: center; display: flex; align-items: center; gap: 5px;" title="Click any part surface to extract face normal as pull vector">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="16"/>
+                    <line x1="8" y1="12" x2="16" y2="12"/>
+                  </svg>
+                  <span id="btn-draft-pick-face-text">Pick Face Normal</span>
+                </button>
+              </div>
+
+              <!-- Active Vector Readout Badge -->
+              <div class="draft-readout-wrap">
+                <span class="draft-readout-label">Active Vector:</span>
+                <span id="draft-pull-dir-readout" class="draft-readout-badge" title="Current unit pull vector">Z: (0.00, 0.00, 1.00)</span>
+              </div>
+
+              <!-- Draft Threshold Slider -->
+              <div class="draft-threshold-wrap" style="margin-top: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                  <span class="draft-section-label">MIN DRAFT ANGLE:</span>
+                  <span id="draft-angle-val" class="draft-val-badge">3.0°</span>
+                </div>
+                <input type="range" id="draft-angle-slider" min="0.5" max="10.0" step="0.5" value="3.0" class="sec-slider" title="Drag to adjust threshold angle (0.5° to 10.0°)" />
+              </div>
+            </div>
+          </div>
+          <div class="analysis-card">
+            <div class="analysis-row" style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="analysis-label">2D Engineering Blueprint</span>
+              <div style="display: flex; gap: 4px;">
+                <button id="btn-generate-blueprint" class="btn-xs active" title="Save as High-Resolution 300 DPI PNG Image">Save PNG</button>
+                <button id="btn-blueprint-pdf" class="btn-xs" title="Save as Standard ISO A3 PDF Document">PDF</button>
+                <button id="btn-blueprint-svg" class="btn-xs" title="Export as Scalable Vector Graphics (SVG)">SVG</button>
+              </div>
+            </div>
+            <div style="font-size:10px; color:#64748b; margin-top:4px;">ISO 5457 standard 4-view drawing (Front, Top, Right, Isometric)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 6: Engineering Export -->
+      <div id="drawer-tab-export" class="drawer-tab-content drawer-tab-pane" data-tab="export" style="display: none;">
+        <div id="snapshot-panel" class="snapshot-panel" style="display: flex;">
+          <div class="snap-panel-header">
+            <div class="snap-panel-title">
+              <svg viewBox="0 0 24 24" class="snap-icon" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+              <span>Engineering CAD Export</span>
+            </div>
+            <button id="btn-close-snapshot" class="btn-copy" style="font-size:11px; padding: 2px 7px;">✕</button>
+          </div>
+
+          <!-- Mode Selector -->
+          <div class="snap-section">
+            <label class="snap-label">PRESET THEME</label>
+            <div class="snap-btn-group">
+              <button class="snap-mode-btn active" id="snap-mode-trans" data-mode="transparent" title="Pure geometry cutout with transparent alpha background">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="3 3"/>
+                  <path d="M7 17l4-5 3 3 4-6"/>
+                </svg>
+                <span>Transparent</span>
+              </button>
+              <button class="snap-mode-btn" id="snap-mode-white" data-mode="white" title="High-contrast CAD edges on pure white paper (SolidWorks HLR style)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <rect x="4" y="2" width="16" height="20" rx="2" fill="#ffffff" stroke="#94a3b8"/>
+                  <line x1="8" y1="6" x2="16" y2="6" stroke="#0f172a"/>
+                  <line x1="8" y1="10" x2="16" y2="10" stroke="#0f172a"/>
+                  <line x1="8" y1="14" x2="12" y2="14" stroke="#0f172a"/>
+                </svg>
+                <span>Tech White</span>
+              </button>
+              <button class="snap-mode-btn" id="snap-mode-dark" data-mode="dark" title="Polished neutral slate studio without floor grid lines">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <rect x="3" y="3" width="18" height="18" rx="2" fill="#181a20" stroke="#475569"/>
+                  <circle cx="12" cy="12" r="4" stroke="#38bdf8"/>
+                </svg>
+                <span>Studio Dark</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Resolution Selector -->
+          <div class="snap-section">
+            <label class="snap-label">OUTPUT RESOLUTION</label>
+            <div class="snap-btn-group">
+              <button class="snap-res-btn active" id="snap-res-2x" data-scale="2" title="Double display resolution (~2K) - Ideal balance of speed & razor sharpness">
+                <span class="snap-res-tag">2× High-DPI</span>
+                <span class="snap-res-desc">Sharp</span>
+              </button>
+              <button class="snap-res-btn" id="snap-res-4k" data-scale="4" title="Full 4K Ultra HD (3840×2160) - Perfect for prints & presentations">
+                <span class="snap-res-tag">4K Ultra</span>
+                <span class="snap-res-desc">Print / Deck</span>
+              </button>
+              <button class="snap-res-btn" id="snap-res-1x" data-scale="1" title="Current viewport pixel size">
+                <span class="snap-res-tag">1× Viewport</span>
+                <span class="snap-res-desc">Native</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Camera Angle Quick Framing -->
+          <div class="snap-section">
+            <label class="snap-label">CAMERA ANGLE</label>
+            <div class="snap-btn-group" style="grid-template-columns: repeat(4, 1fr);">
+              <button class="snap-angle-btn active" id="snap-angle-iso" data-angle="iso" title="Standard Isometric View">
+                <span>📐 Iso</span>
+              </button>
+              <button class="snap-angle-btn" id="snap-angle-front" data-angle="front" title="Front Elevation View">
+                <span>🔲 Front</span>
+              </button>
+              <button class="snap-angle-btn" id="snap-angle-top" data-angle="top" title="Top Plan View">
+                <span>🔝 Top</span>
+              </button>
+              <button class="snap-angle-btn" id="snap-angle-right" data-angle="right" title="Right Profile View">
+                <span>➡️ Right</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Title Block & QR Mode -->
+          <div class="snap-section">
+            <label class="snap-label">TITLE BLOCK & QR MODE</label>
+            <div class="snap-btn-group" style="grid-template-columns: repeat(3, 1fr);">
+              <button class="snap-tb-btn active" id="snap-tb-full" data-tb="full" title="Executive Engineering Stamp with Specs Card & Scannable QR">
+                <span>Full + QR</span>
+              </button>
+              <button class="snap-tb-btn" id="snap-tb-badge" data-tb="badge" title="Minimalist Corner Seal with QR Passport Only">
+                <span>QR Badge</span>
+              </button>
+              <button class="snap-tb-btn" id="snap-tb-none" data-tb="none" title="Clean Viewport without any title block or badge">
+                <span>Clean</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Engineering Overlays / Options -->
+          <div class="snap-section">
+            <label class="snap-label">PROVENANCE & OVERLAYS</label>
+            <div class="snap-options-grid">
+              <label class="snap-checkbox-row" id="row-opt-qr" title="Embed scannable ISO/IEC QR passport containing model specs and link">
+                <input type="checkbox" id="snap-opt-qr" checked />
+                <span>Include Scannable QR Code</span>
+              </label>
+              <label class="snap-checkbox-row" title="Include Material name, density, estimated mass and filament consumption in stamp">
+                <input type="checkbox" id="snap-opt-mat" checked />
+                <span>Include Material & Mass</span>
+              </label>
+              <label class="snap-checkbox-row" title="Render soft studio ground contact shadow under model">
+                <input type="checkbox" id="snap-opt-shadow" checked />
+                <span>Studio Ground Shadow</span>
+              </label>
+              <label class="snap-checkbox-row" title="Composite active dimension labels and leader lines onto image">
+                <input type="checkbox" id="snap-opt-dims" checked />
+                <span>Include Active Measurements</span>
+              </label>
+            </div>
+            <!-- Custom QR Note / URL Input -->
+            <div id="snap-qr-custom-container" style="display: flex; flex-direction: column; gap: 3px; margin-top: 3px;">
+              <span style="font-size: 8.5px; color: #94a3b8; font-weight: 600;">CUSTOM LINK OR PART NOTE (EMBEDDED IN QR):</span>
+              <input type="text" id="snap-qr-note" class="snap-text-input" placeholder="e.g. https://company.com/drawing or Rev 3.2..." maxlength="120" />
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="snap-actions">
+            <button id="snap-btn-copy" class="snap-primary-btn" title="Render and copy image directly to clipboard [Ctrl+V ready]">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              <span id="snap-copy-label">Copy Image</span>
+            </button>
+            <button id="snap-btn-save" class="snap-secondary-btn" title="Render and save as PNG file">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              <span>Save File...</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Smart CAD Measurement HUD Card -->
-  <div class="hud-card" id="measure-card" style="display: none;">
-    <div class="hud-card-header">
-      <span class="hud-card-title" id="measure-card-title"><svg class="lucide" viewBox="0 0 24 24"><path d="m19 5-3-3-11 11 3 3 11-11Z"/><path d="m14 7 1 1"/><path d="m11 10 1 1"/><path d="m8 13 1 1"/></svg> Smart Measure</span>
-      <button class="hud-close-btn" id="btn-close-measure">✕</button>
+  <!-- Floating CAD Body Material & Color Popover -->
+  <div id="color-picker-popover" class="color-popover" style="display: none;">
+    <div class="color-popover-header">
+      <div class="color-popover-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="m4.93 4.93 4.24 4.24"></path>
+          <path d="m14.83 9.17 4.24-4.24"></path>
+          <path d="m14.83 14.83 4.24 4.24"></path>
+          <path d="m9.17 14.83-4.24 4.24"></path>
+          <circle cx="12" cy="12" r="4"></circle>
+        </svg>
+        <span id="color-popover-body-name">Body Appearance</span>
+      </div>
+      <button id="btn-close-color-popover" class="btn-copy" style="font-size: 11px; padding: 1px 6px;">✕</button>
     </div>
-    <div style="padding: 12px; display: flex; flex-direction: column; gap: 6px;">
-      <div id="measure-dist" style="font-size: 16px; font-weight: 700; color: #f1f5f9; font-family: monospace;">Select Point, Edge, or Hole</div>
-      <div id="measure-angle" style="display: none; font-size: 13px; color: #38bdf8; font-weight: 600;"></div>
-      <div id="measure-deltas" style="font-size: 11px; color: #94a3b8; font-family: monospace;">Hover over geometry in viewport</div>
-      <div id="measure-extra" style="font-size: 11px; color: #cbd5e1; display: none; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.08);"></div>
-      <div style="display: flex; gap: 6px; margin-top: 6px;">
-        <button id="btn-copy-measure" class="btn-xs"><svg class="lucide" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> <span id="copy-text">Copy</span></button>
-        <button id="btn-clear-measure" class="btn-xs"><svg class="lucide" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg> Clear</button>
+
+    <!-- Pinned Original CAD Color with 1-click Reset -->
+    <div class="color-popover-section">
+      <div class="color-popover-label">CAD Source Color</div>
+      <div class="cad-orig-row">
+        <div class="cad-orig-info">
+          <span id="popover-orig-swatch" class="color-swatch-lg"></span>
+          <div class="cad-orig-text">
+            <span class="cad-orig-title">Original STEP Color</span>
+            <span id="popover-orig-hex" class="cad-orig-hex">#CCCCCC</span>
+          </div>
+        </div>
+        <button id="btn-reset-orig-color" class="btn-popover-action" title="Restore original STEP model color">
+          ↺ Reset
+        </button>
+      </div>
+    </div>
+
+    <!-- Metals & Engineering Finishes -->
+    <div class="color-popover-section">
+      <div class="color-popover-label">Engineering Metals</div>
+      <div class="swatches-grid">
+        <button class="swatch-btn" data-color="#d4d8dd" data-metal="0.8" data-rough="0.35" title="Machined Steel">
+          <span class="swatch-circle" style="background: linear-gradient(135deg, #f1f5f9, #94a3b8);"></span>
+          <span class="swatch-label">Steel</span>
+        </button>
+        <button class="swatch-btn" data-color="#b0b7bd" data-metal="0.9" data-rough="0.25" title="Brushed Aluminum">
+          <span class="swatch-circle" style="background: linear-gradient(135deg, #cbd5e1, #64748b);"></span>
+          <span class="swatch-label">Alu</span>
+        </button>
+        <button class="swatch-btn" data-color="#d4af37" data-metal="0.7" data-rough="0.3" title="Industrial Brass">
+          <span class="swatch-circle" style="background: linear-gradient(135deg, #fde047, #b45309);"></span>
+          <span class="swatch-label">Brass</span>
+        </button>
+        <button class="swatch-btn" data-color="#3a3d42" data-metal="0.6" data-rough="0.6" title="Cast Iron">
+          <span class="swatch-circle" style="background: linear-gradient(135deg, #475569, #1e293b);"></span>
+          <span class="swatch-label">Iron</span>
+        </button>
+        <button class="swatch-btn" data-color="#0077b6" data-metal="0.5" data-rough="0.2" title="Anodized Blue">
+          <span class="swatch-circle" style="background: linear-gradient(135deg, #38bdf8, #0369a1);"></span>
+          <span class="swatch-label">Ano Blue</span>
+        </button>
+        <button class="swatch-btn" data-color="#c1121f" data-metal="0.5" data-rough="0.2" title="Anodized Red">
+          <span class="swatch-circle" style="background: linear-gradient(135deg, #f87171, #991b1b);"></span>
+          <span class="swatch-label">Ano Red</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Industrial Plastics & Safety Palettes -->
+    <div class="color-popover-section">
+      <div class="color-popover-label">Plastics & Safety Palettes</div>
+      <div class="swatches-grid">
+        <button class="swatch-btn" data-color="#ffd000" data-metal="0.0" data-rough="0.4" title="Safety Yellow">
+          <span class="swatch-circle" style="background: #ffd000;"></span>
+          <span class="swatch-label">Safety Ylw</span>
+        </button>
+        <button class="swatch-btn" data-color="#ff6b00" data-metal="0.0" data-rough="0.4" title="High-Vis Orange">
+          <span class="swatch-circle" style="background: #ff6b00;"></span>
+          <span class="swatch-label">Hi-Vis</span>
+        </button>
+        <button class="swatch-btn" data-color="#e63946" data-metal="0.0" data-rough="0.4" title="Signal Red">
+          <span class="swatch-circle" style="background: #e63946;"></span>
+          <span class="swatch-label">Signal Red</span>
+        </button>
+        <button class="swatch-btn" data-color="#1e2024" data-metal="0.1" data-rough="0.8" title="Stealth Matte Black">
+          <span class="swatch-circle" style="background: #1e2024; border: 1px solid rgba(255,255,255,0.2);"></span>
+          <span class="swatch-label">Matte Blk</span>
+        </button>
+        <button class="swatch-btn" data-color="#f8f9fa" data-metal="0.0" data-rough="0.5" title="Delrin White">
+          <span class="swatch-circle" style="background: #f8f9fa;"></span>
+          <span class="swatch-label">Delrin</span>
+        </button>
+        <button class="swatch-btn" data-color="#2a9d8f" data-metal="0.0" data-rough="0.4" title="Industrial Teal">
+          <span class="swatch-circle" style="background: #2a9d8f;"></span>
+          <span class="swatch-label">Teal</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Custom Hex / Color Picker -->
+    <div class="color-popover-section">
+      <div class="color-popover-label">Custom Swatch</div>
+      <div class="custom-color-row">
+        <input type="color" id="popover-color-input" class="popover-color-input" value="#38bdf8" />
+        <span id="popover-color-hex-val" class="popover-hex-text">#38BDF8</span>
+        <button id="btn-apply-custom-color" class="btn-popover-action">Apply</button>
+      </div>
+    </div>
+
+    <!-- 3D Printing Material Presets -->
+    <div class="color-popover-section">
+      <div class="color-popover-label" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>3D Printing Presets</span>
+        <span style="font-size:8.5px; color:#64748b; text-transform:none;">1.75mm Filament</span>
+      </div>
+      <div class="materials-grid">
+        <button class="mat-preset-btn" data-mat="PLA" data-density="1.24" data-color="#0284c7" data-rough="0.45" title="Polylactic Acid (1.24 g/cm³)">
+          <span class="mat-name">PLA</span>
+          <span class="mat-density">1.24 g/cm³</span>
+        </button>
+        <button class="mat-preset-btn" data-mat="PETG" data-density="1.27" data-color="#059669" data-rough="0.3" title="Polyethylene Terephthalate Glycol (1.27 g/cm³)">
+          <span class="mat-name">PETG</span>
+          <span class="mat-density">1.27 g/cm³</span>
+        </button>
+        <button class="mat-preset-btn" data-mat="ABS" data-density="1.04" data-color="#dc2626" data-rough="0.5" title="Acrylonitrile Butadiene Styrene (1.04 g/cm³)">
+          <span class="mat-name">ABS</span>
+          <span class="mat-density">1.04 g/cm³</span>
+        </button>
+        <button class="mat-preset-btn" data-mat="ASA" data-density="1.07" data-color="#ea580c" data-rough="0.55" title="Acrylonitrile Styrene Acrylate (1.07 g/cm³)">
+          <span class="mat-name">ASA</span>
+          <span class="mat-density">1.07 g/cm³</span>
+        </button>
+        <button class="mat-preset-btn" data-mat="TPU 95A" data-density="1.21" data-color="#7c3aed" data-rough="0.7" title="Thermoplastic Polyurethane 95A (1.21 g/cm³)">
+          <span class="mat-name">TPU 95A</span>
+          <span class="mat-density">1.21 g/cm³</span>
+        </button>
+        <button class="mat-preset-btn" data-mat="Nylon PA12" data-density="1.15" data-color="#475569" data-rough="0.65" title="Polyamide 12 Engineering Grade (1.15 g/cm³)">
+          <span class="mat-name">Nylon PA12</span>
+          <span class="mat-density">1.15 g/cm³</span>
+        </button>
+        <button class="mat-preset-btn" data-mat="UV Resin" data-density="1.10" data-color="#0891b2" data-rough="0.25" title="Standard UV SLA/DLP Resin (1.10 g/cm³)">
+          <span class="mat-name">UV Resin</span>
+          <span class="mat-density">1.10 g/cm³</span>
+        </button>
+      </div>
+
+      <!-- Live 3D Printing Filament Meter -->
+      <div id="popover-mat-meter" class="popover-mat-meter">
+        <div class="meter-stat">
+          <span class="meter-label">Active Material</span>
+          <span id="meter-mat-name" class="meter-val text-sky">Custom / Default</span>
+        </div>
+        <div class="meter-stat">
+          <span class="meter-label">Estimated Mass</span>
+          <span id="meter-mat-mass" class="meter-val">-</span>
+        </div>
+        <div class="meter-stat">
+          <span class="meter-label">Filament (1.75mm)</span>
+          <span id="meter-mat-length" class="meter-val">-</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Body Opacity Slider -->
+    <div class="color-popover-section">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span class="color-popover-label">Body Opacity / X-Ray</span>
+        <span id="popover-opacity-val" class="opacity-val-text">100%</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:10px; color:#64748b;">10%</span>
+        <input type="range" id="popover-opacity-slider" class="sec-slider" min="10" max="100" value="100" style="flex:1;" />
+        <span style="font-size:10px; color:#64748b;">100%</span>
       </div>
     </div>
   </div>
 
-  <!-- Physical Properties & Mass Analysis HUD Card -->
-  <div class="hud-card props-card" id="props-card" style="display: none;">
-    <div class="hud-card-header">
-      <span class="hud-card-title"><svg class="lucide" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/></svg> Physical Properties</span>
-      <button class="hud-close-btn" id="btn-close-props">✕</button>
-    </div>
-    <div style="padding: 12px; display: flex; flex-direction: column; gap: 8px;">
-      <div id="props-body-row" style="display: none;">
-        <span style="font-size: 10px; color: #94a3b8;">SELECT SOLID BODY:</span>
-        <select id="props-body-select" class="snap-select" style="width: 100%; margin-top: 2px;"></select>
-      </div>
-      <div style="display: flex; flex-direction: column; gap: 4px; font-size: 11px;">
-        <div><span style="color:#94a3b8;">Bounding Box:</span> <strong id="prop-bbox" style="color:#f1f5f9; font-family:monospace;">-</strong></div>
-        <div><span style="color:#94a3b8;">Surface Area:</span> <strong id="prop-area" style="color:#f1f5f9; font-family:monospace;">-</strong></div>
-        <div><span style="color:#94a3b8;">Solid Volume:</span> <strong id="prop-vol" style="color:#f1f5f9; font-family:monospace;">-</strong></div>
-      </div>
-      <div id="active-mat-banner" style="padding: 8px; background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.25); border-radius: 4px; font-size: 11px;">
-        <div style="display: flex; justify-content: space-between;">
-          <strong id="active-mat-name" style="color: #38bdf8;">Aluminum 6061</strong>
-          <span id="active-mat-density" style="color: #94a3b8;">2.70 g/cm³</span>
-        </div>
-        <div style="margin-top: 3px; color: #cbd5e1;">Computed Mass: <strong id="active-mat-weight" style="color: #f1f5f9;">0.00 kg</strong></div>
-      </div>
-      <input type="text" id="mat-search" class="snap-text-input" placeholder="Search metals, plastics, alloys...">
-      <div id="mat-list" style="max-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;"></div>
-      <button id="btn-toggle-custom" class="btn-xs">+ Add Custom Material</button>
-      <div id="custom-mat-form" style="display: none; flex-direction: column; gap: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.08);">
-        <input type="text" id="custom-mat-name" class="snap-text-input" placeholder="Material Name">
-        <input type="number" id="custom-mat-density" class="snap-text-input" placeholder="Density (g/cm³)" step="0.01">
-        <div style="display: flex; gap: 6px;">
-          <button id="btn-save-custom" class="btn-xs">Save</button>
-          <button id="btn-cancel-custom" class="btn-xs">Cancel</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Engineering Snapshot & High-DPI CAD Export Modal -->
-  <div class="hud-card snapshot-panel" id="snapshot-panel" style="display: none;">
-    <div class="hud-card-header">
-      <span class="hud-card-title"><svg class="lucide" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Engineering CAD Export</span>
-      <button class="hud-close-btn" id="btn-close-snapshot">✕</button>
-    </div>
-    <div style="padding: 12px; display: flex; flex-direction: column; gap: 10px;">
-      <div>
-        <span class="section-label">BACKGROUND:</span>
-        <div class="snap-btn-row">
-          <button class="snap-mode-btn active" id="snap-mode-trans" data-mode="transparent">Transparent</button>
-          <button class="snap-mode-btn" id="snap-mode-white" data-mode="white">Paper White</button>
-          <button class="snap-mode-btn" id="snap-mode-dark" data-mode="dark">Linear Dark</button>
-        </div>
-      </div>
-      <div>
-        <span class="section-label">SUPERSAMPLING DPI:</span>
-        <div class="snap-btn-row">
-          <button class="snap-res-btn" id="snap-res-1x" data-scale="1">1× Std</button>
-          <button class="snap-res-btn active" id="snap-res-2x" data-scale="2">2× Retina</button>
-          <button class="snap-res-btn" id="snap-res-4k" data-scale="4">4× 4K Ultra</button>
-        </div>
-      </div>
-      <div>
-        <span class="section-label">TITLE BLOCK & SPECS STAMP:</span>
-        <div class="snap-btn-row">
-          <button class="snap-tb-btn active" id="snap-tb-full" data-tb="full">Full Block</button>
-          <button class="snap-tb-btn" id="snap-tb-badge" data-tb="badge">QR Seal</button>
-          <button class="snap-tb-btn" id="snap-tb-none" data-tb="none">None</button>
-        </div>
-      </div>
-      <div>
-        <span class="section-label">CAMERA ORIENTATION:</span>
-        <div class="snap-btn-row">
-          <button class="snap-angle-btn active" id="snap-angle-iso" onclick="document.getElementById('btn-view-iso')?.click()">Isometric</button>
-          <button class="snap-angle-btn" id="snap-angle-top" onclick="document.getElementById('btn-view-top')?.click()">Top</button>
-          <button class="snap-angle-btn" id="snap-angle-front" onclick="document.getElementById('btn-view-front')?.click()">Front</button>
-          <button class="snap-angle-btn" id="snap-angle-right" onclick="document.getElementById('btn-view-right')?.click()">Right</button>
-        </div>
-      </div>
-      <div style="display: flex; flex-direction: column; gap: 4px; font-size: 11px;">
-        <label id="row-opt-qr" style="display: flex; align-items: center; gap: 6px; color: #cbd5e1; cursor: pointer;">
-          <input type="checkbox" id="snap-opt-qr" checked> Embed QR Passport
-        </label>
-        <label style="display: flex; align-items: center; gap: 6px; color: #cbd5e1; cursor: pointer;">
-          <input type="checkbox" id="snap-opt-mat" checked> Include Material & Mass Specs
-        </label>
-        <label style="display: flex; align-items: center; gap: 6px; color: #cbd5e1; cursor: pointer;">
-          <input type="checkbox" id="snap-opt-shadow" checked> Contact Ambient Occlusion Shadow
-        </label>
-        <label style="display: flex; align-items: center; gap: 6px; color: #cbd5e1; cursor: pointer;">
-          <input type="checkbox" id="snap-opt-dims" checked> Retain Active Measurement Dimensions
-        </label>
-      </div>
-      <div id="snap-qr-custom-container" style="display: flex; flex-direction: column; gap: 4px;">
-        <span class="section-label">CUSTOM LINK OR PART NOTE (EMBEDDED IN QR):</span>
-        <input type="text" id="snap-qr-note" class="snap-text-input" placeholder="https://drawing-link or Rev 2.1..." maxlength="120">
-      </div>
-      <div style="display: flex; gap: 8px; margin-top: 4px;">
-        <button id="snap-btn-copy" class="snap-primary-btn"><svg class="lucide" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span id="snap-copy-label">Copy Image</span></button>
-        <button id="snap-btn-save" class="snap-secondary-btn"><svg class="lucide" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span>Save File...</span></button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Isolation Banner -->
+  <!-- Isolate Banner -->
   <div id="isolate-banner" class="isolate-banner" style="display: none;">
-    <span><svg class="lucide" viewBox="0 0 24 24" style="width:14px;height:14px;vertical-align:-2px;margin-inline-end:4px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Isolated Body: <strong id="isolate-body-name">Part</strong></span>
-    <button id="btn-exit-isolate">Show All [Esc]</button>
+    <span>⚠️ Isolated: <strong id="isolate-body-name">Body 1</strong></span>
+    <button id="btn-exit-isolate">Show All [Exit]</button>
   </div>
 
+  <!-- Toast Notification -->
   <div id="toast-notify" class="toast-notification" style="display: none;"></div>
-  <div id="measure-tooltip" class="measure-tooltip" style="display: none;"></div>
-  <div id="triad-container"><canvas id="triad-canvas" width="70" height="70"></canvas></div>
 
-  <!-- Subtle Keyboard Shortcuts Hint Bar -->
-  <div class="hints" id="hints-bar">
-    Scroll: Zoom | Middle/Left: Rotate | Right: Pan | T: Tree | X: Explode | M: Measure | S: Section | P: Mass | K: Snap | U: Units | F: Fit | <span id="btn-check-update" class="hint-version-pill" onclick="AutoUpdater.checkForUpdates(true)" title="Check for updates">v2.0.0</span>
+  <!-- Smart Cursor Tooltip for Edge Detection -->
+  <div id="measure-tooltip" class="measure-tooltip" style="display: none;"></div>
+
+  <div id="triad-container" style="position: absolute; bottom: 14px; left: 16px; width: 70px; height: 70px; pointer-events: none; z-index: 999;">
+    <canvas id="triad-canvas" width="70" height="70"></canvas>
   </div>
-  <div id="error-container" style="display: none;"></div>
+
+  <!-- Centered Floating Shortcuts Hints Bar (v2.1.0) -->
+  <div class="hints" id="hints-bar" role="complementary" aria-label="Keyboard Shortcuts">
+    <span>Scroll: Zoom</span><span class="hint-sep">|</span>
+    <span>Middle: Rotate</span><span class="hint-sep">|</span>
+    <span>Right: Pan / Cancel</span><span class="hint-sep">|</span>
+    <span>T: Tree</span><span class="hint-sep">|</span>
+    <span class="hint-secondary">X: Explode</span><span class="hint-sep hint-secondary-sep">|</span>
+    <span>M: Measure</span>
+    <span id="hint-measure-clear" class="hint-measure-active" style="display: none;">
+      <span class="hint-sep">|</span>
+      <span class="hint-key-accent">[C] Clear Measure</span>
+    </span><span class="hint-sep">|</span>
+    <span>S: Section</span><span class="hint-sep">|</span>
+    <span class="hint-secondary">A: Analysis</span><span class="hint-sep hint-secondary-sep">|</span>
+    <span class="hint-secondary">P: Mass</span><span class="hint-sep hint-secondary-sep">|</span>
+    <span class="hint-secondary">K: Snap</span><span class="hint-sep hint-secondary-sep">|</span>
+    <span class="hint-secondary">U: Units</span><span class="hint-sep hint-secondary-sep">|</span>
+    <span>F: Fit</span>
+  </div>
+
+  <!-- Bottom-Right Floating HUD Cluster (Stacked Update & Shortcuts Toggle - TSK-11) -->
+  <div class="bottom-hud-cluster" id="bottom-hud-cluster" role="region" aria-label="QuickLook HUD Controls">
+    <!-- Check for Updates: Neatly stacked directly above the shortcuts toggle button -->
+    <button id="btn-check-update" class="hud-pill-btn hud-update-btn" onclick="AutoUpdater.checkForUpdates(true)" title="Check for updates on GitHub" aria-label="Check for updates">
+      <svg class="hud-pill-svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+      </svg>
+      <span id="hint-version-text" class="hud-pill-text">v2.0.0</span>
+    </button>
+
+    <!-- Shortcuts Toggle Button -->
+    <button id="btn-toggle-shortcuts" class="hud-pill-btn hud-shortcuts-btn" title="Toggle Keyboard Shortcuts [?]" aria-expanded="true" aria-controls="hints-bar">
+      <span class="hud-shortcuts-badge">?</span>
+      <span class="hud-pill-text">Shortcuts</span>
+    </button>
+  </div>
+  <div id="error-container"></div>
 
   <!-- Scripts: 3D Graphics Core & Modular CAD Engines -->
   <script src="three.min.js"></script>
   <script src="OrbitControls.js"></script>
+  <script src="js/cadState.js"></script>
   <script src="js/adminTwin.js"></script>
   <script src="js/materialsEngine.js"></script>
   <script src="js/sectionEngine.js"></script>
@@ -330,6 +1036,12 @@
   <script src="js/measureEngine.js"></script>
   <script src="js/snapshotEngine.js"></script>
   <script src="js/autoUpdater.js"></script>
+  <script src="js/viewCubeEngine.js"></script>
+  <script src="js/workbenchUiEngine.js"></script>
+  <script src="js/cadAnalysisEngine.js"></script>
+  <script src="js/blueprintSvgEngine.js"></script>
+  <script src="js/stlLoader.js"></script>
+  <script src="js/meshFeatureDetector.js"></script>
   <script src="js/viewerApp.js"></script>
 </body>
 </html>

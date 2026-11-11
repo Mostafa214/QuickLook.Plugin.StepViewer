@@ -702,7 +702,7 @@ self.onmessage = async function (e) {
 
                     // Auto-assigned palette colors for multi-body discrimination (Studio Graphite palette)
                     const autoPalette = [
-                        [0.627, 0.658, 0.706], // Machined Steel #a0a8b4
+                        [0.722, 0.753, 0.800], // Matte Polished Aluminum #b8c0cc
                         [0.290, 0.545, 0.749], // Titanium Cyan #4a8bbf
                         [0.761, 0.608, 0.408], // Engineering Bronze #c29b68
                         [0.353, 0.549, 0.463], // Anodized Sage #5a8c76

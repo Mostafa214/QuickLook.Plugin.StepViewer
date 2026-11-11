@@ -110,7 +110,20 @@ namespace QuickLook.Plugin.StepViewer
         }
 
         /// <summary>
-        /// Disables unnecessary browser chrome and registers domain filters for virtual host mapping.
+        /// Validates that top-level navigation is strictly confined to the local viewer domain or about:blank.
+        /// </summary>
+        public static bool IsValidViewerNavigationUrl(string uri)
+        {
+            if (string.IsNullOrWhiteSpace(uri)) return false;
+            string trimmed = uri.Trim();
+            if (string.Equals(trimmed, "about:blank", StringComparison.OrdinalIgnoreCase)) return true;
+            if (trimmed.StartsWith("https://step-viewer.local/", StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(trimmed, "https://step-viewer.local", StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// Disables unnecessary browser chrome, locks down security boundaries, and registers domain filters for virtual host mapping.
         /// </summary>
         public static void ConfigureWebView(CoreWebView2 webView)
         {
@@ -119,6 +132,26 @@ namespace QuickLook.Plugin.StepViewer
             webView.Settings.AreDefaultContextMenusEnabled = false;
             webView.Settings.IsZoomControlEnabled = false;
             webView.Settings.AreDevToolsEnabled = false;
+
+            // Security Hardening (SEC-05): Disable host objects bridge
+            webView.Settings.AreHostObjectsAllowed = false;
+
+            // Security Hardening (SEC-05): Restrict navigation strictly to authorized viewer origin
+            webView.NavigationStarting += (s, e) =>
+            {
+                if (!IsValidViewerNavigationUrl(e.Uri))
+                {
+                    e.Cancel = true;
+                    StepViewerControl.Log($"[Security] Blocked unauthorized navigation attempt to: {e.Uri}");
+                }
+            };
+
+            // Security Hardening (SEC-05): Cancel all popup window and new window requests
+            webView.NewWindowRequested += (s, e) =>
+            {
+                e.Handled = true;
+                StepViewerControl.Log($"[Security] Blocked unauthorized popup window request to: {e.Uri}");
+            };
 
             webView.AddWebResourceRequestedFilter("https://step-viewer.local/*", CoreWebView2WebResourceContext.All);
             webView.AddWebResourceRequestedFilter("https://cad-stream.local/*", CoreWebView2WebResourceContext.All);

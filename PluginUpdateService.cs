@@ -27,6 +27,20 @@ namespace QuickLook.Plugin.StepViewer
             !string.IsNullOrEmpty(_preparedUpdatePackagePath) && File.Exists(_preparedUpdatePackagePath) &&
             !string.IsNullOrEmpty(_preparedUpdaterScriptPath) && File.Exists(_preparedUpdaterScriptPath);
 
+        static PluginUpdateService()
+        {
+            ConfigureSecurityProtocols();
+        }
+
+        /// <summary>
+        /// Explicitly configures ServicePointManager to require TLS 1.2 and TLS 1.3
+        /// transport security protocols for all outgoing WebClient requests (SEC-06).
+        /// </summary>
+        public static void ConfigureSecurityProtocols()
+        {
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
+        }
+
         public async Task ExecuteAutoUpdateDownloadAsync(
             string downloadUrl,
             string version,
@@ -57,6 +71,7 @@ namespace QuickLook.Plugin.StepViewer
 
                 StepViewerControl.Log($"AutoUpdate: Starting download from {validatedUri} to {downloadPath}");
 
+                ConfigureSecurityProtocols();
                 using (var client = new WebClient())
                 {
                     client.Headers[HttpRequestHeader.UserAgent] = "QuickLook-StepViewer-AutoUpdater";
@@ -331,6 +346,7 @@ Remove-Item -Path $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyConti
             try
             {
                 string checksumUrl = downloadUri.AbsoluteUri + ".sha256";
+                ConfigureSecurityProtocols();
                 using (var client = new WebClient())
                 {
                     client.Headers[HttpRequestHeader.UserAgent] = "QuickLook-StepViewer-AutoUpdater";
@@ -354,6 +370,7 @@ Remove-Item -Path $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyConti
                     : $"tags/{safeVersion}";
                 string apiUrl = $"https://api.github.com/repos/Mostafa214/QuickLook.Plugin.StepViewer/releases/{tag}";
 
+                ConfigureSecurityProtocols();
                 using (var client = new WebClient())
                 {
                     client.Headers[HttpRequestHeader.UserAgent] = "QuickLook-StepViewer-AutoUpdater";

@@ -8,6 +8,7 @@ obj/
 
 # QuickLook Plugin Release Archive (distributed via GitHub Releases)
 *.qlplugin
+dist/
 
 # Packaging & Local Staging
 StepViewer-Release-Staging/
@@ -26,12 +27,18 @@ test_artifacts/
 scratch/
 docs/superpowers/
 .agents/
+Agents/
+.tmp_chrome_*/
+
+# Screenshots and Test Captures
+tests/*.png
+*.png
 
 # Private CAD Test Models
 Hosieni - Nar.stp
 2-1.STEP
-
-# Release distribution archives (distributed via GitHub Releases, not git tree)
-*.qlplugin
-
-
+SHAFT HONARI -P1.stp
+*.stp
+*.step
+*.stl
+!tests/fixtures/**
