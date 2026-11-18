@@ -4,14 +4,28 @@
  */
     // Phase 2: Cross-Section View Functions (SolidWorks-Grade Stencil Capping & 3D Glass Plane)
     // =============================================================
+    const _SECTION_UNIT_FALLBACK = {
+      mm: { id: 'mm', label: 'mm', factor: 1, decimals: 2, step: '0.5' },
+      cm: { id: 'cm', label: 'cm', factor: 0.1, decimals: 2, step: '0.1' },
+      m: { id: 'm', label: 'm', factor: 0.001, decimals: 4, step: '0.001' },
+      in: { id: 'in', label: 'in', factor: 1 / 25.4, decimals: 3, step: '0.01' },
+      ft: { id: 'ft', label: 'ft', factor: 1 / 304.8, decimals: 4, step: '0.005' }
+    };
+
     function getActiveSectionUnit() {
-      if (typeof currentUnit !== 'undefined' && (currentUnit === 'in' || currentUnit === 'mm')) {
-        return currentUnit;
+      const raw = (typeof currentUnit !== 'undefined' && typeof currentUnit === 'string')
+        ? currentUnit
+        : ((typeof window !== 'undefined' && typeof window.currentUnit === 'string') ? window.currentUnit : 'mm');
+      const norm = raw.trim().toLowerCase();
+      return _SECTION_UNIT_FALLBACK[norm] ? norm : 'mm';
+    }
+
+    function getSectionUnitMeta(unit) {
+      const u = unit || getActiveSectionUnit();
+      if (typeof window !== 'undefined' && window.CadState && typeof window.CadState.getUnitMeta === 'function') {
+        return window.CadState.getUnitMeta(u);
       }
-      if (typeof window !== 'undefined' && (window.currentUnit === 'in' || window.currentUnit === 'mm')) {
-        return window.currentUnit;
-      }
-      return 'mm';
+      return _SECTION_UNIT_FALLBACK[u] || _SECTION_UNIT_FALLBACK.mm;
     }
 
     function updateSectionPlane(options) {
@@ -68,29 +82,34 @@
       // Live Physical Offset Badge & Numeric Offset Input Sync (relative to model center)
       const offsetMm = pos - centerCoord;
       const unit = getActiveSectionUnit();
-      const decimals = unit === 'in' ? 3 : 2;
-      const offsetUnit = unit === 'in' ? (offsetMm / 25.4) : offsetMm;
-      const halfRangeUnit = unit === 'in' ? ((rangeCoord / 2) / 25.4) : (rangeCoord / 2);
+      const meta = getSectionUnitMeta(unit);
+      const decimals = meta.decimals;
+      const offsetUnit = (typeof window !== 'undefined' && window.CadState && typeof window.CadState.convertFromMm === 'function')
+        ? window.CadState.convertFromMm(offsetMm, unit)
+        : (offsetMm * meta.factor);
+      const halfRangeUnit = (typeof window !== 'undefined' && window.CadState && typeof window.CadState.convertFromMm === 'function')
+        ? window.CadState.convertFromMm(rangeCoord / 2, unit)
+        : ((rangeCoord / 2) * meta.factor);
 
       const badge = document.getElementById('sec-offset-val');
       if (badge) {
         const sign = offsetMm > 0.005 ? '+' : '';
-        const formatted = (typeof formatDim === 'function')
-          ? formatDim(offsetMm)
-          : `${offsetUnit.toFixed(decimals)} ${unit}`;
+        const formatted = (typeof window !== 'undefined' && window.CadState && typeof window.CadState.formatLength === 'function')
+          ? window.CadState.formatLength(offsetMm, unit)
+          : ((typeof formatDim === 'function') ? formatDim(offsetMm) : `${offsetUnit.toFixed(decimals)} ${meta.label}`);
         badge.innerText = `${sectionAxis.toUpperCase()}: ${sign}${formatted}`;
       }
 
       const unitEl = document.getElementById('sec-offset-unit');
       if (unitEl) {
-        unitEl.innerText = unit;
+        unitEl.innerText = meta.label;
       }
 
       const offsetInput = document.getElementById('sec-offset-input');
       if (offsetInput) {
         offsetInput.min = (-halfRangeUnit).toFixed(decimals);
         offsetInput.max = halfRangeUnit.toFixed(decimals);
-        offsetInput.step = unit === 'in' ? '0.01' : '0.5';
+        offsetInput.step = meta.step || '0.5';
         if (!opts.fromOffsetInput) {
           offsetInput.value = offsetUnit.toFixed(decimals);
         }
@@ -108,7 +127,10 @@
       if (isNaN(parsed) || !isFinite(parsed)) return false;
 
       const unit = getActiveSectionUnit();
-      const offsetMm = unit === 'in' ? (parsed * 25.4) : parsed;
+      const meta = getSectionUnitMeta(unit);
+      const offsetMm = (typeof window !== 'undefined' && window.CadState && typeof window.CadState.convertToMm === 'function')
+        ? window.CadState.convertToMm(parsed, unit)
+        : (parsed / meta.factor);
       const min = sectionBox.min;
       const max = sectionBox.max;
       const center = sectionBox.getCenter(new THREE.Vector3());

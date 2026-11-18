@@ -6,10 +6,11 @@
 
 // 1. Viewport Initialization, Studio Lighting, PMREM & Worker Bridge
     // 1. Initialize Three.js Viewport
-        let currentWorker = null;
+    let currentWorker = null;
     let stlWorker = null;
     let solidworksWorker = null;
     let workerReady = false;
+    let workerIdleTimer = null;
     let pendingFileBuffer = null;
     let pendingFileName = '';
     let activeCadFormat = 'STEP';
@@ -131,6 +132,12 @@
         const target = pmrem.fromScene(envScene, 0.04);
         studioEnvTexture = target.texture;
         scene.environment = studioEnvTexture;
+        p1.geometry.dispose();
+        p1.material.dispose();
+        p2.geometry.dispose();
+        p2.material.dispose();
+        p3.geometry.dispose();
+        p3.material.dispose();
         pmrem.dispose();
       } catch (e) {
         console.warn('Studio PMREM environment fallback:', e);
@@ -154,7 +161,7 @@ function initViewport() {
       perspCamera = camera;
 
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, stencil: true, powerPreference: 'high-performance', preserveDrawingBuffer: true });
-      renderer.setPixelRatio(window.devicePixelRatio || 1);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.outputEncoding = THREE.sRGBEncoding;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -541,7 +548,7 @@ function initViewport() {
         camera.aspect = aspect;
         camera.updateProjectionMatrix();
       }
-      renderer.setPixelRatio(window.devicePixelRatio || 1);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
@@ -796,6 +803,11 @@ function initViewport() {
         window._activeLoadId = activeLoadId;
       }
 
+      if (workerIdleTimer) {
+        clearTimeout(workerIdleTimer);
+        workerIdleTimer = null;
+      }
+
       if (loadTimer) {
         clearInterval(loadTimer);
         loadTimer = null;
@@ -1040,6 +1052,7 @@ function initViewport() {
       }
 
       // Default null params for optimal Open CASCADE internal fast-path (skips bounding box pass)
+      pendingFileBuffer = null;
       workerDispatchedLoadId = loadId;
       currentWorker.postMessage({
         type: 'PARSE',
@@ -1054,6 +1067,7 @@ function initViewport() {
 
     function onTessellationComplete(data) {
       if (data.loadId && data.loadId !== activeLoadId) return;
+      pendingFileBuffer = null;
       if (loadTimer) {
         clearInterval(loadTimer);
         loadTimer = null;
@@ -1410,6 +1424,22 @@ function initViewport() {
         triangles: totalTriangles,
         elapsedMs: data.elapsedMs
       });
+
+      if (workerIdleTimer) {
+        clearTimeout(workerIdleTimer);
+        workerIdleTimer = null;
+      }
+      if (currentWorker && activeCadFormat !== 'STL' && !isSolidWorksFormat(activeCadFormat) && !isDirectMeshFormat(activeCadFormat)) {
+        const scheduledLoadId = activeLoadId;
+        workerIdleTimer = setTimeout(() => {
+          workerIdleTimer = null;
+          if (currentWorker && activeLoadId === scheduledLoadId) {
+            currentWorker.terminate();
+            currentWorker = null;
+            workerReady = false;
+          }
+        }, 2500);
+      }
     }
     window.onTessellationComplete = onTessellationComplete;
 
@@ -1621,6 +1651,15 @@ function initViewport() {
         if (contactShadowMesh.geometry) contactShadowMesh.geometry.dispose();
         contactShadowMesh = null;
       }
+      if (typeof groundShadowPlane !== 'undefined' && groundShadowPlane) {
+        if (scene) scene.remove(groundShadowPlane);
+        if (groundShadowPlane.geometry) groundShadowPlane.geometry.dispose();
+        if (groundShadowPlane.material) {
+          if (Array.isArray(groundShadowPlane.material)) groundShadowPlane.material.forEach(m => m.dispose());
+          else groundShadowPlane.material.dispose();
+        }
+        groundShadowPlane = null;
+      }
       if (typeof deselectFace === 'function') deselectFace();
       if (typeof deselectBody === 'function') deselectBody();
       if (faceHighlightMesh) {
@@ -1680,6 +1719,9 @@ function initViewport() {
         sectionPlaneHelperMesh = null;
       }
       if (typeof resetExplodedView === 'function') resetExplodedView();
+      if (typeof renderer !== 'undefined' && renderer && renderer.renderLists) {
+        renderer.renderLists.dispose();
+      }
     }
 
     // =============================================================
@@ -2192,10 +2234,15 @@ function initViewport() {
               showError('Failed to fetch file stream: ' + err.message);
             });
         } else if (msg.action === 'CANCEL' || msg.action === 'DISPOSE') {
+          if (workerIdleTimer) {
+            clearTimeout(workerIdleTimer);
+            workerIdleTimer = null;
+          }
           if (loadTimer) {
             clearInterval(loadTimer);
             loadTimer = null;
           }
+          pendingFileBuffer = null;
           if (currentWorker) {
             currentWorker.terminate();
             currentWorker = null;
@@ -2238,6 +2285,15 @@ window._getWorkerDispatchedLoadId = () => workerDispatchedLoadId;
 
 // Lifecycle cleanup function to prevent memory leaks on window close
 window.__cleanupViewer = function() {
+  if (workerIdleTimer) {
+    clearTimeout(workerIdleTimer);
+    workerIdleTimer = null;
+  }
+  if (loadTimer) {
+    clearInterval(loadTimer);
+    loadTimer = null;
+  }
+  pendingFileBuffer = null;
   if (stlWorker) {
     stlWorker.terminate();
     stlWorker = null;
@@ -2255,10 +2311,21 @@ window.__cleanupViewer = function() {
     cancelAnimationFrame(animFrameId);
     animFrameId = null;
   }
+  if (typeof clearModel === 'function') {
+    clearModel();
+  }
+  if (typeof studioEnvTexture !== 'undefined' && studioEnvTexture) {
+    studioEnvTexture.dispose();
+    studioEnvTexture = null;
+  }
+  if (typeof scene !== 'undefined' && scene) {
+    scene.environment = null;
+  }
   if (typeof controls !== 'undefined' && controls && typeof controls.dispose === 'function') {
     controls.dispose();
   }
   if (typeof renderer !== 'undefined' && renderer) {
+    if (renderer.renderLists) renderer.renderLists.dispose();
     renderer.dispose();
     renderer.forceContextLoss();
   }

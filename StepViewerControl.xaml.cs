@@ -279,6 +279,7 @@ namespace QuickLook.Plugin.StepViewer
                 if (WebViewControl != null)
                 {
                     if (WebViewControl.CoreWebView2 != null) WebViewControl.CoreWebView2.Stop();
+                    WebViewControl.CoreWebView2?.Navigate("about:blank");
                     WebViewControl.Dispose();
                 }
             }

@@ -503,17 +503,28 @@
   function updateComReadout(com) {
     const readout = document.getElementById('com-coords-readout');
     if (!readout || !com) return;
+    const fallbackMeta = {
+      mm: { label: 'mm', factor: 1, decimals: 2 },
+      cm: { label: 'cm', factor: 0.1, decimals: 2 },
+      m: { label: 'm', factor: 0.001, decimals: 4 },
+      in: { label: 'in', factor: 1 / 25.4, decimals: 3 },
+      ft: { label: 'ft', factor: 1 / 304.8, decimals: 4 }
+    };
     const unitVal = typeof currentUnit !== 'undefined' ? currentUnit : (window.currentUnit || 'mm');
-    const u = unitVal === 'in' ? 'in' : 'mm';
-    const factor = (u === 'in') ? 1 / 25.4 : 1.0;
+    const meta = (typeof window !== 'undefined' && window.CadState && typeof window.CadState.getUnitMeta === 'function')
+      ? window.CadState.getUnitMeta(unitVal)
+      : (fallbackMeta[unitVal] || fallbackMeta.mm);
+    const u = meta.label;
+    const factor = meta.factor;
+    const dec = meta.decimals;
     const massKg = typeof com.totalMassKg === 'number' ? com.totalMassKg : 0;
     const massText = massKg >= 1
       ? `${massKg.toFixed(2)} kg`
       : `${(massKg * 1000).toFixed(1)} g`;
     readout.innerHTML = `
-      <span style="color:#ef4444;">X: ${(com.x * factor).toFixed(2)}</span>
-      <span style="color:#22c55e; margin-left: 6px;">Y: ${(com.y * factor).toFixed(2)}</span>
-      <span style="color:#38bdf8; margin-left: 6px;">Z: ${(com.z * factor).toFixed(2)} ${u}</span>
+      <span style="color:#ef4444;">X: ${(com.x * factor).toFixed(dec)}</span>
+      <span style="color:#22c55e; margin-left: 6px;">Y: ${(com.y * factor).toFixed(dec)}</span>
+      <span style="color:#38bdf8; margin-left: 6px;">Z: ${(com.z * factor).toFixed(dec)} ${u}</span>
       <span style="color:#eab308; margin-left: 8px;">M: ${massText}</span>
     `;
   }

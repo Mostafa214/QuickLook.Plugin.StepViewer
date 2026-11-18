@@ -794,11 +794,34 @@
     }
 
     function _formatDim(mmVal) {
+      if (typeof window !== 'undefined' && window.CadState && typeof window.CadState.formatLength === 'function') {
+        return window.CadState.formatLength(mmVal);
+      }
       if (typeof formatDim === 'function') return formatDim(mmVal);
       if (typeof window !== 'undefined' && typeof window.formatDim === 'function') return window.formatDim(mmVal);
       const unit = (typeof currentUnit !== 'undefined' ? currentUnit : (typeof window !== 'undefined' && window.currentUnit ? window.currentUnit : 'mm'));
-      if (unit === 'in') return `${(mmVal / 25.4).toFixed(3)} in`;
-      return `${Number(mmVal).toFixed(2)} mm`;
+      const fallback = {
+        mm: { factor: 1, decimals: 2, label: 'mm' },
+        cm: { factor: 0.1, decimals: 2, label: 'cm' },
+        m: { factor: 0.001, decimals: 4, label: 'm' },
+        in: { factor: 1 / 25.4, decimals: 3, label: 'in' },
+        ft: { factor: 1 / 304.8, decimals: 4, label: 'ft' }
+      }[unit] || { factor: 1, decimals: 2, label: 'mm' };
+      return `${(Number(mmVal) * fallback.factor).toFixed(fallback.decimals)} ${fallback.label}`;
+    }
+
+    function _formatArea(areaMm2) {
+      if (typeof window !== 'undefined' && window.CadState && typeof window.CadState.formatArea === 'function') {
+        return window.CadState.formatArea(areaMm2);
+      }
+      if (typeof formatArea === 'function') return formatArea(areaMm2);
+      if (typeof window !== 'undefined' && typeof window.formatArea === 'function') return window.formatArea(areaMm2);
+      const unit = (typeof currentUnit !== 'undefined' ? currentUnit : (typeof window !== 'undefined' && window.currentUnit ? window.currentUnit : 'mm'));
+      if (unit === 'in') return `${(areaMm2 / 645.16).toFixed(3)} in²`;
+      if (unit === 'cm') return `${(areaMm2 / 100).toFixed(2)} cm²`;
+      if (unit === 'm') return `${(areaMm2 / 1e6).toFixed(4)} m²`;
+      if (unit === 'ft') return `${(areaMm2 / 92903.04).toFixed(4)} ft²`;
+      return `${areaMm2.toFixed(1)} mm² (${(areaMm2 / 100).toFixed(2)} cm²)`;
     }
 
     function _escapeHtml(str) {
@@ -1493,15 +1516,10 @@
             else orient = `[${n.x.toFixed(2)}, ${n.y.toFixed(2)}, ${n.z.toFixed(2)}]`;
 
             const areaVal = snap.areaMm2 || 0;
-            const areaStr = areaVal > 0.01 ? 
-              (currentUnit === 'mm' ? 
-                `${areaVal.toFixed(1)} mm² (${(areaVal / 100).toFixed(2)} cm²)` : 
-                `${(areaVal / 645.16).toFixed(3)} in²`) : 'Solid Face';
+            const areaStr = areaVal > 0.01 ? _formatArea(areaVal) : 'Solid Face';
 
             // Add prominent 3D text sprite directly above the face point
-            const faceBadgeText = areaVal > 0.01 ? 
-              (currentUnit === 'mm' ? `Area: ${areaVal.toFixed(1)} mm²` : `Area: ${(areaVal / 645.16).toFixed(2)} in²`) : 
-              `Face (${orient})`;
+            const faceBadgeText = areaVal > 0.01 ? `Area: ${_formatArea(areaVal)}` : `Face (${orient})`;
             const faceSprite = createTextSprite(faceBadgeText);
             const vFovRad = THREE.MathUtils.degToRad(camera.fov);
             const distToCam = camera.position.distanceTo(snap.point);

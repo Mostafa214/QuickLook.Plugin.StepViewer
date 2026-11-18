@@ -292,22 +292,43 @@
     showHiddenLines: true
   };
 
+  const _BP_UNIT_FALLBACK = {
+    mm: { id: 'mm', label: 'mm', fullName: 'MILLIMETERS', factor: 1, decimals: 2 },
+    cm: { id: 'cm', label: 'cm', fullName: 'CENTIMETERS', factor: 0.1, decimals: 2 },
+    m: { id: 'm', label: 'm', fullName: 'METERS', factor: 0.001, decimals: 4 },
+    in: { id: 'in', label: 'in', fullName: 'INCHES', factor: 1 / 25.4, decimals: 3 },
+    ft: { id: 'ft', label: 'ft', fullName: 'FEET', factor: 1 / 304.8, decimals: 4 }
+  };
+
   function resolveActiveUnit(explicitUnit) {
-    if (explicitUnit === 'in' || explicitUnit === 'mm') return explicitUnit;
-    if (typeof window !== 'undefined' && (window.currentUnit === 'in' || window.currentUnit === 'mm')) {
-      return window.currentUnit;
+    const normalize = (u) => (typeof u === 'string' ? u.trim().toLowerCase() : '');
+    const exp = normalize(explicitUnit);
+    if (_BP_UNIT_FALLBACK[exp]) return exp;
+    if (typeof window !== 'undefined') {
+      const wu = normalize(window.currentUnit);
+      if (_BP_UNIT_FALLBACK[wu]) return wu;
     }
-    if (typeof currentUnit !== 'undefined' && (currentUnit === 'in' || currentUnit === 'mm')) {
-      return currentUnit;
+    if (typeof currentUnit !== 'undefined') {
+      const cu = normalize(currentUnit);
+      if (_BP_UNIT_FALLBACK[cu]) return cu;
     }
     return 'mm';
   }
 
-  function formatDimension(mmValue, unit) {
-    if (unit === 'in') {
-      return `${(mmValue / 25.4).toFixed(2)} in`;
+  function getBlueprintUnitMeta(unit) {
+    const u = resolveActiveUnit(unit);
+    if (typeof window !== 'undefined' && window.CadState && typeof window.CadState.getUnitMeta === 'function') {
+      return window.CadState.getUnitMeta(u);
     }
-    return `${mmValue.toFixed(1)} mm`;
+    return _BP_UNIT_FALLBACK[u] || _BP_UNIT_FALLBACK.mm;
+  }
+
+  function formatDimension(mmValue, unit) {
+    if (typeof window !== 'undefined' && window.CadState && typeof window.CadState.formatLength === 'function') {
+      return window.CadState.formatLength(mmValue, unit);
+    }
+    const meta = getBlueprintUnitMeta(unit);
+    return `${(mmValue * meta.factor).toFixed(meta.decimals)} ${meta.label}`;
   }
 
   function generateBlueprintSvg(options) {
@@ -662,10 +683,12 @@ ${visibleEdgesSvg}    </g>
       <line x1="28" y1="4" x2="28" y2="24" stroke="#94a3b8" stroke-width="0.5" stroke-dasharray="3,1.5"/>
     </g>`;
 
-      const boundsText = unit === 'in'
-        ? `${(size.x / 25.4).toFixed(2)} × ${(size.y / 25.4).toFixed(2)} × ${(size.z / 25.4).toFixed(2)} in`
-        : `${size.x.toFixed(1)} × ${size.y.toFixed(1)} × ${size.z.toFixed(1)} mm`;
-      const unitsLabelText = unit === 'in' ? 'INCHES' : 'MILLIMETERS';
+      const bpMeta = getBlueprintUnitMeta(unit);
+      const bx = (size.x * bpMeta.factor).toFixed(bpMeta.decimals);
+      const by = (size.y * bpMeta.factor).toFixed(bpMeta.decimals);
+      const bz = (size.z * bpMeta.factor).toFixed(bpMeta.decimals);
+      const boundsText = `${bx} × ${by} × ${bz} ${bpMeta.label}`;
+      const unitsLabelText = bpMeta.fullName;
 
       svgContent += `
   <!-- ================= ISO 7200 Engineering Title Block ================= -->

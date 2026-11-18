@@ -24,7 +24,7 @@
       const raw = (typeof localStorage !== 'undefined' && localStorage) ? localStorage.getItem(PREFS_KEY) : null;
       const parsed = raw ? JSON.parse(raw) : {};
       return {
-        defaultUnit: parsed.defaultUnit === 'in' ? 'in' : 'mm',
+        defaultUnit: ['mm', 'cm', 'm', 'in', 'ft'].includes(parsed.defaultUnit) ? parsed.defaultUnit : 'mm',
         showHlrEdges: typeof parsed.showHlrEdges === 'boolean' ? parsed.showHlrEdges : true,
         defaultCameraMode: parsed.defaultCameraMode === 'persp' ? 'persp' : 'ortho',
         theme: parsed.theme === 'light' ? 'light' : 'dark'
@@ -49,12 +49,88 @@
     return next;
   }
 
+  function syncUnitUi(unit) {
+    const meta = (window.CadState && typeof window.CadState.getUnitMeta === 'function')
+      ? window.CadState.getUnitMeta(unit)
+      : { id: unit || 'mm', label: unit || 'mm', badge: String(unit || 'mm').toUpperCase(), fullName: String(unit || 'mm').toUpperCase(), color: '#38bdf8' };
+
+    const btn = document.getElementById('btn-units');
+    if (btn) {
+      const span = document.getElementById('unit-indicator') || (typeof btn.querySelector === 'function' ? btn.querySelector('span') : null);
+      if (span) {
+        span.innerText = meta.badge;
+        if (span.style) span.style.color = meta.color;
+      }
+      btn.title = `Units: ${meta.fullName} — Cycle (mm / cm / m / in / ft) [U]`;
+    }
+
+    const secUnitEl = document.getElementById('sec-offset-unit');
+    if (secUnitEl) {
+      secUnitEl.innerText = meta.label;
+    }
+
+    if (typeof window.updateBoundingBoxBadge === 'function') {
+      window.updateBoundingBoxBadge();
+    }
+    if (typeof window.updatePhysicalPropertiesCard === 'function') {
+      window.updatePhysicalPropertiesCard();
+    }
+    if (Array.isArray(window.selectedCadEntities) && window.selectedCadEntities.length > 0 &&
+        typeof window.clearMeasurement === 'function' && typeof window.handleUnifiedClick === 'function') {
+      const ents = [...window.selectedCadEntities];
+      window.clearMeasurement(false);
+      ents.forEach(e => window.handleUnifiedClick(e));
+    }
+    if (window.isSectionActive && typeof window.updateSectionPlane === 'function') {
+      window.updateSectionPlane();
+    }
+    if (window.CadAnalysis && typeof window.CadAnalysis.isComActive === 'function' && window.CadAnalysis.isComActive()) {
+      window.CadAnalysis.refreshCoM();
+    }
+  }
+
+  function installMultiUnitFormatters() {
+    if (!window.CadState) return;
+    window.formatDim = (mmVal) => window.CadState.formatLength(mmVal);
+    window.formatCoord = (mmVal) => {
+      const meta = window.CadState.getUnitMeta();
+      const n = Number(mmVal);
+      return (isFinite(n) ? (n * meta.factor) : 0).toFixed(meta.decimals);
+    };
+    window.formatCircleDim = (diameter, radius) => {
+      const meta = window.CadState.getUnitMeta();
+      const d = (typeof diameter === 'number' && !isNaN(diameter)) ? diameter : 0;
+      const r = (typeof radius === 'number' && !isNaN(radius)) ? radius : (d / 2);
+      return `Ø ${(d * meta.factor).toFixed(meta.decimals)} ${meta.label} (R ${(r * meta.factor).toFixed(meta.decimals)})`;
+    };
+    window.formatArea = (areaMm2) => window.CadState.formatArea(areaMm2);
+  }
+
+  function cycleUnitsMulti() {
+    const next = (window.CadState && typeof window.CadState.cycleCurrentUnit === 'function')
+      ? window.CadState.cycleCurrentUnit()
+      : 'mm';
+    syncUnitUi(next);
+    savePreferences({ defaultUnit: next });
+    return next;
+  }
+
   function setupPreferencePersistence() {
+    installMultiUnitFormatters();
+
+    // Replace materialsEngine's 2-unit toggleUnits with 5-unit cycler, while preserving
+    // custom unit-toggle mocks in isolated unit tests.
+    if (typeof window.toggleUnits !== 'function' || window.toggleUnits.toString().includes('updateBoundingBoxBadge')) {
+      window.toggleUnits = cycleUnitsMulti;
+      window.toggleUnits._isPrefsHooked = true;
+    }
+
     if (typeof window.toggleUnits === 'function' && !window.toggleUnits._isPrefsHooked) {
       const origToggleUnits = window.toggleUnits;
       const hookedToggleUnits = function () {
         const ret = origToggleUnits.apply(this, arguments);
         const unit = (typeof window.currentUnit === 'string') ? window.currentUnit : 'mm';
+        syncUnitUi(unit);
         savePreferences({ defaultUnit: unit });
         return ret;
       };
@@ -66,8 +142,13 @@
     if (btnUnits && !btnUnits._isPrefsBound) {
       btnUnits._isPrefsBound = true;
       btnUnits.addEventListener('click', () => {
-        const unit = (typeof window.currentUnit === 'string') ? window.currentUnit : 'mm';
-        savePreferences({ defaultUnit: unit });
+        if (typeof window.updatePhysicalPropertiesCard !== 'function' && typeof window.toggleUnits === 'function') {
+          window.toggleUnits();
+        } else {
+          const unit = (typeof window.currentUnit === 'string') ? window.currentUnit : 'mm';
+          syncUnitUi(unit);
+          savePreferences({ defaultUnit: unit });
+        }
       });
     }
 
@@ -127,9 +208,14 @@
       }
 
       const curUnit = (typeof window.currentUnit === 'string') ? window.currentUnit : 'mm';
-      if (prefs.defaultUnit !== curUnit && typeof window.toggleUnits === 'function') {
-        window.toggleUnits();
+      if (prefs.defaultUnit && prefs.defaultUnit !== curUnit) {
+        if (window.CadState && typeof window.CadState.setCurrentUnit === 'function') {
+          window.CadState.setCurrentUnit(prefs.defaultUnit);
+        } else {
+          window.currentUnit = prefs.defaultUnit;
+        }
       }
+      syncUnitUi(prefs.defaultUnit || curUnit);
 
       const btnEdges = document.getElementById('btn-edges');
       if (btnEdges && prefs.showHlrEdges === false && btnEdges.classList.contains('active')) {
