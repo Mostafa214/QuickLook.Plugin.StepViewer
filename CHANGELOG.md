@@ -21,8 +21,10 @@ All notable changes to **QuickLook.Plugin.StepViewer** are documented in this fi
   - Replaced bounding-box Center of Mass approximations with exact signed-tetrahedron volumetric centroid summation integrated with `MaterialsEngine`.
   - Added **BVH-Accelerated Hidden Line Removal (HLR)** and an interactive **2D Blueprint Studio Live Preview Modal** supporting First-Angle / Third-Angle projection, hidden line toggling, and Metric / Imperial units.
   - Offloaded STL parsing and `MeshFeatureDetector` to `Assets/stlWorker.js` using Zero-Copy `Transferable` `Float32Array` buffers.
-- **Dual-Theme Engineering Studio:**
+- **Dual-Theme Engineering Studio, RealView & Original CAD Colors:**
   - Added **Light Engineering Workbench** theme alongside **Dark CAD Studio**, paired with an interactive 3D ViewCube.
+  - Added **RealView Studio** toolbar mode (`#btn-realview`) boosting PMREM environment reflections, `ACESFilmic` exposure, PBR metallic/roughness response, and grounded floor shadows across both live viewport and Snapshot exports.
+  - Added native **STEP AP214/AP242 per-face colors** (`brepFaces` vertex colors) and **SolidWorks appearance color** extraction with clean per-body override and 1-click Reset.
 
 ### Changed & Fixed
 - **Phase 1 — Critical Bug Fixes, Memory Leaks & Security Hardening:**

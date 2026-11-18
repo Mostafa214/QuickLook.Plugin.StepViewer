@@ -29,8 +29,10 @@ Open native SolidWorks parts and assemblies directly from Windows Explorer—no 
 
 ---
 
-### 2. 🎨 Dual-Theme Engineering Studio & Interactive ViewCube
+### 2. 🎨 Dual-Theme Engineering Studio, RealView & Interactive ViewCube
 * **Dark CAD Studio & Light Engineering Workbench:** Switch seamlessly between a high-contrast dark studio and a crisp light engineering workbench (`localStorage`-persisted theme, units, HLR edges, and camera projection preferences).
+* **RealView Studio Mode:** One-click toolbar toggle (`RealView`) elevating PMREM studio environment reflections, `ACESFilmic` exposure, PBR metallic/roughness sheen, and grounded floor shadows — carried directly into Snapshot exports.
+* **Native STEP Per-Face & SolidWorks Appearance Colors:** Preserves original STEP AP214/AP242 per-face colors (`STYLED_ITEM`) and SolidWorks appearance colors on load, while allowing per-body material overrides and 1-click Reset.
 * **3D ViewCube Navigation:** Clickable interactive orientation cube with hover highlights and smooth camera tweening across Isometric, Top, Front, Right, Back, Left, and Bottom views.
 
 ![Light Engineering Workbench with 3D Printability Diagnostics](docs/images/v3_light_workbench_printability.png)
