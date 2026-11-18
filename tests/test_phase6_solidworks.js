@@ -245,8 +245,11 @@ async function run() {
 
   for (const item of REAL_FILES) {
     const fullPath = path.join(SAMPLES_DIR, item.rel);
+    if (!fs.existsSync(fullPath)) {
+      console.log(`  [SKIP] Parse real SolidWorks file: ${item.rel} (optional local fixture not present)`);
+      continue;
+    }
     await test(`Parse real SolidWorks file: ${item.rel}`, async () => {
-      assert.ok(fs.existsSync(fullPath), `Sample file missing: ${fullPath}`);
       const buf = fs.readFileSync(fullPath);
       const res = await SolidWorksLoader.parse(
         buf,
@@ -325,16 +328,31 @@ async function run() {
     assertValidMesh(res.meshes[0], 'legacy2014');
   });
 
-  await test('Web Worker (Assets/solidworksWorker.js) parses SLDASM with sibling fetch & transferable dedup', async () => {
+  await test('Modern 2015+ synthetic container parses DisplayLists tessellation', async () => {
+    const tableBuf = buildMinimalTableBuffer();
+    const container = buildSynthetic2015Container([
+      { name: 'Contents/DisplayLists', payload: tableBuf }
+    ]);
+    const res = await SolidWorksLoader.parse(container, 'modern2015.SLDPRT');
+    assert.strictEqual(res.format, 'SLDPRT');
+    assert.strictEqual(res.meshCount, 1);
+    assert.strictEqual(res.totalTriangles, 2);
+    assertValidMesh(res.meshes[0], 'modern2015');
+  });
+
+  await test('Web Worker (Assets/solidworksWorker.js) parses SolidWorks & deduplicates transferables', async () => {
     const harness = createMockWorkerHarness(swDir);
     const asmPath = path.join(SAMPLES_DIR, 'Mk.2', 'MARK 2 ASM.SLDASM');
-    const buf = fs.readFileSync(asmPath);
+    const useReal = fs.existsSync(asmPath);
+    const buf = useReal
+      ? fs.readFileSync(asmPath)
+      : buildSynthetic2015Container([{ name: 'Contents/DisplayLists', payload: buildMinimalTableBuffer() }]);
     const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
 
     await harness.send({
       type: 'PARSE_SOLIDWORKS',
       buffer: ab,
-      fileName: 'MARK 2 ASM.SLDASM',
+      fileName: useReal ? 'MARK 2 ASM.SLDASM' : 'synthetic_worker.SLDPRT',
       loadId: 42
     });
 
@@ -342,7 +360,7 @@ async function run() {
     const { msg, transferables } = harness.postedMessages[0];
     assert.strictEqual(msg.type, 'SOLIDWORKS_PARSE_SUCCESS');
     assert.strictEqual(msg.loadId, 42);
-    assert.ok(msg.result.meshCount >= 10);
+    assert.ok(msg.result.meshCount >= (useReal ? 10 : 1));
     assert.ok(msg.result.totalTriangles > 0);
     assert.ok(msg.result.meshes[0]._featuresDetected === true);
     assert.ok(transferables.length > 0);
