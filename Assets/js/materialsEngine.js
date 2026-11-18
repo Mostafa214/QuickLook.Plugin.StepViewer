@@ -18,6 +18,9 @@
       if (isSectionActive) {
         updateSectionPlane();
       }
+      if (window.CadAnalysis && typeof window.CadAnalysis.isComActive === 'function' && window.CadAnalysis.isComActive()) {
+        window.CadAnalysis.refreshCoM();
+      }
     }
 
 
@@ -395,19 +398,42 @@
         (m.category && m.category.toLowerCase().includes(term))
       );
 
+      const esc = typeof window.escapeHtml === 'function'
+        ? window.escapeHtml
+        : (s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'));
+
+      if (!listEl.dataset.boundMatClick) {
+        listEl.dataset.boundMatClick = '1';
+        listEl.addEventListener('click', (e) => {
+          const delBtn = e.target.closest('.btn-mat-del');
+          if (delBtn && delBtn.dataset.matId) {
+            e.stopPropagation();
+            deleteCustomMaterial(delBtn.dataset.matId, e);
+            return;
+          }
+          const item = e.target.closest('.mat-item');
+          if (item && item.dataset.matId) {
+            selectMaterial(item.dataset.matId);
+          }
+        });
+      }
+
       let html = '';
       filtered.forEach(m => {
         const massG = volCm3 * m.density;
         const wtStr = formatWeightValue(massG);
         const isActive = (m.id === selectedMaterialId);
+        const safeId = esc(m.id);
+        const safeName = esc(m.name);
+        const safeStd = esc(m.std);
         const customBadge = m.isCustom ? '<span class="mat-tag-custom">Custom</span>' : '';
-        const delBtn = m.isCustom ? `<button class="btn-mat-del" onclick="deleteCustomMaterial('${m.id}', event)" title="Delete Custom Material">✕</button>` : '';
+        const delBtn = m.isCustom ? `<button class="btn-mat-del" data-mat-id="${safeId}" title="Delete Custom Material">✕</button>` : '';
 
         html += `
-          <div class="mat-item ${isActive ? 'active' : ''}" onclick="selectMaterial('${m.id}')">
+          <div class="mat-item ${isActive ? 'active' : ''}" data-mat-id="${safeId}">
             <div class="mat-item-info">
-              <div class="mat-item-name">${m.name} ${customBadge}</div>
-              <div class="mat-item-std">${m.std} &bull; ${formatDensityValue(m.density)}</div>
+              <div class="mat-item-name">${safeName} ${customBadge}</div>
+              <div class="mat-item-std">${safeStd} &bull; ${formatDensityValue(m.density)}</div>
             </div>
             <div class="mat-item-right">
               <div class="mat-item-weight">${wtStr}</div>

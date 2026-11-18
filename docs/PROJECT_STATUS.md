@@ -2,8 +2,8 @@
 
 ## 1. Project Overview & Architecture
 - **Repository:** `Mostafa214/QuickLook.Plugin.StepViewer` (Public on GitHub)
-- **Current Stable Release:** `v1.1.0` (Live on GitHub Releases)
-- **Next Target Release:** `v2.0.0` (Unified Engineering Workbench UI Overhaul)
+- **Current Stable Release:** `v2.0.0` (Unified Engineering Workbench UI Overhaul — Live on GitHub Releases)
+- **Active Effort:** Post-v2.0.0 Stability, Security, Visual Polish & Repository Hygiene (Phases 1–2 Cleanup Underway)
 - **Stack:** C# .NET Framework 4.8, WPF, Microsoft Edge WebView2, Three.js r128, OpenCASCADE.js WebAssembly (OCCT 7.7MB).
 - **Core Pattern:** QuickLook Plugin Architecture (`IViewer`), Virtual Host HTTPS Mapping (`https://step-viewer.local/`), Dedicated Web Worker (`stepWorker.js`), IndexedDB WASM Bytecode & Geometry Caching (`_v4`).
 
@@ -37,30 +37,34 @@
 | **23** | Slice 3: Front-End Modularization (<450 lines) & UI Overhaul | DONE | `Assets/viewer.html` (335L), `Assets/css/viewer.css`, `Assets/js/*.js` (10 engines <500L) | Linear Dark UI & Clean Build Verification | 2026-11-01 |
 | **24** | Slice 4: xUnit Test Harness & Portable Automation | DONE | `tests/QuickLook.Plugin.StepViewer.Tests.csproj`, `tests/*.cs` (3 test suites) | `dotnet test` (53/53 Passed 100%) | 2026-11-01 |
 | **25** | Slice 5: Resource Leak Remediation & Anti-Laziness Clean | DONE | `Plugin.cs`, `Assets/js/viewerApp.js`, `StepViewerControl.xaml.cs` | WPF & JS Lifecycle Disposed (0 Leaks, Catch Logged) | 2026-11-01 |
+| **26** | v2.0.0 Release & Engineering Workbench Deployment | DONE | `QuickLook.Plugin.Metadata.config`, `release_notes_v2.0.0.md`, `Assets/viewer.html` | `gh release create v2.0.0` (Live on GitHub) | 2026-11-10 |
+| **27** | Phases 1–2 Stabilization, Security, UI Polish & Repo Hygiene | IN PROGRESS | `*.cs`, `Assets/*`, `tests/*`, `README.md`, `docs/PROJECT_STATUS.md` | `dotnet test`, Node.js core suites & visual audit | — |
 
 ---
 
 ## 3. Current State & Active Context
-- **Deployed Version:** `v1.1.0` is published and live on GitHub with attached `QuickLook.Plugin.StepViewer.qlplugin` (3.71 MB).
-- **v2.0 Refactor Status:** 100% COMPLETE (Slices 1 through 5 fully implemented and verified).
+- **Deployed Version:** `v2.0.0` is published and live on GitHub with attached `QuickLook.Plugin.StepViewer.qlplugin`.
+- **v2.0.0 Refactor & Release:** 100% COMPLETE (Slices 1 through 5 implemented, verified, and released as `v2.0.0`).
   - Slice 1 (IPC Security & Typed DTOs): Microsoft `System.Text.Json` (v8.0.5), RFC 8259 sanitization, non-object JSON root handling.
-  - Slice 2 (C# Adapter Decomposition): `StepViewerControl.xaml.cs` reduced to 243 lines (<280L ceiling) via dedicated services (`WebViewEnvironmentManager`, `PluginUpdateService`, `SnapshotExportService`).
-  - Slice 3 (Front-End Modularization & Linear Dark UI): `Assets/viewer.html` reduced to 322 lines (<450L ceiling), CSS extracted to `Assets/css/viewer.css`, 10 engines extracted to `Assets/js/*.js` (all <500L ceiling).
-  - Slice 4 (xUnit Test Harness): `QuickLook.Plugin.StepViewer.Tests.csproj` with 53 automated tests (100% pass rate in CI/local).
+  - Slice 2 (C# Adapter Decomposition): `StepViewerControl.xaml.cs` reduced via dedicated services (`WebViewEnvironmentManager`, `PluginUpdateService`, `SnapshotExportService`).
+  - Slice 3 (Front-End Modularization & Linear Dark UI): `Assets/viewer.html`, `Assets/css/viewer.css`, and modular `Assets/js/*.js` engines.
+  - Slice 4 (xUnit Test Harness): `QuickLook.Plugin.StepViewer.Tests.csproj` with automated C# unit/adversarial tests.
   - Slice 5 (Resource Leak Remediation): DispatcherTimer cleanup, `cancelAnimationFrame` loop cancellation, WebGL context loss disposal, structured error logging across all catch blocks.
-- **Packaging:** Automated via `pack-plugin.ps1`, generating compliant `QuickLook.Plugin.StepViewer.qlplugin` (4.1 MB).
+- **Active Work (Phases 1–2 Cleanup):**
+  - Phase 1–2 C# host fixes, JS engine bug/leak/XSS fixes, visual polish (`viewer.html` & `viewer.css`), and repository hygiene (removing ~88 obsolete ad-hoc test scripts & 4 stale root audit reports, syncing `README.md` shortcuts & `docs/PROJECT_STATUS.md`).
+- **Packaging:** Automated via `pack-plugin.ps1`, generating compliant `QuickLook.Plugin.StepViewer.qlplugin`.
 - **Core Architecture Memory:**
-  - `docs/PROJECT_SPEC.md`: Master project specification updated with all v1.1.0 capabilities and v2.0 roadmap.
-  - `docs/PROJECT_STATUS.md`: Living status board tracking all 25 phases.
+  - `docs/PROJECT_SPEC.md`: Master project specification.
+  - `docs/PROJECT_STATUS.md`: Living status board tracking all phases.
   - `docs/MASTER_REFACTOR_PLAN.md`: Comprehensive industrial refactoring roadmap and architecture blueprint.
   - `docs/adr/`: Architecture Decision Records (`0001` through `0007`).
   - `GLOSSARY.md`: Standard domain language covering B-Rep, HLR, Stencil Capping, NavCube, and Zero-Copy.
-  - `.agent/error_log.md`: Root cause analysis and verified fixes for all 9 encountered bugs.
+  - `.agent/error_log.md`: Root cause analysis and verified fixes.
 
 ---
 
 ## 4. Immediate Next Step (For Fresh Sessions)
-- Ground opening response directly in:
-  1. Local manual smoke testing in QuickLook host via `powershell -ExecutionPolicy Bypass -File .\pack-plugin.ps1 -Install -RestartQuickLook`.
-  2. Bump version to `2.0.0` in `QuickLook.Plugin.Metadata.config` and `Assets/viewer.html` upon release sign-off.
-  3. Git staging and commit of v2.0 refactor tree.
+- Complete Phases 1–2 verification:
+  1. Run `dotnet test tests/QuickLook.Plugin.StepViewer.Tests.csproj` (0 failures, 0 warnings).
+  2. Run core Node.js test suites (`tests/test_stl_parser.js`, `tests/test_mesh_feature_detector.js`, `tests/test_blueprint_v36_multiformat.js`, `tests/test_sec01_sec04_sanitization.js`, `tests/run_all_stl_e2e_tests.js`).
+  3. Local smoke testing in QuickLook host via `powershell -ExecutionPolicy Bypass -File .\pack-plugin.ps1 -Install -RestartQuickLook`.

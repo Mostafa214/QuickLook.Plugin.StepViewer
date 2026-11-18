@@ -33,6 +33,7 @@ Agents/
 # Screenshots and Test Captures
 tests/*.png
 *.png
+!docs/images/*.png
 
 # Private CAD Test Models
 Hosieni - Nar.stp

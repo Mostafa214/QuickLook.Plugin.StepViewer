@@ -91,13 +91,32 @@ namespace QuickLook.Plugin.StepViewer
     }
 
     /// <summary>
-    /// Sent by viewer.html:6106-6110 when requesting native Windows Clipboard copy.
+    /// Sent by viewer.html when requesting native Windows Clipboard copy.
     /// Payload: { type: 'COPY_SNAPSHOT_CLIPBOARD', action: 'COPY_SNAPSHOT_CLIPBOARD', data }
     /// </summary>
     public sealed class CopySnapshotMessage : InboundMessageBase
     {
         [JsonPropertyName("data")]
         public string Data { get; set; }
+    }
+
+    /// <summary>
+    /// Sent by viewerApp/modelExportEngine when requesting the host to export the 3D model
+    /// as Binary STL (.stl), Wavefront OBJ (.obj), or Binary glTF (.glb).
+    /// </summary>
+    public sealed class ExportModelMessage : InboundMessageBase
+    {
+        [JsonPropertyName("data")]
+        public string Data { get; set; }
+
+        [JsonPropertyName("format")]
+        public string Format { get; set; }
+
+        [JsonPropertyName("defaultName")]
+        public string DefaultName { get; set; }
+
+        [JsonPropertyName("targetPath")]
+        public string TargetPath { get; set; }
     }
 
     /// <summary>
@@ -244,6 +263,9 @@ namespace QuickLook.Plugin.StepViewer
 
                         case "COPY_SNAPSHOT_CLIPBOARD":
                             return JsonSerializer.Deserialize<CopySnapshotMessage>(json, IpcJsonOptions.Default);
+
+                        case "EXPORT_MODEL":
+                            return JsonSerializer.Deserialize<ExportModelMessage>(json, IpcJsonOptions.Default);
 
                         case "START_UPDATE_DOWNLOAD":
                         case "PERFORM_AUTO_UPDATE":

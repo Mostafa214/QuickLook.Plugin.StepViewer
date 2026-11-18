@@ -7,20 +7,38 @@
 // 1. Viewport Initialization, Studio Lighting, PMREM & Worker Bridge
     // 1. Initialize Three.js Viewport
         let currentWorker = null;
+    let stlWorker = null;
+    let solidworksWorker = null;
     let workerReady = false;
     let pendingFileBuffer = null;
     let pendingFileName = '';
     let activeCadFormat = 'STEP';
     let activeLoadId = 0;
     let workerDispatchedLoadId = 0;
+    let animFrameId = null;
 
     function detectCadFormat(name) {
       if (!name) return 'STEP';
       const ext = name.toLowerCase().split('.').pop();
       if (ext === 'stl') return 'STL';
+      if (ext === '3mf') return '3MF';
+      if (ext === 'obj') return 'OBJ';
+      if (ext === 'ply') return 'PLY';
+      if (ext === 'glb') return 'GLB';
+      if (ext === 'gltf') return 'GLTF';
       if (ext === 'iges' || ext === 'igs') return 'IGES';
       if (ext === 'brep') return 'BREP';
+      if (ext === 'sldprt') return 'SLDPRT';
+      if (ext === 'sldasm') return 'SLDASM';
       return 'STEP';
+    }
+
+    function isSolidWorksFormat(fmt) {
+      return fmt === 'SLDPRT' || fmt === 'SLDASM';
+    }
+
+    function isDirectMeshFormat(fmt) {
+      return fmt === '3MF' || fmt === 'OBJ' || fmt === 'PLY' || fmt === 'GLB' || fmt === 'GLTF';
     }
 
     function computeSafeCameraDistance(targetBox, padding = 1.25) {
@@ -260,7 +278,7 @@ function initViewport() {
     let activeCameraTween = null;
 
     // Smooth CAD View Interpolation (Spherical Geodesic Quaternion Slerp - Constant Orbit Radius)
-    function tweenCamera(targetPos, targetLookAt, targetUp = new THREE.Vector3(0, 1, 0), duration = 350) {
+    function tweenCamera(targetPos, targetLookAt, targetUp = new THREE.Vector3(0, 1, 0), duration = 350, targetZoom = null) {
       if (!camera || !controls) return;
 
       if (activeCameraTween) {
@@ -277,6 +295,8 @@ function initViewport() {
       const startTarget = controls.target.clone();
       const startPos = camera.position.clone();
       const startDist = Math.max(startPos.distanceTo(startTarget), 0.001);
+      const hasTargetZoom = !!(camera.isOrthographicCamera && typeof targetZoom === 'number' && isFinite(targetZoom) && targetZoom > 0);
+      const startZoom = hasTargetZoom ? (camera.zoom || 1) : 1;
 
       const endTarget = (targetLookAt ? targetLookAt.clone() : startTarget.clone());
       const endDist = Math.max(targetPos.distanceTo(endTarget), 0.001);
@@ -324,6 +344,10 @@ function initViewport() {
         controls.update();
         camera.quaternion.copy(curQuat);
         camera.position.copy(newPos);
+        if (hasTargetZoom) {
+          camera.zoom = THREE.MathUtils.lerp(startZoom, targetZoom, ease);
+          camera.updateProjectionMatrix();
+        }
 
         if (typeof window.updateViewCube === 'function') {
           window.updateViewCube();
@@ -529,7 +553,7 @@ function initViewport() {
     }
 
     function animate() {
-      requestAnimationFrame(animate);
+      animFrameId = requestAnimationFrame(animate);
       if (isAutoRotateActive && controls) {
         controls.autoRotate = true;
         controls.autoRotateSpeed = 2.0;
@@ -539,6 +563,9 @@ function initViewport() {
       if (controls) controls.update();
       updateScreenSpaceAnnotations();
       renderer.render(scene, camera);
+      if (window.AdminTwin && typeof window.AdminTwin.recordRenderFrame === 'function') {
+        window.AdminTwin.recordRenderFrame();
+      }
       drawTriad();
       if (typeof window.updateViewCube === "function") window.updateViewCube();
     }
@@ -609,7 +636,7 @@ function initViewport() {
             const fn = pendingFileName;
             pendingFileBuffer = null;
             startTessellation(buf, fn);
-          } else if (activeCadFormat !== 'STL') {
+          } else if (activeCadFormat !== 'STL' && !isSolidWorksFormat(activeCadFormat)) {
             const stEl = document.getElementById('status-text');
             if (stEl && (stEl.innerText === 'Initializing OpenCASCADE engine...' || !stEl.innerText)) {
               stEl.innerText = 'Ready for CAD files';
@@ -619,16 +646,16 @@ function initViewport() {
           }
         } else if (msg.type === 'PARSE_SUCCESS') {
           if (msg.loadId && msg.loadId !== activeLoadId) return;
-          if (workerDispatchedLoadId !== activeLoadId || activeCadFormat === 'STL') return;
+          if (workerDispatchedLoadId !== activeLoadId || activeCadFormat === 'STL' || isSolidWorksFormat(activeCadFormat)) return;
           window._lastTessellationElapsed = msg.elapsedMs;
           window._lastWasmSource = msg.wasmSource;
           onTessellationComplete(msg);
-          if (msg.cacheKey && msg.meshes) {
-            saveCachedModel(msg.cacheKey, msg, msg.bufferSize || 0);
+          if (msg.cacheKey && msg.meshes && window.AdminTwin && typeof window.AdminTwin.saveCachedModel === 'function') {
+            window.AdminTwin.saveCachedModel(msg.cacheKey, msg, msg.bufferSize || 0);
           }
         } else if (msg.type === 'PARSE_ERROR') {
           if (msg.loadId && msg.loadId !== activeLoadId) return;
-          if (workerDispatchedLoadId !== activeLoadId || activeCadFormat === 'STL') return;
+          if (workerDispatchedLoadId !== activeLoadId || activeCadFormat === 'STL' || isSolidWorksFormat(activeCadFormat)) return;
           showError('CAD Parse Error: ' + (msg.message || 'Unknown error'));
         }
       };
@@ -640,137 +667,81 @@ function initViewport() {
       currentWorker.postMessage({ type: 'INIT' });
     }
 
-    // =============================================================
-    // Smart Auto-Purging LRU Cache for Instant Previews (<0.02s)
-    // Strictly limited to Max 60 models or 300MB total space.
-    // =============================================================
-    const DB_NAME = 'QuickLook_StepCache';
-    const DB_VERSION = 1;
-    const STORE_NAME = 'models';
-    const MAX_CACHE_ENTRIES = 60;
-    const MAX_CACHE_BYTES = 300 * 1024 * 1024; // 300 MB cap
-
-    function openCacheDB() {
-      return new Promise((resolve) => {
-        if (!window.indexedDB) { resolve(null); return; }
-        try {
-          const req = indexedDB.open(DB_NAME, DB_VERSION);
-          req.onupgradeneeded = function (e) {
-            const db = e.target.result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-              const store = db.createObjectStore(STORE_NAME, { keyPath: 'key' });
-              store.createIndex('timestamp', 'timestamp', { unique: false });
-            }
-          };
-          req.onsuccess = function (e) { resolve(e.target.result); };
-          req.onerror = function () { resolve(null); };
-        } catch (e) {
-          resolve(null);
-        }
-      });
-    }
-
-    async function getCachedModel(key) {
-      try {
-        const db = await openCacheDB();
-        if (!db) return null;
-        return new Promise((resolve) => {
-          const tx = db.transaction(STORE_NAME, 'readonly');
-          const store = tx.objectStore(STORE_NAME);
-          const req = store.get(key);
-          req.onsuccess = function () {
-            const result = req.result;
-            if (result && result.meshes) {
-              updateCacheTimestamp(db, key);
-              resolve(result);
-            } else {
-              resolve(null);
-            }
-          };
-          req.onerror = function () { resolve(null); };
-        });
-      } catch (e) {
-        return null;
+    function initStlWorker() {
+      if (stlWorker) {
+        stlWorker.terminate();
       }
-    }
 
-    function updateCacheTimestamp(db, key) {
-      try {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        const req = store.get(key);
-        req.onsuccess = function () {
-          if (req.result) {
-            req.result.timestamp = Date.now();
-            store.put(req.result);
-          }
-        };
-      } catch (e) {}
-    }
+      stlWorker = new Worker('stlWorker.js');
 
-    async function saveCachedModel(key, modelData, byteLength) {
-      try {
-        const db = await openCacheDB();
-        if (!db) return;
-        await pruneCache(db);
+      stlWorker.onmessage = function (e) {
+        const msg = e.data;
+        if (!msg) return;
 
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        store.put({
-          key: key,
-          meshes: modelData.meshes,
-          meshCount: modelData.meshCount,
-          size: byteLength,
-          timestamp: Date.now()
-        });
-      } catch (e) {}
-    }
-
-    function pruneCache(db) {
-      return new Promise((resolve) => {
-        try {
-          const tx = db.transaction(STORE_NAME, 'readwrite');
-          const store = tx.objectStore(STORE_NAME);
-          const index = store.index('timestamp');
-          const req = index.getAll();
-          req.onsuccess = function () {
-            const items = req.result || [];
-            items.sort((a, b) => a.timestamp - b.timestamp);
-
-            let totalBytes = items.reduce((sum, item) => sum + (item.size || 0), 0);
-
-            // Evict oldest items if exceeding model count (60) or byte size (300 MB)
-            while (items.length >= MAX_CACHE_ENTRIES || totalBytes > MAX_CACHE_BYTES) {
-              const oldest = items.shift();
-              if (!oldest) break;
-              store.delete(oldest.key);
-              totalBytes -= (oldest.size || 0);
-            }
-            resolve();
-          };
-          req.onerror = function () { resolve(); };
-        } catch (e) {
-          resolve();
+        if (msg.type === 'STL_PARSE_SUCCESS') {
+          if (msg.loadId && msg.loadId !== activeLoadId) return;
+          if (activeCadFormat !== 'STL') return;
+          const res = msg.result;
+          if (res && msg.loadId && !res.loadId) res.loadId = msg.loadId;
+          onTessellationComplete(res);
+        } else if (msg.type === 'STL_PARSE_ERROR') {
+          if (msg.loadId && msg.loadId !== activeLoadId) return;
+          if (activeCadFormat !== 'STL') return;
+          showError('STL Parse Error: ' + (msg.message || 'Failed to parse STL file'));
+          const stEl = document.getElementById('status-text');
+          if (stEl) stEl.innerText = 'STL Parse Error';
+          const spEl = document.getElementById('spinner');
+          if (spEl) spEl.style.display = 'none';
         }
-      });
+      };
+
+      stlWorker.onerror = function (err) {
+        showError('STL Worker Error: ' + ((err && err.message) || 'Failed to execute STL worker'));
+        const stEl = document.getElementById('status-text');
+        if (stEl) stEl.innerText = 'STL Worker Error';
+        const spEl = document.getElementById('spinner');
+        if (spEl) spEl.style.display = 'none';
+      };
     }
 
-    function clearAllCache() {
-      return new Promise((resolve) => {
-        openCacheDB().then((db) => {
-          if (!db) { resolve(false); return; }
-          try {
-            const tx = db.transaction(STORE_NAME, 'readwrite');
-            const store = tx.objectStore(STORE_NAME);
-            const req = store.clear();
-            req.onsuccess = function () { resolve(true); };
-            req.onerror = function () { resolve(false); };
-          } catch (e) {
-            resolve(false);
-          }
-        });
-      });
+    function initSolidWorksWorker() {
+      if (solidworksWorker) {
+        solidworksWorker.terminate();
+      }
+
+      solidworksWorker = new Worker('solidworksWorker.js');
+
+      solidworksWorker.onmessage = function (e) {
+        const msg = e.data;
+        if (!msg) return;
+
+        if (msg.type === 'SOLIDWORKS_PARSE_SUCCESS') {
+          if (msg.loadId && msg.loadId !== activeLoadId) return;
+          if (!isSolidWorksFormat(activeCadFormat)) return;
+          const res = msg.result;
+          if (res && msg.loadId && !res.loadId) res.loadId = msg.loadId;
+          onTessellationComplete(res);
+        } else if (msg.type === 'SOLIDWORKS_PARSE_ERROR') {
+          if (msg.loadId && msg.loadId !== activeLoadId) return;
+          if (!isSolidWorksFormat(activeCadFormat)) return;
+          showError('SolidWorks Parse Error: ' + (msg.message || 'Failed to parse SolidWorks file'));
+          const stEl = document.getElementById('status-text');
+          if (stEl) stEl.innerText = 'SolidWorks Parse Error';
+          const spEl = document.getElementById('spinner');
+          if (spEl) spEl.style.display = 'none';
+        }
+      };
+
+      solidworksWorker.onerror = function (err) {
+        showError('SolidWorks Worker Error: ' + ((err && err.message) || 'Failed to execute SolidWorks worker'));
+        const stEl = document.getElementById('status-text');
+        if (stEl) stEl.innerText = 'SolidWorks Worker Error';
+        const spEl = document.getElementById('spinner');
+        if (spEl) spEl.style.display = 'none';
+      };
     }
+
+    // IndexedDB LRU Cache is owned by window.AdminTwin (adminTwin.js)
 
     // 3. Start CAD Tessellation (With Instant Cache & Live Progress Feedback)
     async function startTessellation(buffer, fileName) {
@@ -821,6 +792,23 @@ function initViewport() {
         const progressBar = document.getElementById('loading-progress-bar');
         if (progressBar) progressBar.style.display = 'none';
 
+        if (typeof Worker !== 'undefined') {
+          const stEl = document.getElementById('status-text');
+          if (stEl) stEl.innerText = 'Parsing STL geometry...';
+          if (!stlWorker) {
+            initStlWorker();
+          }
+          const transferables = (buffer instanceof ArrayBuffer) ? [buffer] : [];
+          stlWorker.postMessage({
+            type: 'PARSE_STL',
+            buffer: buffer,
+            fileName: pendingFileName,
+            loadId: loadId
+          }, transferables);
+          return;
+        }
+
+        // Synchronous fallback when Web Workers are unavailable (e.g., Node/mocked test environments)
         try {
           const t0 = performance.now();
           const stlEngine = (typeof window !== 'undefined' && window.StlLoader) ? window.StlLoader : (typeof StlLoader !== 'undefined' ? StlLoader : null);
@@ -842,6 +830,7 @@ function initViewport() {
                 m.brepFaces = features.brepFaces || [];
                 m.edgeIndices = features.edgeIndices || null;
               }
+              m._featuresDetected = true;
             }
           }
 
@@ -856,11 +845,127 @@ function initViewport() {
         return;
       }
 
+      // Native Pure JS SolidWorks fast-path (.SLDPRT / .SLDASM): bypass OpenCASCADE WASM worker
+      if (isSolidWorksFormat(activeCadFormat)) {
+        pendingFileBuffer = null;
+        if (loadTimer) {
+          clearInterval(loadTimer);
+          loadTimer = null;
+        }
+        const progressBar = document.getElementById('loading-progress-bar');
+        if (progressBar) progressBar.style.display = 'none';
+
+        if (typeof Worker !== 'undefined') {
+          const stEl = document.getElementById('status-text');
+          if (stEl) stEl.innerText = `Parsing ${activeCadFormat} geometry...`;
+          if (!solidworksWorker) {
+            initSolidWorksWorker();
+          }
+          const transferables = (buffer instanceof ArrayBuffer) ? [buffer] : [];
+          solidworksWorker.postMessage({
+            type: 'PARSE_SOLIDWORKS',
+            buffer: buffer,
+            fileName: pendingFileName,
+            loadId: loadId
+          }, transferables);
+          return;
+        }
+
+        // Synchronous/Async fallback when Web Workers are unavailable (e.g., Node/mocked test environments)
+        const swEngine = (typeof window !== 'undefined' && window.SolidWorksLoader) ? window.SolidWorksLoader : (typeof SolidWorksLoader !== 'undefined' ? SolidWorksLoader : null);
+        if (!swEngine || typeof swEngine.parse !== 'function') {
+          showError('SolidWorksLoader is not loaded');
+          const stEl = document.getElementById('status-text');
+          if (stEl) stEl.innerText = 'SolidWorks Parse Error';
+          const spErr = document.getElementById('spinner');
+          if (spErr) spErr.style.display = 'none';
+          return;
+        }
+
+        const t0 = performance.now();
+        const siblingResolver = (typeof fetch === 'function')
+          ? async (sibName) => {
+              try {
+                const res = await fetch('https://cad-stream.local/cad-sibling?name=' + encodeURIComponent(sibName));
+                if (!res.ok) return null;
+                return await res.arrayBuffer();
+              } catch (e) {
+                return null;
+              }
+            }
+          : null;
+
+        Promise.resolve(swEngine.parse(buffer, pendingFileName, siblingResolver)).then((result) => {
+          if (loadId !== activeLoadId) return;
+          result.elapsedMs = result.elapsedMs || Math.round(performance.now() - t0);
+          result.loadId = loadId;
+
+          const detector = (typeof window !== 'undefined' && window.MeshFeatureDetector) ? window.MeshFeatureDetector : (typeof MeshFeatureDetector !== 'undefined' ? MeshFeatureDetector : null);
+          if (detector && typeof detector.detectFeatures === 'function' && result.meshes) {
+            for (let i = 0; i < result.meshes.length; i++) {
+              const m = result.meshes[i];
+              const features = detector.detectFeatures(m);
+              if (features) {
+                m.edgeFeatures = features.edgeFeatures || [];
+                m.brepFaces = features.brepFaces || [];
+                m.edgeIndices = features.edgeIndices || null;
+              }
+              m._featuresDetected = true;
+            }
+          }
+
+          onTessellationComplete(result);
+        }).catch((err) => {
+          if (loadId !== activeLoadId) return;
+          showError('SolidWorks Parse Error: ' + ((err && err.message) || 'Failed to parse SolidWorks file'));
+          const stEl = document.getElementById('status-text');
+          if (stEl) stEl.innerText = 'SolidWorks Parse Error';
+          const spErr = document.getElementById('spinner');
+          if (spErr) spErr.style.display = 'none';
+        });
+        return;
+      }
+
+      // Native Pure JS Mesh fast-path (3MF, OBJ, PLY, GLB, GLTF): bypass OpenCASCADE WASM worker
+      if (isDirectMeshFormat(activeCadFormat)) {
+        pendingFileBuffer = null;
+        if (loadTimer) {
+          clearInterval(loadTimer);
+          loadTimer = null;
+        }
+        const progressBar = document.getElementById('loading-progress-bar');
+        if (progressBar) progressBar.style.display = 'none';
+
+        const stEl = document.getElementById('status-text');
+        if (stEl) stEl.innerText = `Parsing ${activeCadFormat} mesh...`;
+
+        const meshLoader = (typeof window !== 'undefined' && window.MeshFormatLoader) ? window.MeshFormatLoader : (typeof MeshFormatLoader !== 'undefined' ? MeshFormatLoader : null);
+        if (!meshLoader || typeof meshLoader.parse !== 'function') {
+          showError(`${activeCadFormat} Loader is not loaded`);
+          return;
+        }
+
+        meshLoader.parse(activeCadFormat, buffer, pendingFileName).then((result) => {
+          if (loadId !== activeLoadId) return;
+          result.loadId = loadId;
+          onTessellationComplete(result);
+        }).catch((err) => {
+          if (loadId !== activeLoadId) return;
+          showError(`${activeCadFormat} Parse Error: ` + ((err && err.message) || `Failed to parse ${activeCadFormat} file`));
+          if (stEl) stEl.innerText = `${activeCadFormat} Parse Error`;
+          const spErr = document.getElementById('spinner');
+          if (spErr) spErr.style.display = 'none';
+        });
+        return;
+      }
+
       const cacheKey = (pendingFileName || 'model') + '_' + buffer.byteLength + '_v7';
 
       // 1. Check instant cache first (<15ms)
       try {
-        const cached = await getCachedModel(cacheKey);
+        const cached = (window.AdminTwin && typeof window.AdminTwin.getCachedModel === 'function')
+          ? await window.AdminTwin.getCachedModel(cacheKey)
+          : null;
         if (loadId !== activeLoadId) return;
         if (cached && cached.meshes && cached.meshes.length > 0) {
           onTessellationComplete({
@@ -959,13 +1064,14 @@ function initViewport() {
         const detector = (typeof window !== 'undefined' && window.MeshFeatureDetector) ? window.MeshFeatureDetector : (typeof MeshFeatureDetector !== 'undefined' ? MeshFeatureDetector : null);
         for (let i = 0; i < data.meshes.length; i++) {
           const m = data.meshes[i];
-          if ((!m.edgeFeatures || m.edgeFeatures.length === 0) && detector && typeof detector.detectFeatures === 'function' && (activeCadFormat === 'STL' || (!m.brepFaces || m.brepFaces.length === 0))) {
+          if (!m._featuresDetected && (!m.edgeFeatures || m.edgeFeatures.length === 0) && detector && typeof detector.detectFeatures === 'function' && (activeCadFormat === 'STL' || (!m.brepFaces || m.brepFaces.length === 0))) {
             const features = detector.detectFeatures(m);
             if (features) {
               m.edgeFeatures = features.edgeFeatures || [];
               m.brepFaces = features.brepFaces || [];
               m.edgeIndices = features.edgeIndices || null;
             }
+            m._featuresDetected = true;
           }
           if (m.edgeFeatures && m.edgeFeatures.length > 0) {
             modelEdgeFeatures.push(...m.edgeFeatures);
@@ -975,6 +1081,29 @@ function initViewport() {
       if (typeof indexModelVertices === 'function') indexModelVertices(data.meshes);
 
       if (!data.meshes || data.meshes.length === 0) {
+        if (data.previewPngDataUrl) {
+          hideError();
+          const swFallback = document.getElementById('sw-preview-fallback');
+          const swImg = document.getElementById('sw-preview-img');
+          const swCaption = document.getElementById('sw-preview-caption');
+          if (swImg) swImg.src = data.previewPngDataUrl;
+          if (swCaption) swCaption.innerText = pendingFileName || data.fileName || '';
+          if (swFallback) swFallback.style.display = 'flex';
+          const fmtLabel = data.format || activeCadFormat || 'SLDPRT';
+          const timeDisplay = (typeof data.elapsedMs === 'number')
+            ? (data.elapsedMs >= 1000 ? `${(data.elapsedMs / 1000).toFixed(1)}s` : `${data.elapsedMs}ms`)
+            : '';
+          if (stEl) {
+            stEl.innerHTML = `<span style="color:#94a3b8;">✓</span> ${fmtLabel} Preview Thumbnail${timeDisplay ? ' • ' + timeDisplay : ''}`;
+          }
+          notifyHost({
+            type: 'LOADED',
+            meshCount: 0,
+            triangles: 0,
+            elapsedMs: data.elapsedMs || 0
+          });
+          return;
+        }
         showError(`This ${activeCadFormat} file was successfully parsed, but contains only 2D wireframe curves/sketches (no 3D solid or surface geometry).`);
         document.getElementById('status-text').innerText = '2D Wireframe Sketch (No 3D Solids)';
         return;
@@ -1182,6 +1311,18 @@ function initViewport() {
           topoStatus = 'Watertight';
         }
         formattedStatus = `<span style="color:#94a3b8;">✓</span> STL Mesh • ${Math.round(totalTriangles).toLocaleString()} Triangles • ${topoStatus} • ${timeDisplay}`;
+      } else if (isSolidWorksFormat(activeCadFormat) || isSolidWorksFormat(data.format)) {
+        const fmtLabel = data.format || activeCadFormat;
+        const partCount = data.meshCount || (data.meshes ? data.meshes.length : 1);
+        if (fmtLabel === 'SLDASM') {
+          formattedStatus = `<span style="color:#94a3b8;">✓</span> SLDASM Assembly • ${partCount} Bodies • ${Math.round(totalTriangles).toLocaleString()} Triangles • ${timeDisplay}`;
+        } else {
+          formattedStatus = `<span style="color:#94a3b8;">✓</span> SLDPRT Part • ${Math.round(totalTriangles).toLocaleString()} Triangles • ${timeDisplay}`;
+        }
+      } else if (isDirectMeshFormat(activeCadFormat) || isDirectMeshFormat(data.format)) {
+        const fmtLabel = data.format || activeCadFormat;
+        const partCount = data.meshCount || (data.meshes ? data.meshes.length : 1);
+        formattedStatus = `<span style="color:#94a3b8;">✓</span> ${fmtLabel} Mesh • ${partCount} Body • ${Math.round(totalTriangles).toLocaleString()} Triangles • ${timeDisplay}`;
       } else {
         const partCount = data.meshCount || (data.meshes ? data.meshes.length : 1);
         formattedStatus = `<span style="color:#94a3b8;">✓</span> ${partCount} Part(s) • ${Math.round(totalTriangles).toLocaleString()} Triangles • ${timeDisplay}`;
@@ -1397,6 +1538,16 @@ function initViewport() {
     window.updateThemeLighting = updateThemeLighting;
 
     function clearModel() {
+      const swFallback = document.getElementById('sw-preview-fallback');
+      if (swFallback) swFallback.style.display = 'none';
+      const swImg = document.getElementById('sw-preview-img');
+      if (swImg) swImg.removeAttribute('src');
+      if (window.CadAnalysis && typeof window.CadAnalysis.resetAnalysisState === 'function') {
+        window.CadAnalysis.resetAnalysisState();
+      }
+      if (window.WorkbenchUI && typeof window.WorkbenchUI.toggleBoundingBox === 'function') {
+        window.WorkbenchUI.toggleBoundingBox(false);
+      }
       if (typeof closeColorPickerPopover === 'function') closeColorPickerPopover();
       if (contactShadowMesh) {
         scene.remove(contactShadowMesh);
@@ -1805,6 +1956,12 @@ function initViewport() {
             closeColorPickerPopover();
             return;
           }
+          // 1b. Blueprint Preview Modal dismissal
+          const bpModal = document.getElementById('blueprint-preview-modal');
+          if (bpModal && (bpModal.classList.contains('open') || (bpModal.style.display && bpModal.style.display !== 'none'))) {
+            window.BlueprintEngine?.closePreview?.();
+            return;
+          }
           // 2. Right Inspector Drawer dismissal
           if (window.WorkbenchUI?.isDrawerOpen && window.WorkbenchUI.isDrawerOpen()) {
             window.WorkbenchUI.closeDrawer();
@@ -1938,6 +2095,8 @@ function initViewport() {
 
     function hideError() {
       document.getElementById('error-container').style.display = 'none';
+      const swFallback = document.getElementById('sw-preview-fallback');
+      if (swFallback) swFallback.style.display = 'none';
     }
 
     function notifyHost(obj) {
@@ -1975,6 +2134,14 @@ function initViewport() {
             currentWorker = null;
             workerReady = false;
           }
+          if (stlWorker) {
+            stlWorker.terminate();
+            stlWorker = null;
+          }
+          if (solidworksWorker) {
+            solidworksWorker.terminate();
+            solidworksWorker = null;
+          }
           clearModel();
         } else if (msg.action === 'RESET_VIEW') {
           document.getElementById('btn-reset').click();
@@ -2004,11 +2171,27 @@ window._getWorkerDispatchedLoadId = () => workerDispatchedLoadId;
 
 // Lifecycle cleanup function to prevent memory leaks on window close
 window.__cleanupViewer = function() {
+  if (stlWorker) {
+    stlWorker.terminate();
+    stlWorker = null;
+  }
+  if (solidworksWorker) {
+    solidworksWorker.terminate();
+    solidworksWorker = null;
+  }
+  if (currentWorker) {
+    currentWorker.terminate();
+    currentWorker = null;
+    workerReady = false;
+  }
   if (animFrameId) {
     cancelAnimationFrame(animFrameId);
     animFrameId = null;
   }
-  if (renderer) {
+  if (typeof controls !== 'undefined' && controls && typeof controls.dispose === 'function') {
+    controls.dispose();
+  }
+  if (typeof renderer !== 'undefined' && renderer) {
     renderer.dispose();
     renderer.forceContextLoss();
   }

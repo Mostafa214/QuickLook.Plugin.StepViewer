@@ -198,6 +198,68 @@
   }
 
   /**
+   * Builds or retrieves a cached MeshBVH on a geometry for fast HLR raycasting.
+   * Returns null if MeshBVHLib is unavailable (triggers THREE.Raycaster fallback).
+   */
+  function getOrBuildMeshBVH(geometry) {
+    if (!geometry) return null;
+    if (geometry.boundsTree) return geometry.boundsTree;
+    if (typeof MeshBVHLib !== 'undefined' && typeof MeshBVHLib.MeshBVH === 'function') {
+      try {
+        geometry.boundsTree = new MeshBVHLib.MeshBVH(geometry);
+        return geometry.boundsTree;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Tests whether a 3D edge is occluded along viewDir by any body in the scene.
+   * Uses MeshBVH when available, falling back to THREE.Raycaster.
+   */
+  function isEdgeHidden(v0, v1, viewDir, bodyContexts, eps, maxDist, fallbackRaycaster) {
+    const midX = (v0.x + v1.x) * 0.5 + viewDir.x * eps;
+    const midY = (v0.y + v1.y) * 0.5 + viewDir.y * eps;
+    const midZ = (v0.z + v1.z) * 0.5 + viewDir.z * eps;
+
+    const worldOrigin = new THREE.Vector3(midX, midY, midZ);
+    const localRay = new THREE.Ray();
+
+    for (let i = 0; i < bodyContexts.length; i++) {
+      const ctx = bodyContexts[i];
+      if (ctx.bvh) {
+        localRay.origin.copy(worldOrigin).applyMatrix4(ctx.invMatrixWorld);
+        localRay.direction.copy(viewDir).transformDirection(ctx.invMatrixWorld).normalize();
+        const hit = ctx.bvh.raycastFirst(localRay, THREE.DoubleSide);
+        if (hit && hit.distance > eps * 0.25 && hit.distance < maxDist) {
+          // Ignore grazing self-intersections nearly parallel to the view ray
+          if (hit.face && hit.face.normal) {
+            const worldNormal = hit.face.normal.clone().transformDirection(ctx.mesh.matrixWorld);
+            if (Math.abs(worldNormal.dot(viewDir)) < 0.02) continue;
+          }
+          return true;
+        }
+      } else if (fallbackRaycaster) {
+        fallbackRaycaster.set(worldOrigin, viewDir);
+        fallbackRaycaster.near = eps * 0.25;
+        fallbackRaycaster.far = maxDist;
+        const hits = fallbackRaycaster.intersectObject(ctx.mesh, false);
+        if (hits && hits.length > 0) {
+          const hit = hits[0];
+          if (hit.face && hit.face.normal) {
+            const worldNormal = hit.face.normal.clone().transformDirection(ctx.mesh.matrixWorld);
+            if (Math.abs(worldNormal.dot(viewDir)) < 0.02) continue;
+          }
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
    * Selects standard ISO engineering scale ratio
    */
   function determineStandardScale(rawScale) {
@@ -224,13 +286,42 @@
     return chosen;
   }
 
-  function generateBlueprintSvg() {
+  // Studio preview state (persists active toggles while modal is open)
+  const studioState = {
+    projection: 'first',
+    showHiddenLines: true
+  };
+
+  function resolveActiveUnit(explicitUnit) {
+    if (explicitUnit === 'in' || explicitUnit === 'mm') return explicitUnit;
+    if (typeof window !== 'undefined' && (window.currentUnit === 'in' || window.currentUnit === 'mm')) {
+      return window.currentUnit;
+    }
+    if (typeof currentUnit !== 'undefined' && (currentUnit === 'in' || currentUnit === 'mm')) {
+      return currentUnit;
+    }
+    return 'mm';
+  }
+
+  function formatDimension(mmValue, unit) {
+    if (unit === 'in') {
+      return `${(mmValue / 25.4).toFixed(2)} in`;
+    }
+    return `${mmValue.toFixed(1)} mm`;
+  }
+
+  function generateBlueprintSvg(options) {
     if (!window.modelBodies || window.modelBodies.length === 0) {
       if (typeof window.showToast === 'function') {
         window.showToast('No CAD model loaded to generate blueprint');
       }
       return null;
     }
+
+    const opts = options && typeof options === 'object' ? options : {};
+    const projection = opts.projection === 'third' ? 'third' : 'first';
+    const showHiddenLines = opts.showHiddenLines !== false;
+    const unit = resolveActiveUnit(opts.unit);
 
     // 1. Temporarily restore all bodies to assembled state (home position 0,0,0)
     const savedPositions = [];
@@ -248,13 +339,25 @@
     try {
       // 2. Calculate overall model bounding box in assembled coordinates
       const totalBox = new THREE.Box3();
+      const bodyContexts = [];
       window.modelBodies.forEach(b => {
-        if (b.mesh) totalBox.union(new THREE.Box3().setFromObject(b.mesh));
+        if (b.mesh && b.mesh.geometry) {
+          totalBox.union(new THREE.Box3().setFromObject(b.mesh));
+          const invMatrixWorld = new THREE.Matrix4().copy(b.mesh.matrixWorld).invert();
+          bodyContexts.push({
+            mesh: b.mesh,
+            bvh: getOrBuildMeshBVH(b.mesh.geometry),
+            invMatrixWorld
+          });
+        }
       });
 
       const center = totalBox.getCenter(new THREE.Vector3());
       const size = totalBox.getSize(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z, 1.0);
+      const hlrEps = Math.max(maxDim * 0.002, 1e-3);
+      const hlrMaxDist = maxDim * 10;
+      const fallbackRaycaster = typeof THREE.Raycaster === 'function' ? new THREE.Raycaster() : null;
 
       // Standard A3 Landscape sheet dimensions (1200 x 848 px)
       const svgWidth = 1200;
@@ -265,7 +368,8 @@
       const viewScale = standardScaleInfo.val <= rawScale ? standardScaleInfo.val : rawScale;
       const displayScaleStr = standardScaleInfo.str;
 
-      // 4 Orthographic Views according to ISO 128 / First Angle Projection
+      // 4 Orthographic Views (ISO First-Angle vs ASME Third-Angle)
+      const isThirdAngle = projection === 'third';
       const views = [
         {
           id: 'top',
@@ -274,8 +378,8 @@
           cy: 220,
           w: 430,
           h: 310,
-          dimXLabel: `${size.x.toFixed(1)} mm`,
-          dimYLabel: `${size.z.toFixed(1)} mm`,
+          dimXLabel: formatDimension(size.x, unit),
+          dimYLabel: formatDimension(size.z, unit),
           hasDimensions: true,
           viewDir: new THREE.Vector3(0, 1, 0),
           proj: (p) => ({ x: p.x - center.x, y: -(p.z - center.z) })
@@ -287,24 +391,26 @@
           cy: 575,
           w: 430,
           h: 310,
-          dimXLabel: `${size.x.toFixed(1)} mm`,
-          dimYLabel: `${size.y.toFixed(1)} mm`,
+          dimXLabel: formatDimension(size.x, unit),
+          dimYLabel: formatDimension(size.y, unit),
           hasDimensions: true,
           viewDir: new THREE.Vector3(0, 0, 1),
           proj: (p) => ({ x: p.x - center.x, y: -(p.y - center.y) })
         },
         {
           id: 'right',
-          title: 'RIGHT VIEW (Z-Y)',
+          title: isThirdAngle ? 'RIGHT SIDE VIEW (Z-Y)' : 'RIGHT VIEW (Z-Y)',
           cx: 700,
           cy: 575,
           w: 380,
           h: 310,
-          dimXLabel: `${size.z.toFixed(1)} mm`,
-          dimYLabel: `${size.y.toFixed(1)} mm`,
+          dimXLabel: formatDimension(size.z, unit),
+          dimYLabel: formatDimension(size.y, unit),
           hasDimensions: true,
           viewDir: new THREE.Vector3(1, 0, 0),
-          proj: (p) => ({ x: p.z - center.z, y: -(p.y - center.y) })
+          proj: isThirdAngle
+            ? (p) => ({ x: -(p.z - center.z), y: -(p.y - center.y) })
+            : (p) => ({ x: p.z - center.z, y: -(p.y - center.y) })
         },
         {
           id: 'iso',
@@ -367,36 +473,60 @@
 `;
 
       // Render Each Orthographic View
+      const MAX_HLR_EDGES_PER_VIEW = 5000;
       views.forEach(v => {
         let minPx = Infinity, maxPx = -Infinity, minPy = Infinity, maxPy = -Infinity;
-        let edgesSvg = '';
+        let visibleEdgesSvg = '';
+        let hiddenEdgesSvg = '';
 
+        const viewEdges = [];
         window.modelBodies.forEach(b => {
           if (!b.mesh || !b.mesh.geometry) return;
-
           const edges = extractViewSilhouetteAndCreaseEdges(b.mesh, v.viewDir);
-
           for (let i = 0; i < edges.length; i++) {
-            const edge = edges[i];
-            const p0 = v.proj(edge[0]);
-            const p1 = v.proj(edge[1]);
-            const x1 = v.cx + p0.x * viewScale;
-            const y1 = v.cy + p0.y * viewScale;
-            const x2 = v.cx + p1.x * viewScale;
-            const y2 = v.cy + p1.y * viewScale;
-
-            if (x1 < minPx) minPx = x1;
-            if (x2 < minPx) minPx = x2;
-            if (x1 > maxPx) maxPx = x1;
-            if (x2 > maxPx) maxPx = x2;
-            if (y1 < minPy) minPy = y1;
-            if (y2 < minPy) minPy = y2;
-            if (y1 > maxPy) maxPy = y1;
-            if (y2 > maxPy) maxPy = y2;
-
-            edgesSvg += `      <line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" />\n`;
+            viewEdges.push(edges[i]);
           }
         });
+
+        const hlrStride = viewEdges.length > MAX_HLR_EDGES_PER_VIEW
+          ? Math.ceil(viewEdges.length / MAX_HLR_EDGES_PER_VIEW)
+          : 1;
+
+        for (let i = 0; i < viewEdges.length; i++) {
+          const edge = viewEdges[i];
+          const p0 = v.proj(edge[0]);
+          const p1 = v.proj(edge[1]);
+          const x1 = v.cx + p0.x * viewScale;
+          const y1 = v.cy + p0.y * viewScale;
+          const x2 = v.cx + p1.x * viewScale;
+          const y2 = v.cy + p1.y * viewScale;
+
+          if (x1 < minPx) minPx = x1;
+          if (x2 < minPx) minPx = x2;
+          if (x1 > maxPx) maxPx = x1;
+          if (x2 > maxPx) maxPx = x2;
+          if (y1 < minPy) minPy = y1;
+          if (y2 < minPy) minPy = y2;
+          if (y1 > maxPy) maxPy = y1;
+          if (y2 > maxPy) maxPy = y2;
+
+          // Skip zero-length projected edges (parallel to viewDir)
+          if (Math.hypot(x2 - x1, y2 - y1) < 0.05) continue;
+
+          const shouldTestHlr = bodyContexts.length > 0 && (hlrStride === 1 || (i % hlrStride) === 0);
+          const hidden = shouldTestHlr
+            ? isEdgeHidden(edge[0], edge[1], v.viewDir, bodyContexts, hlrEps, hlrMaxDist, fallbackRaycaster)
+            : false;
+
+          const lineMarkup = `      <line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" />\n`;
+          if (hidden) {
+            if (showHiddenLines) {
+              hiddenEdgesSvg += lineMarkup;
+            }
+          } else {
+            visibleEdgesSvg += lineMarkup;
+          }
+        }
 
         const hasGeom = isFinite(minPx) && isFinite(maxPx) && minPx < maxPx;
         const geomMidX = hasGeom ? (minPx + maxPx) / 2 : v.cx;
@@ -416,10 +546,20 @@
       <line x1="${(geomMidX - clSpanX).toFixed(1)}" y1="${geomMidY.toFixed(1)}" x2="${(geomMidX + clSpanX).toFixed(1)}" y2="${geomMidY.toFixed(1)}" />
       <line x1="${geomMidX.toFixed(1)}" y1="${(geomMidY - clSpanY).toFixed(1)}" x2="${geomMidX.toFixed(1)}" y2="${geomMidY.toFixed(1)}" />
     </g>
+`;
 
+        if (showHiddenLines && hiddenEdgesSvg) {
+          svgContent += `
+    <!-- Occluded / Hidden CAD Edges (ISO 128 Dashed 0.18mm / 0.65px) -->
+    <g class="bp-hidden-edges" stroke="#94a3b8" stroke-width="0.65" stroke-dasharray="4,3" stroke-linecap="round" stroke-linejoin="round">
+${hiddenEdgesSvg}    </g>
+`;
+        }
+
+        svgContent += `
     <!-- Projected Visible CAD Contours (ISO Standard 0.35mm / 1.3px stroke) -->
-    <g stroke="#0f172a" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
-${edgesSvg}    </g>
+    <g class="bp-visible-edges" stroke="#0f172a" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+${visibleEdgesSvg}    </g>
 `;
 
         if (v.hasDimensions && hasGeom) {
@@ -501,6 +641,32 @@ ${edgesSvg}    </g>
       const tbX = svgWidth - 25 - tbWidth;
       const tbY = svgHeight - 25 - tbHeight;
 
+      const projectionLabel = isThirdAngle ? '3rd ANGLE' : '1st ANGLE';
+      const projectionSymbolSvg = isThirdAngle
+        ? `<!-- ASME Third Angle Projection Symbol -->
+    <g id="projection-symbol-third" transform="translate(330, 8)" stroke="#0f172a" stroke-width="1" fill="none">
+      <circle cx="10" cy="14" r="3.5" stroke="#0f172a" stroke-width="1"/>
+      <circle cx="10" cy="14" r="6.5" stroke="#0f172a" stroke-width="1"/>
+      <line x1="0" y1="14" x2="20" y2="14" stroke="#94a3b8" stroke-width="0.5" stroke-dasharray="3,1.5"/>
+      <line x1="10" y1="4" x2="10" y2="24" stroke="#94a3b8" stroke-width="0.5" stroke-dasharray="3,1.5"/>
+      <polygon points="22,10.5 34,7.5 34,20.5 22,17.5" fill="none" stroke="#0f172a" stroke-width="1"/>
+      <line x1="20" y1="14" x2="38" y2="14" stroke="#94a3b8" stroke-width="0.5" stroke-dasharray="3,1.5"/>
+    </g>`
+        : `<!-- ISO First Angle Projection Symbol -->
+    <g id="projection-symbol-first" transform="translate(330, 8)" stroke="#0f172a" stroke-width="1" fill="none">
+      <polygon points="2,14 14,8 14,20 2,14" fill="none" stroke="#0f172a" stroke-width="1"/>
+      <line x1="0" y1="14" x2="16" y2="14" stroke="#94a3b8" stroke-width="0.5" stroke-dasharray="3,1.5"/>
+      <circle cx="28" cy="14" r="3.5" stroke="#0f172a" stroke-width="1"/>
+      <circle cx="28" cy="14" r="6.5" stroke="#0f172a" stroke-width="1"/>
+      <line x1="18" y1="14" x2="38" y2="14" stroke="#94a3b8" stroke-width="0.5" stroke-dasharray="3,1.5"/>
+      <line x1="28" y1="4" x2="28" y2="24" stroke="#94a3b8" stroke-width="0.5" stroke-dasharray="3,1.5"/>
+    </g>`;
+
+      const boundsText = unit === 'in'
+        ? `${(size.x / 25.4).toFixed(2)} × ${(size.y / 25.4).toFixed(2)} × ${(size.z / 25.4).toFixed(2)} in`
+        : `${size.x.toFixed(1)} × ${size.y.toFixed(1)} × ${size.z.toFixed(1)} mm`;
+      const unitsLabelText = unit === 'in' ? 'INCHES' : 'MILLIMETERS';
+
       svgContent += `
   <!-- ================= ISO 7200 Engineering Title Block ================= -->
   <g id="iso-title-block" transform="translate(${tbX}, ${tbY})">
@@ -517,23 +683,15 @@ ${edgesSvg}    </g>
 
     <text x="12" y="23" font-size="13" font-weight="800" fill="#0f172a" letter-spacing="0.5">QUICKLOOK CAD STUDIO</text>
     <text x="220" y="16" font-size="8.5" font-weight="600" fill="#64748b">DWG NO: STP-DWG-01</text>
-    <text x="220" y="28" font-size="8.5" font-weight="600" fill="#64748b">PROJECTION: 1st ANGLE</text>
+    <text x="220" y="28" font-size="8.5" font-weight="600" fill="#64748b">PROJECTION: ${projectionLabel}</text>
 
-    <!-- ISO First Angle Projection Symbol -->
-    <g transform="translate(330, 8)" stroke="#0f172a" stroke-width="1" fill="none">
-      <polygon points="2,14 14,8 14,20 2,14" fill="none" stroke="#0f172a" stroke-width="1"/>
-      <line x1="0" y1="14" x2="16" y2="14" stroke="#94a3b8" stroke-width="0.5" stroke-dasharray="3,1.5"/>
-      <circle cx="28" cy="14" r="3.5" stroke="#0f172a" stroke-width="1"/>
-      <circle cx="28" cy="14" r="6.5" stroke="#0f172a" stroke-width="1"/>
-      <line x1="18" y1="14" x2="38" y2="14" stroke="#94a3b8" stroke-width="0.5" stroke-dasharray="3,1.5"/>
-      <line x1="28" y1="4" x2="28" y2="24" stroke="#94a3b8" stroke-width="0.5" stroke-dasharray="3,1.5"/>
-    </g>
+    ${projectionSymbolSvg}
 
     <text x="12" y="50" font-size="8.5" font-weight="700" fill="#64748b">PART TITLE / DESIGNATION:</text>
     <text x="12" y="64" font-size="11" font-weight="700" fill="#0284c7">${partName}</text>
 
     <text x="220" y="50" font-size="8.5" font-weight="700" fill="#64748b">BOUNDS (X × Y × Z):</text>
-    <text x="220" y="64" font-size="10" font-weight="700" fill="#0f172a">${size.x.toFixed(1)} × ${size.y.toFixed(1)} × ${size.z.toFixed(1)} mm</text>
+    <text x="220" y="64" font-size="10" font-weight="700" fill="#0f172a">${boundsText}</text>
 
     <text x="12" y="85" font-size="8.5" font-weight="700" fill="#64748b">MATERIAL / SPECIFICATION:</text>
     <text x="12" y="98" font-size="10" font-weight="700" fill="#0f172a">${materialText}</text>
@@ -551,7 +709,7 @@ ${edgesSvg}    </g>
     <text x="150" y="131" font-size="9.5" font-weight="800" fill="#15803d">VERIFIED CAD</text>
 
     <text x="270" y="119" font-size="8.5" font-weight="700" fill="#64748b">UNITS:</text>
-    <text x="270" y="131" font-size="9.5" font-weight="700" fill="#0f172a">MILLIMETERS</text>
+    <text x="270" y="131" font-size="9.5" font-weight="700" fill="#0f172a">${unitsLabelText}</text>
   </g>
 </svg>
 `;
@@ -733,12 +891,15 @@ ${edgesSvg}    </g>
   // Idempotency lock to strictly guarantee that SaveFileDialog opens only ONCE
   let isExportInProgress = false;
 
-  async function downloadBlueprint(format = 'png', filename = null) {
+  async function downloadBlueprint(format = 'png', filename = null, options = null) {
     if (isExportInProgress) return;
     isExportInProgress = true;
     setTimeout(() => { isExportInProgress = false; }, 1500);
 
-    const svgData = generateBlueprintSvg();
+    const svgOptions = options && typeof options === 'object'
+      ? options
+      : { projection: studioState.projection, showHiddenLines: studioState.showHiddenLines };
+    const svgData = generateBlueprintSvg(svgOptions);
     if (!svgData) return;
 
     const rawInput = window.pendingFileName || window.currentLoadedModelName || getResolvedModelFileName();
@@ -793,16 +954,96 @@ ${edgesSvg}    </g>
     }
   }
 
-  function downloadBlueprintSvg(filename) {
-    return downloadBlueprint('svg', filename);
+  function downloadBlueprintSvg(filename, options) {
+    return downloadBlueprint('svg', filename, options);
   }
 
-  function downloadBlueprintPng(filename) {
-    return downloadBlueprint('png', filename);
+  function downloadBlueprintPng(filename, options) {
+    return downloadBlueprint('png', filename, options);
   }
 
-  function downloadBlueprintPdf(filename) {
-    return downloadBlueprint('pdf', filename);
+  function downloadBlueprintPdf(filename, options) {
+    return downloadBlueprint('pdf', filename, options);
+  }
+
+  function syncStudioControls() {
+    if (typeof document === 'undefined') return;
+    const btnFirst = document.getElementById('btn-bp-proj-first');
+    const btnThird = document.getElementById('btn-bp-proj-third');
+    const btnDashed = document.getElementById('btn-bp-hlr-dashed');
+    const btnClean = document.getElementById('btn-bp-hlr-clean');
+
+    const isThird = studioState.projection === 'third';
+    if (btnFirst) {
+      btnFirst.classList.toggle('active', !isThird);
+      btnFirst.setAttribute('aria-pressed', String(!isThird));
+    }
+    if (btnThird) {
+      btnThird.classList.toggle('active', isThird);
+      btnThird.setAttribute('aria-pressed', String(isThird));
+    }
+    if (btnDashed) {
+      btnDashed.classList.toggle('active', studioState.showHiddenLines);
+      btnDashed.setAttribute('aria-pressed', String(studioState.showHiddenLines));
+    }
+    if (btnClean) {
+      btnClean.classList.toggle('active', !studioState.showHiddenLines);
+      btnClean.setAttribute('aria-pressed', String(!studioState.showHiddenLines));
+    }
+  }
+
+  function refreshBlueprintPreview(overrides) {
+    if (overrides && typeof overrides === 'object') {
+      if (overrides.projection === 'first' || overrides.projection === 'third') {
+        studioState.projection = overrides.projection;
+      }
+      if (typeof overrides.showHiddenLines === 'boolean') {
+        studioState.showHiddenLines = overrides.showHiddenLines;
+      }
+    }
+
+    syncStudioControls();
+
+    const svg = generateBlueprintSvg({
+      projection: studioState.projection,
+      showHiddenLines: studioState.showHiddenLines
+    });
+    if (!svg || typeof document === 'undefined') return svg;
+
+    const stage = document.getElementById('blueprint-preview-stage');
+    if (stage) {
+      stage.innerHTML = svg;
+    }
+    return svg;
+  }
+
+  function openBlueprintPreview() {
+    if (!window.modelBodies || window.modelBodies.length === 0) {
+      if (typeof window.showToast === 'function') {
+        window.showToast('No CAD model loaded to generate blueprint');
+      }
+      return false;
+    }
+    if (typeof document === 'undefined') return false;
+
+    const modal = document.getElementById('blueprint-preview-modal');
+    if (modal) {
+      modal.style.display = 'flex';
+      modal.setAttribute('aria-hidden', 'false');
+      modal.classList.add('is-open');
+    }
+    refreshBlueprintPreview();
+    return true;
+  }
+
+  function closeBlueprintPreview() {
+    if (typeof document === 'undefined') return;
+    const modal = document.getElementById('blueprint-preview-modal');
+    if (modal) {
+      modal.style.display = 'none';
+      modal.setAttribute('aria-hidden', 'true');
+      modal.classList.remove('is-open');
+    }
   }
 
   if (typeof window !== 'undefined') {
@@ -813,18 +1054,23 @@ ${edgesSvg}    </g>
       downloadPng: downloadBlueprintPng,
       downloadPdf: downloadBlueprintPdf,
       downloadBlueprint: downloadBlueprint,
+      openBlueprintPreview: openBlueprintPreview,
+      closeBlueprintPreview: closeBlueprintPreview,
+      refreshBlueprintPreview: refreshBlueprintPreview,
+      openPreview: openBlueprintPreview,
+      closePreview: closeBlueprintPreview,
+      refreshPreview: refreshBlueprintPreview,
       escapeXml: escapeXml
     };
     window.BlueprintEngine = window.BlueprintSvg;
-    window._unused = {
-      generateSvg: generateBlueprintSvg,
-      downloadSvg: downloadBlueprintSvg
-    };
 
     window.generateBlueprintSvg = generateBlueprintSvg;
     window.downloadBlueprintSvg = downloadBlueprintSvg;
     window.downloadBlueprintPng = downloadBlueprintPng;
     window.downloadBlueprintPdf = downloadBlueprintPdf;
+    window.openBlueprintPreview = openBlueprintPreview;
+    window.closeBlueprintPreview = closeBlueprintPreview;
+    window.refreshBlueprintPreview = refreshBlueprintPreview;
   }
 
   // CommonJS export for automated Node.js unit tests
@@ -835,7 +1081,10 @@ ${edgesSvg}    </g>
       downloadBlueprintSvg,
       downloadBlueprintPng,
       downloadBlueprintPdf,
-      downloadBlueprint
+      downloadBlueprint,
+      openBlueprintPreview,
+      closeBlueprintPreview,
+      refreshBlueprintPreview
     };
   }
 })();

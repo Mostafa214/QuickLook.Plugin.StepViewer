@@ -663,7 +663,7 @@
     }
 
     function removeRubberband() {
-      if (rubberbandLine) {
+      if (typeof rubberbandLine !== 'undefined' && rubberbandLine) {
         measureGroup.remove(rubberbandLine);
         if (rubberbandLine.geometry) rubberbandLine.geometry.dispose();
         if (rubberbandLine.material) rubberbandLine.material.dispose();
@@ -745,8 +745,691 @@
       return t && (t.type === 'point' || t.type === 'corner' || t.type === 'midpoint' || t.type === 'center' || t.subType === 'surface' || t.type === 'surface') && t.type !== 'cylinder';
     }
 
+    // =============================================================
+    // Phase 5: Smart Measure v2 (Multi-Pin, Wall Thickness, Min Clearance)
+    // =============================================================
+    let pinnedMeasurements = [];
+    let pinCounter = 0;
+    let pinnedMeasureGroup = null;
+    let lastActiveMeasurement = null;
+    let isWallThicknessMode = false;
+    let isClearanceMode = false;
+    let clearanceSelectedMeshes = [];
+    let controlsChangeHooked = false;
+
+    function _getMeasureGroup() {
+      if (typeof measureGroup !== 'undefined' && measureGroup) return measureGroup;
+      if (typeof window !== 'undefined' && window.measureGroup) return window.measureGroup;
+      return null;
+    }
+
+    function _getCamera() {
+      if (typeof camera !== 'undefined' && camera) return camera;
+      if (typeof window !== 'undefined' && window.camera) return window.camera;
+      return null;
+    }
+
+    function _getRenderer() {
+      if (typeof renderer !== 'undefined' && renderer) return renderer;
+      if (typeof window !== 'undefined' && window.renderer) return window.renderer;
+      return null;
+    }
+
+    function _getModelGroup() {
+      if (typeof modelGroup !== 'undefined' && modelGroup) return modelGroup;
+      if (typeof window !== 'undefined' && window.modelGroup) return window.modelGroup;
+      return null;
+    }
+
+    function _getControls() {
+      if (typeof controls !== 'undefined' && controls) return controls;
+      if (typeof window !== 'undefined' && window.controls) return window.controls;
+      return null;
+    }
+
+    function _getModelDistance() {
+      if (typeof currentModelDistance !== 'undefined' && currentModelDistance > 0) return currentModelDistance;
+      if (typeof window !== 'undefined' && window.currentModelDistance > 0) return window.currentModelDistance;
+      return 50;
+    }
+
+    function _formatDim(mmVal) {
+      if (typeof formatDim === 'function') return formatDim(mmVal);
+      if (typeof window !== 'undefined' && typeof window.formatDim === 'function') return window.formatDim(mmVal);
+      const unit = (typeof currentUnit !== 'undefined' ? currentUnit : (typeof window !== 'undefined' && window.currentUnit ? window.currentUnit : 'mm'));
+      if (unit === 'in') return `${(mmVal / 25.4).toFixed(3)} in`;
+      return `${Number(mmVal).toFixed(2)} mm`;
+    }
+
+    function _escapeHtml(str) {
+      if (typeof window !== 'undefined' && typeof window.escapeHtml === 'function') return window.escapeHtml(str);
+      return String(str == null ? '' : str).replace(/[&<>"']/g, ch => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[ch]));
+    }
+
+    function _toVector3(v) {
+      if (!v) return null;
+      if (v.isVector3) return v.clone();
+      if (Array.isArray(v)) return new THREE.Vector3(v[0] || 0, v[1] || 0, v[2] || 0);
+      if (typeof v.x === 'number') return new THREE.Vector3(v.x, v.y || 0, v.z || 0);
+      return null;
+    }
+
+    function _createSafeTextSprite(text) {
+      const cam = _getCamera();
+      if (!cam || typeof document === 'undefined' || typeof document.createElement !== 'function') return null;
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas && typeof canvas.getContext === 'function' ? canvas.getContext('2d') : null;
+        if (!ctx || typeof ctx.quadraticCurveTo !== 'function') return null;
+        return createTextSprite(text);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function _disposeObject3D(root) {
+      if (!root) return;
+      root.traverse(obj => {
+        if (obj.geometry && typeof obj.geometry.dispose === 'function') {
+          obj.geometry.dispose();
+        }
+        if (obj.material) {
+          const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+          mats.forEach(m => {
+            if (m && m.map && typeof m.map.dispose === 'function') m.map.dispose();
+            if (m && typeof m.dispose === 'function') m.dispose();
+          });
+        }
+      });
+    }
+
+    function _ensurePinnedGroup() {
+      const mg = _getMeasureGroup();
+      if (!pinnedMeasureGroup) {
+        pinnedMeasureGroup = new THREE.Group();
+        pinnedMeasureGroup.name = 'pinned_measure_group';
+      }
+      if (mg && pinnedMeasureGroup.parent !== mg) {
+        mg.add(pinnedMeasureGroup);
+      }
+      return pinnedMeasureGroup;
+    }
+
+    function _ensureControlsHook() {
+      if (controlsChangeHooked) return;
+      const ctrl = _getControls();
+      if (ctrl && typeof ctrl.addEventListener === 'function') {
+        ctrl.addEventListener('change', updatePinnedBadgePositions);
+        controlsChangeHooked = true;
+      }
+    }
+
+    function updatePinnedBadgePositions() {
+      const cam = _getCamera();
+      const rend = _getRenderer();
+      let rect = { left: 0, top: 0, width: (typeof window !== 'undefined' && window.innerWidth) || 800, height: (typeof window !== 'undefined' && window.innerHeight) || 600 };
+      if (rend && rend.domElement && typeof rend.domElement.getBoundingClientRect === 'function') {
+        const r = rend.domElement.getBoundingClientRect();
+        if (r && r.width > 0 && r.height > 0) rect = r;
+      }
+
+      for (let i = 0; i < pinnedMeasurements.length; i++) {
+        const pin = pinnedMeasurements[i];
+        if (!pin.anchorPoint) continue;
+        let x = 0, y = 0, visible = false;
+        if (cam) {
+          const proj = pin.anchorPoint.clone().project(cam);
+          visible = proj.z >= -1 && proj.z <= 1;
+          x = (proj.x * 0.5 + 0.5) * rect.width;
+          y = (-proj.y * 0.5 + 0.5) * rect.height;
+        }
+        pin.screenPos = { x, y, visible };
+        if (pin.badgeEl && pin.badgeEl.style) {
+          pin.badgeEl.style.display = visible ? 'inline-flex' : 'none';
+          pin.badgeEl.style.left = `${Math.round(x)}px`;
+          pin.badgeEl.style.top = `${Math.round(y)}px`;
+        }
+      }
+    }
+
+    function _renderPinnedListDom() {
+      if (typeof document === 'undefined' || typeof document.getElementById !== 'function') return;
+      const listEl = document.getElementById('measure-pins-list');
+      if (!listEl) return;
+
+      if (pinnedMeasurements.length === 0) {
+        listEl.innerHTML = '<div class="measure-pins-empty">No pinned dimensions yet</div>';
+        return;
+      }
+
+      listEl.innerHTML = pinnedMeasurements.map(pin => `
+        <div class="measure-pin-item" data-pin-id="${_escapeHtml(pin.id)}">
+          <div class="measure-pin-meta">
+            <span class="measure-pin-title">${_escapeHtml(pin.title || 'Dimension')}</span>
+            <span class="measure-pin-value">${_escapeHtml(pin.valueText || '')}</span>
+          </div>
+          <button type="button" class="measure-pin-remove" data-pin-id="${_escapeHtml(pin.id)}" title="Remove pin" aria-label="Remove pin">✕</button>
+        </div>
+      `).join('');
+
+      if (typeof listEl.querySelectorAll === 'function') {
+        listEl.querySelectorAll('.measure-pin-remove').forEach(btn => {
+          btn.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            const id = btn.getAttribute('data-pin-id');
+            if (id) removePinnedMeasurement(id);
+          });
+        });
+      }
+    }
+
+    function _createPinBadgeElement(pin) {
+      if (typeof document === 'undefined' || typeof document.getElementById !== 'function' || typeof document.createElement !== 'function') return null;
+      const container = document.getElementById('canvas-container');
+      if (!container || typeof container.appendChild !== 'function') return null;
+      const badge = document.createElement('div');
+      badge.className = 'measure-pin-badge';
+      badge.setAttribute('data-pin-id', pin.id);
+      badge.style.position = 'absolute';
+      badge.style.pointerEvents = 'none';
+      badge.style.transform = 'translate(-50%, -120%)';
+      badge.style.zIndex = '25';
+      badge.innerText = pin.valueText || pin.title || '';
+      container.appendChild(badge);
+      return badge;
+    }
+
+    function pinMeasurement(customData) {
+      const src = customData || lastActiveMeasurement;
+      if (!src) return null;
+
+      const points = Array.isArray(src.points)
+        ? src.points.map(_toVector3).filter(Boolean)
+        : [];
+      let anchor = _toVector3(src.anchorPoint);
+      if (!anchor) {
+        if (points.length >= 2) {
+          anchor = points[0].clone().add(points[1]).multiplyScalar(0.5);
+        } else if (points.length === 1) {
+          anchor = points[0].clone();
+        } else {
+          anchor = new THREE.Vector3();
+        }
+      }
+
+      const id = `pin-${++pinCounter}`;
+      const colorHex = src.color !== undefined ? src.color : 0xf59e0b;
+      const valueText = src.valueText || (typeof src.distanceMm === 'number' ? _formatDim(src.distanceMm) : (typeof currentMeasuredValue !== 'undefined' ? currentMeasuredValue : ''));
+      const title = src.title || 'Pinned Dimension';
+
+      const pinGroup = new THREE.Group();
+      pinGroup.name = `pinned_measure_${id}`;
+      pinGroup.userData = { pinId: id };
+
+      const cam = _getCamera();
+      const distForScale = cam ? cam.position.distanceTo(anchor) : _getModelDistance();
+      const worldPerPx = (2 * Math.tan(THREE.MathUtils.degToRad((cam && cam.fov) || 45) / 2) * Math.max(distForScale, 1)) / ((typeof window !== 'undefined' && window.innerHeight) || 800);
+      const pinRadius = Math.max(worldPerPx * 6.5, 0.05);
+
+      points.forEach(pt => {
+        const geom = new THREE.SphereGeometry(1, 12, 12);
+        const mat = new THREE.MeshBasicMaterial({ color: colorHex, depthTest: false });
+        const marker = new THREE.Mesh(geom, mat);
+        marker.position.copy(pt);
+        marker.scale.set(pinRadius, pinRadius, pinRadius);
+        marker.renderOrder = 999;
+        marker.userData = { isScreenScaled: true, screenPixelRadius: 6.5 };
+        pinGroup.add(marker);
+      });
+
+      if (points.length >= 2) {
+        const lineGeom = new THREE.BufferGeometry().setFromPoints([points[0], points[1]]);
+        const lineMat = new THREE.LineBasicMaterial({ color: colorHex, linewidth: 2, depthTest: false });
+        const line = new THREE.Line(lineGeom, lineMat);
+        line.renderOrder = 998;
+        pinGroup.add(line);
+      }
+
+      const sprite = _createSafeTextSprite(valueText);
+      if (sprite) {
+        sprite.position.copy(anchor);
+        sprite.renderOrder = 1001;
+        pinGroup.add(sprite);
+      }
+
+      const rootGroup = _ensurePinnedGroup();
+      rootGroup.add(pinGroup);
+
+      const pin = {
+        id,
+        type: src.type || 'distance',
+        title,
+        valueText,
+        distanceMm: typeof src.distanceMm === 'number' ? src.distanceMm : null,
+        points,
+        anchorPoint: anchor,
+        color: colorHex,
+        group: pinGroup,
+        badgeEl: null,
+        screenPos: { x: 0, y: 0, visible: false }
+      };
+      pin.badgeEl = _createPinBadgeElement(pin);
+
+      pinnedMeasurements.push(pin);
+      _ensureControlsHook();
+      updatePinnedBadgePositions();
+      _renderPinnedListDom();
+      return pin;
+    }
+
+    function removePinnedMeasurement(id) {
+      const idx = pinnedMeasurements.findIndex(p => p.id === id);
+      if (idx === -1) return false;
+      const pin = pinnedMeasurements[idx];
+      if (pin.group && pin.group.parent) {
+        pin.group.parent.remove(pin.group);
+      }
+      _disposeObject3D(pin.group);
+      if (pin.badgeEl && pin.badgeEl.parentNode) {
+        pin.badgeEl.parentNode.removeChild(pin.badgeEl);
+      }
+      pinnedMeasurements.splice(idx, 1);
+      _renderPinnedListDom();
+      return true;
+    }
+
+    function clearPinnedMeasurements() {
+      for (let i = 0; i < pinnedMeasurements.length; i++) {
+        const pin = pinnedMeasurements[i];
+        if (pin.group && pin.group.parent) {
+          pin.group.parent.remove(pin.group);
+        }
+        _disposeObject3D(pin.group);
+        if (pin.badgeEl && pin.badgeEl.parentNode) {
+          pin.badgeEl.parentNode.removeChild(pin.badgeEl);
+        }
+      }
+      pinnedMeasurements = [];
+      _renderPinnedListDom();
+    }
+
+    function getPinnedMeasurements() {
+      return pinnedMeasurements.map(p => ({
+        id: p.id,
+        type: p.type,
+        title: p.title,
+        valueText: p.valueText,
+        distanceMm: p.distanceMm,
+        points: p.points.map(pt => pt.clone()),
+        anchorPoint: p.anchorPoint.clone(),
+        color: p.color,
+        screenPos: p.screenPos ? { ...p.screenPos } : null
+      }));
+    }
+
+    function _ensureGeometryBVH(mesh) {
+      if (!mesh || !mesh.geometry) return null;
+      if (mesh.geometry.boundsTree) return mesh.geometry.boundsTree;
+      if (typeof MeshBVHLib !== 'undefined' && MeshBVHLib && typeof MeshBVHLib.MeshBVH === 'function') {
+        mesh.geometry.boundsTree = new MeshBVHLib.MeshBVH(mesh.geometry);
+        return mesh.geometry.boundsTree;
+      }
+      if (typeof window !== 'undefined' && window.MeshBVHLib && typeof window.MeshBVHLib.MeshBVH === 'function') {
+        mesh.geometry.boundsTree = new window.MeshBVHLib.MeshBVH(mesh.geometry);
+        return mesh.geometry.boundsTree;
+      }
+      return null;
+    }
+
+    function _collectCandidateMeshes(targetMesh) {
+      if (targetMesh) return [targetMesh];
+      const mg = _getModelGroup();
+      const meshes = [];
+      if (mg && typeof mg.traverse === 'function') {
+        mg.traverse(child => {
+          if (child.isMesh && child.name !== 'solidworks_edges' && child.visible) {
+            meshes.push(child);
+          }
+        });
+      }
+      return meshes;
+    }
+
+    function toggleWallThicknessMode(enable) {
+      isWallThicknessMode = (enable !== undefined) ? !!enable : !isWallThicknessMode;
+      if (isWallThicknessMode) {
+        isClearanceMode = false;
+        clearanceSelectedMeshes = [];
+        if (typeof isMeasureActive !== 'undefined' && !isMeasureActive) {
+          toggleMeasureMode(true);
+        }
+      }
+      if (typeof document !== 'undefined' && typeof document.getElementById === 'function') {
+        const btnWall = document.getElementById('btn-measure-wall');
+        const btnClear = document.getElementById('btn-measure-clearance');
+        if (btnWall) btnWall.classList.toggle('active', isWallThicknessMode);
+        if (btnClear) btnClear.classList.toggle('active', isClearanceMode);
+        const titleEl = document.getElementById('measure-card-title');
+        const distEl = document.getElementById('measure-dist');
+        if (isWallThicknessMode && titleEl) titleEl.innerText = '🧱 Wall Thickness Probe';
+        if (isWallThicknessMode && distEl) distEl.innerText = 'Click any surface to probe thickness';
+      }
+      return isWallThicknessMode;
+    }
+
+    function measureWallThickness(hitPoint, faceNormal, targetMesh) {
+      const entry = _toVector3(hitPoint);
+      const nVec = _toVector3(faceNormal);
+      if (!entry || !nVec || nVec.lengthSq() < 1e-12) return null;
+
+      const normal = nVec.clone().normalize();
+      const inwardDir = normal.clone().negate();
+      const origin = entry.clone().addScaledVector(inwardDir, 1e-3);
+      const meshes = _collectCandidateMeshes(targetMesh);
+      if (meshes.length === 0) return null;
+
+      let bestExitPoint = null;
+      let bestDist = Infinity;
+      let bestMesh = null;
+
+      for (let i = 0; i < meshes.length; i++) {
+        const mesh = meshes[i];
+        mesh.updateMatrixWorld(true);
+        const bvh = _ensureGeometryBVH(mesh);
+
+        if (bvh && typeof bvh.raycastFirst === 'function') {
+          const invMat = new THREE.Matrix4().copy(mesh.matrixWorld).invert();
+          const localRay = new THREE.Ray(origin.clone(), inwardDir.clone()).applyMatrix4(invMat);
+          localRay.direction.normalize();
+          const hit = bvh.raycastFirst(localRay, THREE.DoubleSide);
+          if (hit && hit.point) {
+            const worldHit = hit.point.clone().applyMatrix4(mesh.matrixWorld);
+            const thickness = entry.distanceTo(worldHit);
+            if (thickness > 1e-3 && thickness < bestDist) {
+              bestDist = thickness;
+              bestExitPoint = worldHit;
+              bestMesh = mesh;
+            }
+          }
+        } else {
+          const raycaster = new THREE.Raycaster(origin, inwardDir, 0, Infinity);
+          const origSide = mesh.material ? mesh.material.side : THREE.FrontSide;
+          if (mesh.material) mesh.material.side = THREE.DoubleSide;
+          const hits = raycaster.intersectObject(mesh, false);
+          if (mesh.material) mesh.material.side = origSide;
+          if (hits && hits.length > 0) {
+            const worldHit = hits[0].point.clone();
+            const thickness = entry.distanceTo(worldHit);
+            if (thickness > 1e-3 && thickness < bestDist) {
+              bestDist = thickness;
+              bestExitPoint = worldHit;
+              bestMesh = mesh;
+            }
+          }
+        }
+      }
+
+      if (!bestExitPoint || !isFinite(bestDist)) return null;
+
+      const mg = _getMeasureGroup();
+      const cam = _getCamera();
+      if (mg && cam) {
+        clearMeasurement(false);
+        drawPointPin(entry, 0xf59e0b);
+        drawPointPin(bestExitPoint, 0xf59e0b);
+        drawCADDimensionLine(entry, bestExitPoint, bestDist, `Wall: ${_formatDim(bestDist)}`);
+      }
+
+      const valueText = `Wall: ${_formatDim(bestDist)}`;
+      if (typeof currentMeasuredValue !== 'undefined') currentMeasuredValue = valueText;
+      lastActiveMeasurement = {
+        type: 'wall-thickness',
+        title: '🧱 Wall Thickness',
+        valueText,
+        distanceMm: bestDist,
+        points: [entry.clone(), bestExitPoint.clone()],
+        anchorPoint: entry.clone().add(bestExitPoint).multiplyScalar(0.5),
+        color: 0xf59e0b
+      };
+
+      if (typeof document !== 'undefined' && typeof document.getElementById === 'function') {
+        const card = document.getElementById('measure-card');
+        const titleEl = document.getElementById('measure-card-title');
+        const distEl = document.getElementById('measure-dist');
+        const deltasEl = document.getElementById('measure-deltas');
+        const extraEl = document.getElementById('measure-extra');
+        if (card) card.style.display = 'flex';
+        if (titleEl) titleEl.innerText = '🧱 Wall Thickness';
+        if (distEl) distEl.innerText = _formatDim(bestDist);
+        if (deltasEl) deltasEl.innerText = `Inward normal raycast across ${bestMesh && bestMesh.name ? bestMesh.name : 'body'}`;
+        if (extraEl) extraEl.style.display = 'none';
+      }
+
+      return {
+        thicknessMm: bestDist,
+        entryPoint: entry.clone(),
+        exitPoint: bestExitPoint.clone(),
+        normal,
+        mesh: bestMesh
+      };
+    }
+
+    function toggleClearanceMode(enable) {
+      isClearanceMode = (enable !== undefined) ? !!enable : !isClearanceMode;
+      clearanceSelectedMeshes = [];
+      if (isClearanceMode) {
+        isWallThicknessMode = false;
+        if (typeof isMeasureActive !== 'undefined' && !isMeasureActive) {
+          toggleMeasureMode(true);
+        }
+      }
+      if (typeof document !== 'undefined' && typeof document.getElementById === 'function') {
+        const btnClear = document.getElementById('btn-measure-clearance');
+        const btnWall = document.getElementById('btn-measure-wall');
+        if (btnClear) btnClear.classList.toggle('active', isClearanceMode);
+        if (btnWall) btnWall.classList.toggle('active', isWallThicknessMode);
+        const titleEl = document.getElementById('measure-card-title');
+        const distEl = document.getElementById('measure-dist');
+        if (isClearanceMode && titleEl) titleEl.innerText = '↔️ Min Body Clearance';
+        if (isClearanceMode && distEl) distEl.innerText = 'Click 1st body/mesh';
+      }
+      return isClearanceMode;
+    }
+
+    function _sampleWorldVertices(mesh, maxSamples = 2500) {
+      const pos = mesh.geometry && mesh.geometry.attributes ? mesh.geometry.attributes.position : null;
+      if (!pos || pos.count === 0) return [];
+      const stride = Math.max(1, Math.floor(pos.count / maxSamples));
+      const pts = [];
+      const seen = new Set();
+      for (let i = 0; i < pos.count; i += stride) {
+        const v = new THREE.Vector3().fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
+        const k = `${Math.round(v.x * 1e3)}_${Math.round(v.y * 1e3)}_${Math.round(v.z * 1e3)}`;
+        if (!seen.has(k)) {
+          seen.add(k);
+          pts.push(v);
+        }
+      }
+      return pts;
+    }
+
+    function measureMinClearance(meshA, meshB) {
+      if (!meshA || !meshB || !meshA.geometry || !meshB.geometry) return null;
+      meshA.updateMatrixWorld(true);
+      meshB.updateMatrixWorld(true);
+
+      const bvhA = _ensureGeometryBVH(meshA);
+      const bvhB = _ensureGeometryBVH(meshB);
+
+      let bestDist = Infinity;
+      let bestPointA = null;
+      let bestPointB = null;
+
+      if (bvhA && bvhB && typeof bvhA.intersectsGeometry === 'function') {
+        const matAtoB = new THREE.Matrix4().copy(meshA.matrixWorld).invert().multiply(meshB.matrixWorld);
+        if (bvhA.intersectsGeometry(meshB.geometry, matAtoB)) {
+          const vertsA = _sampleWorldVertices(meshA, 64);
+          const pt = vertsA[0] || new THREE.Vector3().setFromMatrixPosition(meshA.matrixWorld);
+          bestDist = 0;
+          bestPointA = pt.clone();
+          bestPointB = pt.clone();
+        }
+      }
+
+      if (bestDist > 0 && bvhA && bvhB && typeof bvhA.closestPointToPoint === 'function') {
+        const invA = new THREE.Matrix4().copy(meshA.matrixWorld).invert();
+        const invB = new THREE.Matrix4().copy(meshB.matrixWorld).invert();
+        const target = { point: new THREE.Vector3(), distance: Infinity, faceIndex: -1 };
+
+        const vertsA = _sampleWorldVertices(meshA, 2500);
+        for (let i = 0; i < vertsA.length; i++) {
+          const localAInB = vertsA[i].clone().applyMatrix4(invB);
+          const cp = bvhB.closestPointToPoint(localAInB, target);
+          if (cp && cp.point) {
+            const worldB = cp.point.clone().applyMatrix4(meshB.matrixWorld);
+            const d = vertsA[i].distanceTo(worldB);
+            if (d < bestDist) {
+              bestDist = d;
+              bestPointA = vertsA[i].clone();
+              bestPointB = worldB;
+            }
+          }
+        }
+
+        const vertsB = _sampleWorldVertices(meshB, 2500);
+        for (let i = 0; i < vertsB.length; i++) {
+          const localBInA = vertsB[i].clone().applyMatrix4(invA);
+          const cp = bvhA.closestPointToPoint(localBInA, target);
+          if (cp && cp.point) {
+            const worldA = cp.point.clone().applyMatrix4(meshA.matrixWorld);
+            const d = worldA.distanceTo(vertsB[i]);
+            if (d < bestDist) {
+              bestDist = d;
+              bestPointA = worldA;
+              bestPointB = vertsB[i].clone();
+            }
+          }
+        }
+
+        // Alternating projection refinement for curved/edge-to-edge precision
+        if (bestPointA && bestPointB) {
+          for (let iter = 0; iter < 4; iter++) {
+            const cpB = bvhB.closestPointToPoint(bestPointA.clone().applyMatrix4(invB), target);
+            if (cpB && cpB.point) bestPointB = cpB.point.clone().applyMatrix4(meshB.matrixWorld);
+            const cpA = bvhA.closestPointToPoint(bestPointB.clone().applyMatrix4(invA), target);
+            if (cpA && cpA.point) bestPointA = cpA.point.clone().applyMatrix4(meshA.matrixWorld);
+            bestDist = bestPointA.distanceTo(bestPointB);
+          }
+        }
+      } else if (bestDist > 0) {
+        // Brute-force fallback when BVH is unavailable
+        const vertsA = _sampleWorldVertices(meshA, 800);
+        const vertsB = _sampleWorldVertices(meshB, 800);
+        for (let i = 0; i < vertsA.length; i++) {
+          for (let j = 0; j < vertsB.length; j++) {
+            const d = vertsA[i].distanceTo(vertsB[j]);
+            if (d < bestDist) {
+              bestDist = d;
+              bestPointA = vertsA[i].clone();
+              bestPointB = vertsB[j].clone();
+            }
+          }
+        }
+      }
+
+      if (!bestPointA || !bestPointB || !isFinite(bestDist)) return null;
+
+      const mg = _getMeasureGroup();
+      const cam = _getCamera();
+      if (mg) {
+        clearMeasurement(false);
+        if (cam) {
+          drawPointPin(bestPointA, 0x34d399);
+          drawPointPin(bestPointB, 0x34d399);
+        }
+        const geom = new THREE.BufferGeometry().setFromPoints([bestPointA, bestPointB]);
+        const mat = new THREE.LineDashedMaterial({
+          color: 0x34d399,
+          dashSize: Math.max(_getModelDistance() * 0.02, 0.8),
+          gapSize: Math.max(_getModelDistance() * 0.012, 0.4),
+          linewidth: 2,
+          depthTest: false
+        });
+        const clearanceLine = new THREE.Line(geom, mat);
+        if (typeof clearanceLine.computeLineDistances === 'function') clearanceLine.computeLineDistances();
+        clearanceLine.renderOrder = 999;
+        clearanceLine.name = 'measure_element';
+        mg.add(clearanceLine);
+
+        const sprite = _createSafeTextSprite(`Clearance: ${_formatDim(bestDist)}`);
+        if (sprite) {
+          sprite.position.copy(bestPointA).add(bestPointB).multiplyScalar(0.5);
+          sprite.renderOrder = 1001;
+          sprite.name = 'measure_element';
+          mg.add(sprite);
+        }
+      }
+
+      const valueText = `Clearance: ${_formatDim(bestDist)}`;
+      if (typeof currentMeasuredValue !== 'undefined') currentMeasuredValue = valueText;
+      lastActiveMeasurement = {
+        type: 'min-clearance',
+        title: '↔️ Min Clearance',
+        valueText,
+        distanceMm: bestDist,
+        points: [bestPointA.clone(), bestPointB.clone()],
+        anchorPoint: bestPointA.clone().add(bestPointB).multiplyScalar(0.5),
+        color: 0x34d399
+      };
+
+      if (typeof document !== 'undefined' && typeof document.getElementById === 'function') {
+        const card = document.getElementById('measure-card');
+        const titleEl = document.getElementById('measure-card-title');
+        const distEl = document.getElementById('measure-dist');
+        const deltasEl = document.getElementById('measure-deltas');
+        const extraEl = document.getElementById('measure-extra');
+        if (card) card.style.display = 'flex';
+        if (titleEl) titleEl.innerText = '↔️ Min Body Clearance';
+        if (distEl) distEl.innerText = _formatDim(bestDist);
+        if (deltasEl) deltasEl.innerText = `${meshA.name || 'Body A'} ↔ ${meshB.name || 'Body B'}`;
+        if (extraEl) extraEl.style.display = 'none';
+      }
+
+      return {
+        distanceMm: bestDist,
+        pointA: bestPointA,
+        pointB: bestPointB
+      };
+    }
+
     function handleUnifiedClick(snap) {
       if (!snap) return;
+
+      if (isWallThicknessMode && snap.point) {
+        measureWallThickness(snap.point, snap.normal || new THREE.Vector3(0, 1, 0), snap.mesh || null);
+        return;
+      }
+
+      if (isClearanceMode && snap.mesh) {
+        if (clearanceSelectedMeshes.length === 0) {
+          clearanceSelectedMeshes.push(snap.mesh);
+          const distEl = document.getElementById('measure-dist');
+          if (distEl) distEl.innerText = 'Click 2nd body/mesh';
+          return;
+        }
+        if (snap.mesh !== clearanceSelectedMeshes[0]) {
+          const mA = clearanceSelectedMeshes[0];
+          clearanceSelectedMeshes = [];
+          measureMinClearance(mA, snap.mesh);
+        }
+        return;
+      }
       const card = document.getElementById('measure-card');
       const distEl = document.getElementById('measure-dist');
       const deltasEl = document.getElementById('measure-deltas');
@@ -1210,7 +1893,34 @@
           }
         }
 
+        if (currentMeasuredValue) {
+          const p1 = getEntityOriginPoint(e1) || (e1 && e1.point ? e1.point.clone() : null);
+          const p2 = getEntityOriginPoint(e2) || (e2 && e2.point ? e2.point.clone() : null);
+          const pts = [p1, p2].filter(Boolean);
+          const anchor = pts.length === 2
+            ? pts[0].clone().add(pts[1]).multiplyScalar(0.5)
+            : (pts[0] ? pts[0].clone() : new THREE.Vector3());
+          lastActiveMeasurement = {
+            type: 'distance',
+            title: titleEl ? titleEl.innerText : 'Measurement',
+            valueText: currentMeasuredValue,
+            distanceMm: pts.length === 2 ? pts[0].distanceTo(pts[1]) : null,
+            points: pts,
+            anchorPoint: anchor
+          };
+        }
+
         selectedCadEntities = [];
+      } else if (currentMeasuredValue) {
+        const p1 = getEntityOriginPoint(snap) || (snap && snap.point ? snap.point.clone() : null);
+        lastActiveMeasurement = {
+          type: snap.type || 'single',
+          title: titleEl ? titleEl.innerText : 'Measurement',
+          valueText: currentMeasuredValue,
+          distanceMm: (snap.type === 'line' && snap.feature) ? snap.feature.length : null,
+          points: p1 ? [p1] : [],
+          anchorPoint: p1 ? p1.clone() : new THREE.Vector3()
+        };
       }
     }
 
@@ -1225,6 +1935,8 @@
       measurePoints = [];
       selectedFeatures = [];
       selectedCadEntities = [];
+      clearanceSelectedMeshes = [];
+      lastActiveMeasurement = null;
       currentHoverFeature = null;
       currentHoverTarget = null;
       currentMeasuredValue = '';
@@ -1237,12 +1949,13 @@
       const tooltip = document.getElementById('measure-tooltip');
       if (tooltip) tooltip.style.display = 'none';
 
-      // 3. Purge dynamic 3D measurement objects from measureGroup while preserving static helpers
+      // 3. Purge dynamic 3D measurement objects from measureGroup while preserving static helpers & pinned measurements
       const toRemove = [];
       measureGroup.children.forEach(child => {
         const isSnap = (typeof snapIndicator !== 'undefined' && child === snapIndicator);
         const isHover = (typeof hoverEdgeMesh !== 'undefined' && child === hoverEdgeMesh);
-        if (!isSnap && !isHover) {
+        const isPinned = (typeof pinnedMeasureGroup !== 'undefined' && child === pinnedMeasureGroup);
+        if (!isSnap && !isHover && !isPinned) {
           toRemove.push(child);
         }
       });
@@ -1474,23 +2187,6 @@
         }
       });
 
-      // Clear Cache
-      const btnClearCache = document.getElementById('btn-clearcache');
-      const clearText = document.getElementById('clearcache-text');
-      if (btnClearCache) {
-        btnClearCache.addEventListener('click', async () => {
-          const success = await clearAllCache();
-          if (success) {
-            if (clearText) clearText.innerText = 'Cleared!';
-            btnClearCache.classList.add('active');
-            setTimeout(() => {
-              if (clearText) clearText.innerText = 'Cache';
-              btnClearCache.classList.remove('active');
-            }, 1800);
-          }
-        });
-      }
-
       window.viewActions = viewActions;
       window.viewStates = viewStates;
       window.setBtnLabel = setBtnLabel;
@@ -1522,4 +2218,54 @@ window.handleUnifiedClick = handleUnifiedClick;
 window.clearMeasurement = clearMeasurement;
 window.clearActiveMeasurement = clearActiveMeasurement;
 window.toggleMeasureMode = toggleMeasureMode;
+window.pinMeasurement = pinMeasurement;
+window.removePinnedMeasurement = removePinnedMeasurement;
+window.clearPinnedMeasurements = clearPinnedMeasurements;
+window.getPinnedMeasurements = getPinnedMeasurements;
+window.updatePinnedBadgePositions = updatePinnedBadgePositions;
+window.measureWallThickness = measureWallThickness;
+window.toggleWallThicknessMode = toggleWallThicknessMode;
+window.measureMinClearance = measureMinClearance;
+window.toggleClearanceMode = toggleClearanceMode;
+
+window.MeasureEngine = {
+  createTextSprite,
+  indexModelVertices,
+  computeCoplanarArea,
+  findSurfaceTarget,
+  isPointOccluded,
+  findSnapTarget,
+  updateHoverEdgeGeometry,
+  drawCircleRing,
+  draw3DCircleRing,
+  drawCylinderAxisLine,
+  drawPointPin,
+  drawCADDimensionLine,
+  drawCADCircleAnnotation,
+  getEntityOriginPoint,
+  updateRubberband,
+  removeRubberband,
+  isHoleEntity,
+  getHoleInfo,
+  isSurfaceTarget,
+  isPurePointTarget,
+  isPointTarget,
+  handleUnifiedClick,
+  clearMeasurement,
+  clearActiveMeasurement,
+  toggleMeasureMode,
+  pinMeasurement,
+  removePinnedMeasurement,
+  clearPinnedMeasurements,
+  getPinnedMeasurements,
+  updatePinnedBadgePositions,
+  measureWallThickness,
+  toggleWallThicknessMode,
+  measureMinClearance,
+  toggleClearanceMode
+};
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = window.MeasureEngine;
+}
 

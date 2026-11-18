@@ -9,12 +9,17 @@ namespace QuickLook.Plugin.StepViewer
 {
     public class Plugin : IViewer
     {
-        private readonly string[] _supportedExtensions = { ".step", ".stp", ".p21", ".stpx", ".iges", ".igs", ".brep", ".stl" };
+        private readonly string[] _supportedExtensions =
+        {
+            ".step", ".stp", ".p21", ".iges", ".igs", ".brep",
+            ".sldprt", ".sldasm",
+            ".stl", ".3mf", ".obj", ".ply", ".glb", ".gltf"
+        };
         private UIElement _currentContent;
         private System.Windows.Threading.DispatcherTimer _watchdog;
 
         /// <summary>
-        /// Higher priority than default viewers (0) so STEP, IGES, BREP, and STL files are exclusively routed here.
+        /// Higher priority than default viewers (0) so CAD and 3D mesh files are exclusively routed here.
         /// </summary>
         public int Priority => 15;
 
@@ -68,29 +73,31 @@ namespace QuickLook.Plugin.StepViewer
 
             viewer.OnReady += (s, e) =>
             {
+                StopWatchdog();
                 context.IsBusy = false;
             };
 
             viewer.OnModelLoaded += (s, e) =>
             {
+                StopWatchdog();
                 context.IsBusy = false;
             };
 
             viewer.OnModelError += (s, err) =>
             {
+                StopWatchdog();
                 context.IsBusy = false;
             };
 
             // Watchdog fallback: ensure QuickLook blur overlay is never stuck indefinitely
-            _watchdog?.Stop();
+            StopWatchdog();
             _watchdog = new System.Windows.Threading.DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(45)
             };
             _watchdog.Tick += (s, e) =>
             {
-                _watchdog?.Stop();
-                _watchdog = null;
+                StopWatchdog();
                 context.IsBusy = false;
             };
             _watchdog.Start();
@@ -101,13 +108,18 @@ namespace QuickLook.Plugin.StepViewer
             viewer.LoadStepFile(path);
         }
 
-        public void Cleanup()
+        private void StopWatchdog()
         {
             if (_watchdog != null)
             {
                 _watchdog.Stop();
                 _watchdog = null;
             }
+        }
+
+        public void Cleanup()
+        {
+            StopWatchdog();
 
             if (_currentContent is StepViewerControl viewer)
             {

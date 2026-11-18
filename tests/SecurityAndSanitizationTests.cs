@@ -9,6 +9,7 @@ using QuickLook.Plugin.StepViewer;
 
 namespace QuickLook.Plugin.StepViewer.Tests
 {
+    [Collection("ServicePointManager")]
     public class SecurityAndSanitizationTests
     {
         [Theory]

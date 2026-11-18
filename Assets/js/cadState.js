@@ -63,6 +63,69 @@ var explodeAnchorBodyId = null;
 var isExplodeInitialized = false;
 var explodeFrameState = null;
 
+// User Preferences Persistence (v1)
+var CAD_PREFS_STORAGE_KEY = 'quicklook_cad_prefs_v1';
+var DEFAULT_CAD_PREFS = {
+  defaultUnit: 'mm',
+  showHlrEdges: true,
+  defaultCameraMode: 'ortho',
+  theme: 'dark'
+};
+
+function sanitizeCadPreferences(raw) {
+  const src = (raw && typeof raw === 'object') ? raw : {};
+  let fallbackTheme = DEFAULT_CAD_PREFS.theme;
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage) {
+      const legacyTheme = localStorage.getItem('quicklook_stp_theme');
+      if (legacyTheme === 'light' || legacyTheme === 'dark') {
+        fallbackTheme = legacyTheme;
+      }
+    }
+  } catch (e) {}
+
+  return {
+    defaultUnit: (src.defaultUnit === 'in' || src.defaultUnit === 'mm') ? src.defaultUnit : DEFAULT_CAD_PREFS.defaultUnit,
+    showHlrEdges: (typeof src.showHlrEdges === 'boolean') ? src.showHlrEdges : DEFAULT_CAD_PREFS.showHlrEdges,
+    defaultCameraMode: (src.defaultCameraMode === 'persp' || src.defaultCameraMode === 'ortho') ? src.defaultCameraMode : DEFAULT_CAD_PREFS.defaultCameraMode,
+    theme: (src.theme === 'light' || src.theme === 'dark') ? src.theme : fallbackTheme
+  };
+}
+
+function loadCadPreferences() {
+  try {
+    if (typeof localStorage === 'undefined' || !localStorage) {
+      return sanitizeCadPreferences(null);
+    }
+    const raw = localStorage.getItem(CAD_PREFS_STORAGE_KEY);
+    if (!raw) {
+      return sanitizeCadPreferences(null);
+    }
+    const parsed = JSON.parse(raw);
+    return sanitizeCadPreferences(parsed);
+  } catch (e) {
+    return sanitizeCadPreferences(null);
+  }
+}
+
+function saveCadPreferences(partial) {
+  const current = loadCadPreferences();
+  const next = sanitizeCadPreferences(Object.assign({}, current, (partial && typeof partial === 'object') ? partial : {}));
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage) {
+      localStorage.setItem(CAD_PREFS_STORAGE_KEY, JSON.stringify(next));
+      if (next.theme === 'light' || next.theme === 'dark') {
+        localStorage.setItem('quicklook_stp_theme', next.theme);
+      }
+    }
+  } catch (e) {}
+  return next;
+}
+
+function getCadPreferences() {
+  return loadCadPreferences();
+}
+
 // Synchronize into window object
 window.scene = scene;
 window.camera = camera;
@@ -75,4 +138,25 @@ window.explodeTrailsGroup = explodeTrailsGroup;
 window.sectionStencilGroup = sectionStencilGroup;
 window.sectionPlane = sectionPlane;
 window.sectionBox = sectionBox;
+window.CadPrefs = {
+  STORAGE_KEY: CAD_PREFS_STORAGE_KEY,
+  defaults: Object.assign({}, DEFAULT_CAD_PREFS),
+  load: loadCadPreferences,
+  save: saveCadPreferences,
+  get: getCadPreferences
+};
+window.loadCadPreferences = loadCadPreferences;
+window.saveCadPreferences = saveCadPreferences;
+window.getCadPreferences = getCadPreferences;
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    CAD_PREFS_STORAGE_KEY,
+    DEFAULT_CAD_PREFS,
+    sanitizeCadPreferences,
+    loadCadPreferences,
+    saveCadPreferences,
+    getCadPreferences
+  };
+}
 

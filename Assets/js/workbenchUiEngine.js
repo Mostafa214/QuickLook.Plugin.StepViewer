@@ -13,26 +13,171 @@
   let bboxHelperGroup = null;
   let bboxCalloutSprites = [];
 
+  const PREFS_KEY = 'quicklook_cad_prefs_v1';
+  let isApplyingSavedPrefs = false;
+
+  function loadPreferences() {
+    if (window.CadPrefs && typeof window.CadPrefs.load === 'function') {
+      return window.CadPrefs.load();
+    }
+    try {
+      const raw = (typeof localStorage !== 'undefined' && localStorage) ? localStorage.getItem(PREFS_KEY) : null;
+      const parsed = raw ? JSON.parse(raw) : {};
+      return {
+        defaultUnit: parsed.defaultUnit === 'in' ? 'in' : 'mm',
+        showHlrEdges: typeof parsed.showHlrEdges === 'boolean' ? parsed.showHlrEdges : true,
+        defaultCameraMode: parsed.defaultCameraMode === 'persp' ? 'persp' : 'ortho',
+        theme: parsed.theme === 'light' ? 'light' : 'dark'
+      };
+    } catch (e) {
+      return { defaultUnit: 'mm', showHlrEdges: true, defaultCameraMode: 'ortho', theme: 'dark' };
+    }
+  }
+
+  function savePreferences(partial) {
+    if (isApplyingSavedPrefs) return;
+    if (window.CadPrefs && typeof window.CadPrefs.save === 'function') {
+      return window.CadPrefs.save(partial);
+    }
+    const current = loadPreferences();
+    const next = Object.assign({}, current, partial || {});
+    try {
+      if (typeof localStorage !== 'undefined' && localStorage) {
+        localStorage.setItem(PREFS_KEY, JSON.stringify(next));
+      }
+    } catch (e) {}
+    return next;
+  }
+
+  function setupPreferencePersistence() {
+    if (typeof window.toggleUnits === 'function' && !window.toggleUnits._isPrefsHooked) {
+      const origToggleUnits = window.toggleUnits;
+      const hookedToggleUnits = function () {
+        const ret = origToggleUnits.apply(this, arguments);
+        const unit = (typeof window.currentUnit === 'string') ? window.currentUnit : 'mm';
+        savePreferences({ defaultUnit: unit });
+        return ret;
+      };
+      hookedToggleUnits._isPrefsHooked = true;
+      window.toggleUnits = hookedToggleUnits;
+    }
+
+    const btnUnits = document.getElementById('btn-units');
+    if (btnUnits && !btnUnits._isPrefsBound) {
+      btnUnits._isPrefsBound = true;
+      btnUnits.addEventListener('click', () => {
+        const unit = (typeof window.currentUnit === 'string') ? window.currentUnit : 'mm';
+        savePreferences({ defaultUnit: unit });
+      });
+    }
+
+    const btnEdges = document.getElementById('btn-edges');
+    if (btnEdges && !btnEdges._isPrefsBound) {
+      btnEdges._isPrefsBound = true;
+      btnEdges.addEventListener('click', () => {
+        savePreferences({ showHlrEdges: btnEdges.classList.contains('active') });
+      });
+    }
+
+    if (typeof window.switchCamera === 'function' && !window.switchCamera._isPrefsHooked) {
+      const origSwitchCamera = window.switchCamera;
+      const hookedSwitchCamera = function () {
+        const ret = origSwitchCamera.apply(this, arguments);
+        const isOrtho = window.camera ? !!window.camera.isOrthographicCamera : true;
+        savePreferences({ defaultCameraMode: isOrtho ? 'ortho' : 'persp' });
+        return ret;
+      };
+      hookedSwitchCamera._isPrefsHooked = true;
+      window.switchCamera = hookedSwitchCamera;
+    }
+
+    const btnPersp = document.getElementById('vc-btn-persp');
+    if (btnPersp && !btnPersp._isPrefsBound) {
+      btnPersp._isPrefsBound = true;
+      btnPersp.addEventListener('click', () => {
+        const isOrtho = window.camera ? !!window.camera.isOrthographicCamera : !btnPersp.classList.contains('active');
+        savePreferences({ defaultCameraMode: isOrtho ? 'ortho' : 'persp' });
+      });
+    }
+  }
+
+  function restoreSavedPreferences() {
+    const prefs = loadPreferences();
+    isApplyingSavedPrefs = true;
+    try {
+      if (prefs.theme === 'light' || prefs.theme === 'dark') {
+        activeTheme = prefs.theme;
+        if (prefs.theme === 'light') {
+          toggleTheme('light', { silent: true });
+        }
+      }
+
+      const curUnit = (typeof window.currentUnit === 'string') ? window.currentUnit : 'mm';
+      if (prefs.defaultUnit !== curUnit && typeof window.toggleUnits === 'function') {
+        window.toggleUnits();
+      }
+
+      const btnEdges = document.getElementById('btn-edges');
+      if (btnEdges && prefs.showHlrEdges === false && btnEdges.classList.contains('active')) {
+        btnEdges.click();
+      }
+
+      if (prefs.defaultCameraMode === 'persp' && typeof window.switchCamera === 'function') {
+        window.switchCamera('persp', true);
+      }
+    } finally {
+      isApplyingSavedPrefs = false;
+    }
+  }
+
+  function setupMeasureV2Listeners() {
+    const btnPinMeasure = document.getElementById('btn-pin-measure');
+    btnPinMeasure?.addEventListener('click', () => {
+      const pinned = window.MeasureEngine?.pinMeasurement?.();
+      if (!pinned && typeof showToast === 'function') {
+        showToast('Measure an edge, hole, or two points first to pin it.');
+      }
+    });
+
+    const btnClearPins = document.getElementById('btn-clear-pins');
+    btnClearPins?.addEventListener('click', () => {
+      window.MeasureEngine?.clearPinnedMeasurements?.();
+    });
+
+    const btnWall = document.getElementById('btn-measure-wall');
+    const btnClearance = document.getElementById('btn-measure-clearance');
+
+    btnWall?.addEventListener('click', () => {
+      const active = window.MeasureEngine?.toggleWallThicknessMode?.();
+      const isNowActive = (typeof active === 'boolean') ? active : !btnWall.classList.contains('active');
+      btnWall.classList.toggle('active', isNowActive);
+      if (isNowActive && btnClearance) {
+        btnClearance.classList.remove('active');
+      }
+    });
+
+    btnClearance?.addEventListener('click', () => {
+      const active = window.MeasureEngine?.toggleClearanceMode?.();
+      const isNowActive = (typeof active === 'boolean') ? active : !btnClearance.classList.contains('active');
+      btnClearance.classList.toggle('active', isNowActive);
+      if (isNowActive && btnWall) {
+        btnWall.classList.remove('active');
+      }
+    });
+  }
+
   function initWorkbenchUI() {
     createDrawerStructure();
     setupThemeSwitcher();
     setupBoundingBoxEngine();
     setupDrawerKeyboardEtiquette();
     setupAnalysisListeners();
+    setupMeasureV2Listeners();
     setupExplodeKeyboardGuard();
     hookExplodeLifecycle();
     updateExplodeToolState();
-
-    // Restore saved theme preference
-    try {
-      const savedTheme = localStorage.getItem('quicklook_stp_theme');
-      if (savedTheme === 'light' || savedTheme === 'dark') {
-        activeTheme = savedTheme;
-        if (activeTheme === 'light') {
-          toggleTheme('light');
-        }
-      }
-    } catch (e) {}
+    setupPreferencePersistence();
+    restoreSavedPreferences();
   }
 
   const mapToolToTab = {
@@ -245,6 +390,9 @@
     document.getElementById('btn-toggle-draft')?.addEventListener('click', () => {
       if (window.CadAnalysis?.toggleDraftAngle) window.CadAnalysis.toggleDraftAngle();
     });
+    document.getElementById('btn-preview-blueprint')?.addEventListener('click', () => {
+      if (window.BlueprintEngine?.openBlueprintPreview) window.BlueprintEngine.openBlueprintPreview();
+    });
     document.getElementById('btn-generate-blueprint')?.addEventListener('click', () => {
       if (window.BlueprintEngine?.downloadPng) window.BlueprintEngine.downloadPng();
       else if (window.BlueprintSvg?.generateAndDownload) window.BlueprintSvg.generateAndDownload();
@@ -253,6 +401,78 @@
       if (window.BlueprintEngine?.downloadPdf) window.BlueprintEngine.downloadPdf();
     });
     document.getElementById('btn-blueprint-svg')?.addEventListener('click', () => {
+      if (window.BlueprintEngine?.downloadSvg) window.BlueprintEngine.downloadSvg();
+    });
+
+    // 2D Engineering Blueprint Studio Modal Controls
+    document.getElementById('btn-close-blueprint-modal')?.addEventListener('click', () => {
+      if (window.BlueprintEngine?.closeBlueprintPreview) window.BlueprintEngine.closeBlueprintPreview();
+    });
+    document.getElementById('blueprint-preview-modal')?.addEventListener('click', (e) => {
+      if (e.target && e.target.id === 'blueprint-preview-modal') {
+        if (window.BlueprintEngine?.closeBlueprintPreview) window.BlueprintEngine.closeBlueprintPreview();
+      }
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const modal = document.getElementById('blueprint-preview-modal');
+        if (modal && modal.style.display !== 'none' && window.BlueprintEngine?.closeBlueprintPreview) {
+          window.BlueprintEngine.closeBlueprintPreview();
+        }
+      }
+    });
+
+    document.getElementById('btn-bp-proj-first')?.addEventListener('click', () => {
+      if (window.BlueprintEngine?.refreshBlueprintPreview) {
+        window.BlueprintEngine.refreshBlueprintPreview({ projection: 'first' });
+      }
+    });
+    document.getElementById('btn-bp-proj-third')?.addEventListener('click', () => {
+      if (window.BlueprintEngine?.refreshBlueprintPreview) {
+        window.BlueprintEngine.refreshBlueprintPreview({ projection: 'third' });
+      }
+    });
+    document.getElementById('btn-bp-hlr-dashed')?.addEventListener('click', () => {
+      if (window.BlueprintEngine?.refreshBlueprintPreview) {
+        window.BlueprintEngine.refreshBlueprintPreview({ showHiddenLines: true });
+      }
+    });
+    document.getElementById('btn-bp-hlr-clean')?.addEventListener('click', () => {
+      if (window.BlueprintEngine?.refreshBlueprintPreview) {
+        window.BlueprintEngine.refreshBlueprintPreview({ showHiddenLines: false });
+      }
+    });
+
+    document.getElementById('btn-bp-export-png')?.addEventListener('click', () => {
+      if (window.BlueprintEngine?.downloadPng) window.BlueprintEngine.downloadPng();
+    });
+    document.getElementById('btn-bp-export-pdf')?.addEventListener('click', () => {
+      if (window.BlueprintEngine?.downloadPdf) window.BlueprintEngine.downloadPdf();
+    });
+
+    // 3D Model Format Conversion & Export Buttons (Phase 4)
+    document.querySelectorAll('.model-export-btn[data-export-format]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const format = btn.getAttribute('data-export-format');
+        const exporter = window.ModelExportEngine;
+        const group = (typeof cadGroup !== 'undefined' ? cadGroup : null) || window.cadGroup;
+        if (!exporter || typeof exporter.exportCurrentModel !== 'function') {
+          if (typeof showToast === 'function') showToast('Model exporter is not ready.');
+          return;
+        }
+        btn.disabled = true;
+        try {
+          await exporter.exportCurrentModel(format, window.currentLoadedModelName || 'CAD_Model', group);
+        } catch (err) {
+          if (typeof showToast === 'function') {
+            showToast(`Export error: ${(err && err.message) || 'Failed to export 3D model'}`);
+          }
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+    document.getElementById('btn-bp-export-svg')?.addEventListener('click', () => {
       if (window.BlueprintEngine?.downloadSvg) window.BlueprintEngine.downloadSvg();
     });
 
@@ -296,6 +516,43 @@
     };
     angleSlider?.addEventListener('input', handleAngleInput);
     angleSlider?.addEventListener('change', handleAngleInput);
+
+    // Phase 5: 3D Printability Diagnostics (Overhang Heatmap & Manifold Edges)
+    const btnOverhang = document.getElementById('btn-toggle-overhang');
+    btnOverhang?.addEventListener('click', () => {
+      const active = window.CadAnalysis?.toggleOverhangHeatmap?.();
+      if (typeof active === 'boolean') {
+        btnOverhang.classList.toggle('active', active);
+      } else {
+        btnOverhang.classList.toggle('active');
+      }
+    });
+
+    const overhangSlider = document.getElementById('overhang-angle-slider');
+    const handleOverhangAngle = (e) => {
+      const val = parseFloat(e?.target ? e.target.value : e);
+      if (!isNaN(val)) {
+        const valBadge = document.getElementById('overhang-angle-val');
+        if (valBadge) valBadge.innerText = `${val}°`;
+        window.CadAnalysis?.setOverhangThreshold?.(val);
+      }
+    };
+    overhangSlider?.addEventListener('input', handleOverhangAngle);
+    overhangSlider?.addEventListener('change', handleOverhangAngle);
+
+    document.getElementById('overhang-axis-select')?.addEventListener('change', (e) => {
+      window.CadAnalysis?.setOverhangAxis?.(e.target.value);
+    });
+
+    const btnManifold = document.getElementById('btn-toggle-manifold');
+    btnManifold?.addEventListener('click', () => {
+      const active = window.CadAnalysis?.toggleManifoldEdges?.();
+      if (typeof active === 'boolean') {
+        btnManifold.classList.toggle('active', active);
+      } else {
+        btnManifold.classList.toggle('active');
+      }
+    });
   }
 
   function setupThemeSwitcher() {
@@ -305,7 +562,7 @@
     }
   }
 
-  function toggleTheme(targetTheme) {
+  function toggleTheme(targetTheme, options) {
     activeTheme = targetTheme || (activeTheme === 'dark' ? 'light' : 'dark');
     const isLight = (activeTheme === 'light');
 
@@ -381,11 +638,12 @@
     }
 
     // 6. Save persistence to localStorage
+    savePreferences({ theme: activeTheme });
     try {
       localStorage.setItem('quicklook_stp_theme', activeTheme);
     } catch (e) {}
 
-    if (typeof window.showToast === 'function') {
+    if (!(options && options.silent) && typeof window.showToast === 'function') {
       window.showToast(`Theme: ${isLight ? 'Light Engineering Workbench' : 'Dark CAD Studio'}`);
     }
   }

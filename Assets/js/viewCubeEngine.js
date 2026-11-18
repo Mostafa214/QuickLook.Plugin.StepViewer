@@ -13,6 +13,8 @@
   let isViewCubeInitialized = false;
   let hitboxMeshes = [];
   let currentlyHoveredHitbox = null;
+  let faceTexturesNormal = [];
+  let faceTexturesHover = [];
 
   const FACE_NAMES = ['RIGHT', 'LEFT', 'TOP', 'BOTTOM', 'FRONT', 'BACK'];
   const FACE_COLORS = {
@@ -133,9 +135,13 @@
     dir.position.set(2, 4, 3);
     cubeScene.add(dir);
 
+    // Pre-create & cache normal and hovered face textures
+    faceTexturesNormal = FACE_NAMES.map(name => createFaceTexture(name, false));
+    faceTexturesHover = FACE_NAMES.map(name => createFaceTexture(name, true));
+
     // Base Textured Box Geometry
-    const materials = FACE_NAMES.map(name => new THREE.MeshBasicMaterial({
-      map: createFaceTexture(name, false),
+    const materials = FACE_NAMES.map((name, idx) => new THREE.MeshBasicMaterial({
+      map: faceTexturesNormal[idx],
       transparent: true,
       opacity: 0.95
     }));
@@ -208,8 +214,8 @@
           } else if (def.cat === 'face') {
             hit.material.opacity = 0.40;
             const fIdx = def.faceIdx;
-            if (cubeMesh && cubeMesh.material && cubeMesh.material[fIdx]) {
-              cubeMesh.material[fIdx].map = createFaceTexture(FACE_NAMES[fIdx], true);
+            if (cubeMesh && cubeMesh.material && cubeMesh.material[fIdx] && faceTexturesHover[fIdx]) {
+              cubeMesh.material[fIdx].map = faceTexturesHover[fIdx];
               cubeMesh.material[fIdx].needsUpdate = true;
             }
           }
@@ -254,8 +260,8 @@
       currentlyHoveredHitbox.material.opacity = 0.0;
       if (currentlyHoveredHitbox.userData && currentlyHoveredHitbox.userData.def && currentlyHoveredHitbox.userData.def.cat === 'face') {
         const fIdx = currentlyHoveredHitbox.userData.def.faceIdx;
-        if (cubeMesh && cubeMesh.material && cubeMesh.material[fIdx]) {
-          cubeMesh.material[fIdx].map = createFaceTexture(FACE_NAMES[fIdx], false);
+        if (cubeMesh && cubeMesh.material && cubeMesh.material[fIdx] && faceTexturesNormal[fIdx]) {
+          cubeMesh.material[fIdx].map = faceTexturesNormal[fIdx];
           cubeMesh.material[fIdx].needsUpdate = true;
         }
       }

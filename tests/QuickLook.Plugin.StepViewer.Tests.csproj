@@ -27,6 +27,7 @@
       <HintPath>..\lib\QuickLook.Common.dll</HintPath>
       <Private>true</Private>
     </Reference>
+    <Reference Include="System.IO.Compression" />
   </ItemGroup>
 
 </Project>

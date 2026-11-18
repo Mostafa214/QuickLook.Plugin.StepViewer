@@ -119,7 +119,7 @@
             <polyline points="7 10 12 15 17 10"></polyline>
             <line x1="12" y1="15" x2="12" y2="3"></line>
           </svg>
-          <span id="btn-update-text">Update to v1.1.0</span>
+          <span id="btn-update-text">Update Available</span>
         </div>
       </button>
 
@@ -213,13 +213,10 @@
     <!-- Group 2: Display & Render Mode -->
     <div class="toolbar-segment" data-segment="display">
       <button class="btn active" id="btn-edges" title="Shaded with Edges [E]">
-        <svg viewBox="0 0 24 24">
-          <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" fill="#2d323c" stroke="#e2e8f0" stroke-width="1.6" stroke-linejoin="round"/>
-          <path d="M12 22V12" stroke="#e2e8f0" stroke-width="1.6"/>
-          <path d="M21 7l-9 5-9-5" stroke="#e2e8f0" stroke-width="1.6"/>
-          <polygon points="12 2 21 7 12 12 3 7" fill="#444b58"/>
-          <polygon points="3 7 12 12 12 22 3 17" fill="#2b303a"/>
-          <polygon points="12 12 21 7 21 17 12 22" fill="#363d4a"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
+          <polygon points="12 2 21 7 12 12 3 7" fill="currentColor" fill-opacity="0.18"/>
+          <polygon points="3 7 12 12 12 22 3 17" fill="currentColor" fill-opacity="0.06"/>
+          <polygon points="12 12 21 7 21 17 12 22" fill="currentColor" fill-opacity="0.12"/>
         </svg>
         <span>Edges</span>
       </button>
@@ -321,7 +318,7 @@
       <span>Box</span>
     </button>
     <button class="btn hud-btn" id="btn-units" title="Toggle Units (mm / in) [U]">
-      <span id="unit-indicator" style="font-weight:700; font-size:12px; letter-spacing:0.5px; color:#38bdf8;">mm</span>
+      <span id="unit-indicator" class="unit-indicator">mm</span>
     </button>
     <button class="btn hud-btn" id="btn-theme-switch" title="Toggle Theme (Dark / Light)">
       <svg id="theme-icon-sun" class="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -418,18 +415,39 @@
         <div id="measure-card" class="measure-card" style="display: flex;">
           <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
             <div class="measure-title" id="measure-card-title">📐 Smart Measure</div>
-            <button id="btn-copy-measure" class="btn-copy" title="Copy dimension to clipboard">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-              </svg>
-              <span id="copy-text">Copy</span>
-            </button>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <button id="btn-pin-measure" class="btn-copy" title="Pin active measurement to viewport">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>
+                </svg>
+                <span>Pin</span>
+              </button>
+              <button id="btn-copy-measure" class="btn-copy" title="Copy dimension to clipboard">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                <span id="copy-text">Copy</span>
+              </button>
+            </div>
           </div>
           <div class="measure-main" id="measure-dist">Select Edge or Point</div>
           <div class="measure-sub" id="measure-deltas">Hover over edges or holes for auto-detect</div>
           <div class="measure-sub" id="measure-extra" style="display: none;"></div>
           <div class="measure-sub" id="measure-angle" style="display: none;">Angle: 0.0°</div>
+          <div class="measure-mode-row">
+            <button id="btn-measure-wall" class="btn-xs" title="Probe opposite wall thickness along face normal">Wall Thickness</button>
+            <button id="btn-measure-clearance" class="btn-xs" title="Measure minimum clearance between two bodies">Min Clearance</button>
+          </div>
+          <div class="measure-pins-section">
+            <div class="measure-pins-header">
+              <span class="measure-pins-title">Pinned Dimensions</span>
+              <button id="btn-clear-pins" class="btn-xs" title="Clear all pinned measurements">Clear All</button>
+            </div>
+            <div id="measure-pins-list" class="measure-pins-list">
+              <div class="measure-pins-empty">No pinned measurements yet.</div>
+            </div>
+          </div>
           <button id="btn-clear-measure">Clear [C]</button>
         </div>
       </div>
@@ -455,7 +473,13 @@
             <span id="sec-offset-val" class="sec-offset-badge" title="Physical offset from center">X: +0.00 mm</span>
           </div>
 
-          <input type="range" id="sec-slider" min="0" max="100" value="50" class="sec-slider" title="Slice Position (0% to 100%)" />
+          <div class="sec-slider-row">
+            <input type="range" id="sec-slider" min="0" max="100" step="0.1" value="50" class="sec-slider" title="Slice Position (0% to 100%)" />
+            <div class="sec-offset-input-wrap">
+              <input type="number" id="sec-offset-input" class="sec-offset-input" step="0.5" value="0.00" aria-label="Section plane offset" title="Exact offset along active axis" />
+              <span id="sec-offset-unit" class="sec-offset-unit">mm</span>
+            </div>
+          </div>
 
           <div class="sec-divider"></div>
 
@@ -487,76 +511,76 @@
           </div>
 
           <!-- Multi-Body Selector in Mass Modal -->
-          <div id="props-body-row" style="display: none; margin: 0 0 8px;">
-            <label style="font-size: 9.5px; color: #94a3b8; font-weight: 600; display: block; margin-bottom: 3px;">SELECTED SOLID / BODY:</label>
-            <select id="props-body-select" class="mat-search-input" style="padding: 4px 6px; font-size: 11px; cursor: pointer;"></select>
+          <div id="props-body-row" class="props-body-row" style="display: none;">
+            <label class="props-field-label" for="props-body-select">SELECTED SOLID / BODY</label>
+            <select id="props-body-select" class="mat-search-input props-body-select"></select>
           </div>
 
           <!-- Active Material Summary Banner -->
-          <div id="active-mat-banner" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 6px; padding: 7px 10px; margin-bottom: 6px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span id="active-mat-name" style="font-weight: 600; color: #f1f5f9; font-size: 12px;">Aluminum 6061-T6</span>
-              <span id="active-mat-density" style="font-size: 10px; color: #94a3b8;">2.70 g/cm³</span>
+          <div id="active-mat-banner" class="active-mat-banner">
+            <div class="active-mat-row">
+              <span id="active-mat-name" class="active-mat-name">Aluminum 6061-T6</span>
+              <span id="active-mat-density" class="active-mat-density">2.70 g/cm³</span>
             </div>
-            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 3px;">
-              <span style="font-size: 10px; color: #64748b; text-transform: uppercase;">Total Mass:</span>
-              <strong id="active-mat-weight" style="font-size: 15px; color: #38bdf8; font-weight: 700;">-</strong>
+            <div class="active-mat-mass-row">
+              <span class="active-mat-mass-label">Total Mass</span>
+              <strong id="active-mat-weight" class="active-mat-weight">-</strong>
             </div>
           </div>
 
           <!-- 3D Printing & Infill Estimation Panel (Milestone 4) -->
-          <div id="section-infill" style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(56, 189, 248, 0.28); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <span style="font-size: 10px; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px;">🖨️ 3D Print & Infill Estimator</span>
-              <span id="infill-val" style="font-size: 12px; font-weight: 700; color: #f8fafc; font-family: monospace;">20%</span>
+          <div id="section-infill" class="infill-section-card">
+            <div class="infill-header">
+              <span class="infill-title">🖨️ 3D Print &amp; Infill Estimator</span>
+              <span id="infill-val" class="infill-val-badge">20%</span>
             </div>
 
             <!-- Infill Slider -->
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-              <input type="range" id="infill-slider" min="5" max="100" value="20" step="1" style="flex: 1; accent-color: #38bdf8; cursor: pointer; height: 4px;" title="Adjust Infill Density (5% to 100%)" />
+            <div class="infill-slider-wrap">
+              <input type="range" id="infill-slider" class="infill-slider" min="5" max="100" value="20" step="1" title="Adjust Infill Density (5% to 100%)" />
             </div>
 
             <!-- Quick Presets -->
-            <div style="display: flex; gap: 4px; margin-bottom: 8px;">
-              <button type="button" class="btn-preset-infill btn-copy" data-infill="15" style="flex: 1; font-size: 10px; padding: 3px 0; text-align: center;">15%</button>
-              <button type="button" class="btn-preset-infill btn-copy active" data-infill="20" style="flex: 1; font-size: 10px; padding: 3px 0; text-align: center;">20%</button>
-              <button type="button" class="btn-preset-infill btn-copy" data-infill="50" style="flex: 1; font-size: 10px; padding: 3px 0; text-align: center;">50%</button>
-              <button type="button" class="btn-preset-infill btn-copy" data-infill="100" style="flex: 1; font-size: 10px; padding: 3px 0; text-align: center;">100%</button>
+            <div class="infill-presets-row">
+              <button type="button" class="btn-preset-infill btn-copy" data-infill="15">15%</button>
+              <button type="button" class="btn-preset-infill btn-copy active" data-infill="20">20%</button>
+              <button type="button" class="btn-preset-infill btn-copy" data-infill="50">50%</button>
+              <button type="button" class="btn-preset-infill btn-copy" data-infill="100">100%</button>
             </div>
 
             <!-- Print Estimation Metrics Grid -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: rgba(0, 0, 0, 0.25); border-radius: 4px; padding: 6px 8px; font-size: 10.5px;">
+            <div class="infill-metrics-grid">
               <div>
-                <span style="color: #94a3b8; display: block; font-size: 9px; text-transform: uppercase;">Part Mass:</span>
-                <strong id="print-est-mass" style="color: #38bdf8; font-family: monospace;">-</strong>
+                <span class="infill-metric-label">Part Mass</span>
+                <strong id="print-est-mass" class="infill-metric-val">-</strong>
               </div>
               <div>
-                <span style="color: #94a3b8; display: block; font-size: 9px; text-transform: uppercase;">1.75mm Filament:</span>
-                <strong id="print-est-length" style="color: #38bdf8; font-family: monospace;">-</strong>
+                <span class="infill-metric-label">1.75mm Filament</span>
+                <strong id="print-est-length" class="infill-metric-val">-</strong>
               </div>
-              <div style="grid-column: span 2; border-top: 1px solid rgba(255, 255, 255, 0.07); padding-top: 4px; margin-top: 2px; display: flex; justify-content: space-between; align-items: baseline;">
-                <span style="color: #94a3b8; font-size: 9px; text-transform: uppercase;">1kg Spool Usage:</span>
-                <strong id="print-est-spool" style="color: #38bdf8; font-family: monospace;">-</strong>
+              <div class="infill-metric-spool-row">
+                <span class="infill-metric-label">1kg Spool Usage</span>
+                <strong id="print-est-spool" class="infill-metric-val">-</strong>
               </div>
             </div>
           </div>
 
           <!-- Search & Add Custom Button -->
-          <div style="display: flex; gap: 6px; align-items: center;">
+          <div class="mat-search-row">
             <input type="text" id="mat-search" class="mat-search-input" placeholder="🔍 Search material (e.g. 6061, Steel, Delrin)..." />
             <button id="btn-toggle-custom" class="btn-copy" style="white-space: nowrap; font-size: 10px; padding: 5px 8px;" title="Add Custom Material">+ Custom</button>
           </div>
 
           <!-- Add Custom Material Form -->
-          <div id="custom-mat-form" style="display: none; background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; padding: 8px; margin-top: 6px;">
-            <div style="font-size: 10px; font-weight: 600; color: #38bdf8; margin-bottom: 5px;">Create Custom Material</div>
+          <div id="custom-mat-form" class="custom-mat-form" style="display: none;">
+            <div class="custom-mat-title">Create Custom Material</div>
             <input type="text" id="custom-mat-name" class="mat-search-input" placeholder="Material Name (e.g. Inconel 718)" style="margin-bottom: 5px;" />
             <div style="display: flex; gap: 6px; margin-bottom: 6px;">
               <input type="number" id="custom-mat-density" class="mat-search-input" placeholder="Density (g/cm³)" step="0.01" min="0.01" />
             </div>
             <div style="display: flex; justify-content: flex-end; gap: 6px;">
               <button id="btn-cancel-custom" class="btn-copy" style="font-size: 10px;">Cancel</button>
-              <button id="btn-save-custom" class="btn-copy" style="font-size: 10px; background: #0284c7; color: white; border-color: #0284c7;">Save</button>
+              <button id="btn-save-custom" class="btn-copy btn-save-custom">Save</button>
             </div>
           </div>
 
@@ -568,20 +592,20 @@
       <!-- Tab 5: CAD Analysis -->
       <div id="drawer-tab-analysis" class="drawer-tab-content drawer-tab-pane" data-tab="analysis" style="display: none;">
         <div class="analysis-panel" id="analysis-panel">
-          <div class="analysis-section-title">ENGINEERING CAD ANALYSIS (v2.0)</div>
+          <div class="analysis-section-title">ENGINEERING CAD ANALYSIS (v3.0.0)</div>
           <div class="analysis-card">
             <div class="analysis-row">
               <span class="analysis-label">Interference Check</span>
               <button id="btn-run-collision" class="btn-xs">Check Collisions</button>
             </div>
-            <div id="collision-results" style="font-size:11px; color:#94a3b8; margin-top:4px;">No active collision check.</div>
+            <div id="collision-results" class="analysis-readout-muted">No active collision check.</div>
           </div>
           <div class="analysis-card">
             <div class="analysis-row">
               <span class="analysis-label">Center of Mass (3D Gizmo)</span>
               <button id="btn-toggle-com" class="btn-xs">Show CoM</button>
             </div>
-            <div id="com-coords-readout" style="font-size:11px; font-family:monospace; color:#38bdf8; margin-top:4px;">X: 0.0, Y: 0.0, Z: 0.0 mm</div>
+            <div id="com-coords-readout" class="analysis-readout-accent">X: 0.0, Y: 0.0, Z: 0.0 mm</div>
           </div>
           <div class="analysis-card" id="card-draft-analysis">
             <div class="analysis-row">
@@ -632,16 +656,51 @@
               </div>
             </div>
           </div>
+          <div class="analysis-card" id="card-printability-analysis">
+            <div class="analysis-row">
+              <span class="analysis-label">3D Printability Diagnostics</span>
+            </div>
+            <div class="printability-section">
+              <div class="analysis-row">
+                <span class="printability-sublabel">Overhang Heatmap</span>
+                <button id="btn-toggle-overhang" class="btn-xs" title="Highlight downward-facing overhangs">Overhangs</button>
+              </div>
+              <div class="printability-controls">
+                <div class="printability-control-row">
+                  <label class="draft-section-label" for="overhang-angle-slider">MAX OVERHANG:</label>
+                  <span id="overhang-angle-val" class="draft-val-badge">45°</span>
+                </div>
+                <input type="range" id="overhang-angle-slider" min="15" max="75" step="1" value="45" class="sec-slider" title="Overhang threshold angle (15° to 75°)" />
+                <div class="printability-control-row">
+                  <label class="draft-section-label" for="overhang-axis-select">BUILD UP AXIS:</label>
+                  <select id="overhang-axis-select" class="analysis-select" title="Build plate vertical axis">
+                    <option value="Y" selected>Y-Up (+Y)</option>
+                    <option value="Z">Z-Up (+Z)</option>
+                  </select>
+                </div>
+              </div>
+              <div id="overhang-stats" class="analysis-readout-muted">Overhang check inactive.</div>
+            </div>
+            <div class="sec-divider" style="margin: 8px 0;"></div>
+            <div class="printability-section">
+              <div class="analysis-row">
+                <span class="printability-sublabel">Open / Non-Manifold Edges</span>
+                <button id="btn-toggle-manifold" class="btn-xs" title="Detect boundary and non-manifold mesh edges">Check Mesh</button>
+              </div>
+              <div id="manifold-stats" class="analysis-readout-muted">Mesh watertightness not checked.</div>
+            </div>
+          </div>
           <div class="analysis-card">
             <div class="analysis-row" style="display: flex; justify-content: space-between; align-items: center;">
               <span class="analysis-label">2D Engineering Blueprint</span>
-              <div style="display: flex; gap: 4px;">
+              <div style="display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end;">
+                <button id="btn-preview-blueprint" class="btn-xs" title="Open Interactive 2D Engineering Blueprint Studio">Preview</button>
                 <button id="btn-generate-blueprint" class="btn-xs active" title="Save as High-Resolution 300 DPI PNG Image">Save PNG</button>
                 <button id="btn-blueprint-pdf" class="btn-xs" title="Save as Standard ISO A3 PDF Document">PDF</button>
                 <button id="btn-blueprint-svg" class="btn-xs" title="Export as Scalable Vector Graphics (SVG)">SVG</button>
               </div>
             </div>
-            <div style="font-size:10px; color:#64748b; margin-top:4px;">ISO 5457 standard 4-view drawing (Front, Top, Right, Isometric)</div>
+            <div class="analysis-subtext">ISO 5457 standard 4-view drawing (Front, Top, Right, Isometric)</div>
           </div>
         </div>
       </div>
@@ -767,7 +826,7 @@
             </div>
             <!-- Custom QR Note / URL Input -->
             <div id="snap-qr-custom-container" style="display: flex; flex-direction: column; gap: 3px; margin-top: 3px;">
-              <span style="font-size: 8.5px; color: #94a3b8; font-weight: 600;">CUSTOM LINK OR PART NOTE (EMBEDDED IN QR):</span>
+              <span class="snap-sub-label">CUSTOM LINK OR PART NOTE (EMBEDDED IN QR):</span>
               <input type="text" id="snap-qr-note" class="snap-text-input" placeholder="e.g. https://company.com/drawing or Rev 3.2..." maxlength="120" />
             </div>
           </div>
@@ -789,6 +848,25 @@
               </svg>
               <span>Save File...</span>
             </button>
+          </div>
+
+          <!-- 3D Format Conversion & Export -->
+          <div class="snap-section model-export-section">
+            <label class="snap-label">CONVERT &amp; EXPORT 3D MODEL</label>
+            <div class="model-export-grid">
+              <button type="button" id="btn-export-model-stl" class="model-export-btn" data-export-format="stl" title="Export active geometry as Binary STL mesh (.stl)">
+                <span class="model-export-ext">.STL</span>
+                <span class="model-export-desc">Binary Mesh</span>
+              </button>
+              <button type="button" id="btn-export-model-obj" class="model-export-btn" data-export-format="obj" title="Export active geometry as Wavefront OBJ (.obj)">
+                <span class="model-export-ext">.OBJ</span>
+                <span class="model-export-desc">Wavefront</span>
+              </button>
+              <button type="button" id="btn-export-model-glb" class="model-export-btn" data-export-format="glb" title="Export active geometry as Khronos glTF 2.0 Binary (.glb)">
+                <span class="model-export-ext">.GLB</span>
+                <span class="model-export-desc">glTF 2.0</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -905,7 +983,7 @@
     <div class="color-popover-section">
       <div class="color-popover-label" style="display:flex; justify-content:space-between; align-items:center;">
         <span>3D Printing Presets</span>
-        <span style="font-size:8.5px; color:#64748b; text-transform:none;">1.75mm Filament</span>
+        <span class="popover-sub-unit">1.75mm Filament</span>
       </div>
       <div class="materials-grid">
         <button class="mat-preset-btn" data-mat="PLA" data-density="1.24" data-color="#0284c7" data-rough="0.45" title="Polylactic Acid (1.24 g/cm³)">
@@ -962,9 +1040,9 @@
         <span id="popover-opacity-val" class="opacity-val-text">100%</span>
       </div>
       <div style="display:flex; align-items:center; gap:8px;">
-        <span style="font-size:10px; color:#64748b;">10%</span>
+        <span class="popover-range-bound">10%</span>
         <input type="range" id="popover-opacity-slider" class="sec-slider" min="10" max="100" value="100" style="flex:1;" />
-        <span style="font-size:10px; color:#64748b;">100%</span>
+        <span class="popover-range-bound">100%</span>
       </div>
     </div>
   </div>
@@ -985,24 +1063,28 @@
     <canvas id="triad-canvas" width="70" height="70"></canvas>
   </div>
 
-  <!-- Centered Floating Shortcuts Hints Bar (v2.1.0) -->
+  <!-- Centered Floating Shortcuts Hints Bar (v2.0.0) -->
   <div class="hints" id="hints-bar" role="complementary" aria-label="Keyboard Shortcuts">
     <span>Scroll: Zoom</span><span class="hint-sep">|</span>
     <span>Middle: Rotate</span><span class="hint-sep">|</span>
-    <span>Right: Pan / Cancel</span><span class="hint-sep">|</span>
-    <span>T: Tree</span><span class="hint-sep">|</span>
-    <span class="hint-secondary">X: Explode</span><span class="hint-sep hint-secondary-sep">|</span>
+    <span>Right: Pan</span><span class="hint-sep">|</span>
+    <span>1-4: Views</span><span class="hint-sep">|</span>
+    <span>F: Fit</span><span class="hint-sep">|</span>
+    <span>O: Ortho/Persp</span><span class="hint-sep">|</span>
+    <span class="hint-secondary">B: Box</span><span class="hint-sep hint-secondary-sep">|</span>
     <span>M: Measure</span>
     <span id="hint-measure-clear" class="hint-measure-active" style="display: none;">
       <span class="hint-sep">|</span>
       <span class="hint-key-accent">[C] Clear Measure</span>
     </span><span class="hint-sep">|</span>
     <span>S: Section</span><span class="hint-sep">|</span>
+    <span class="hint-secondary">T: Tree</span><span class="hint-sep hint-secondary-sep">|</span>
+    <span class="hint-secondary">X: Explode</span><span class="hint-sep hint-secondary-sep">|</span>
     <span class="hint-secondary">A: Analysis</span><span class="hint-sep hint-secondary-sep">|</span>
     <span class="hint-secondary">P: Mass</span><span class="hint-sep hint-secondary-sep">|</span>
     <span class="hint-secondary">K: Snap</span><span class="hint-sep hint-secondary-sep">|</span>
     <span class="hint-secondary">U: Units</span><span class="hint-sep hint-secondary-sep">|</span>
-    <span>F: Fit</span>
+    <span>?: Shortcuts</span>
   </div>
 
   <!-- Bottom-Right Floating HUD Cluster (Stacked Update & Shortcuts Toggle - TSK-11) -->
@@ -1012,7 +1094,7 @@
       <svg class="hud-pill-svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
       </svg>
-      <span id="hint-version-text" class="hud-pill-text">v2.0.0</span>
+      <span id="hint-version-text" class="hud-pill-text">v3.0.0</span>
     </button>
 
     <!-- Shortcuts Toggle Button -->
@@ -1021,11 +1103,89 @@
       <span class="hud-pill-text">Shortcuts</span>
     </button>
   </div>
+  <div id="sw-preview-fallback" class="sw-preview-fallback" style="display: none;" role="region" aria-label="SolidWorks Preview Thumbnail">
+    <div class="sw-preview-card">
+      <div class="sw-preview-badge">SolidWorks Preview Thumbnail — No cached 3D DisplayLists</div>
+      <img id="sw-preview-img" class="sw-preview-img" alt="SolidWorks Preview Thumbnail" />
+      <div id="sw-preview-caption" class="sw-preview-caption"></div>
+    </div>
+  </div>
   <div id="error-container"></div>
+
+  <!-- Interactive 2D Engineering Blueprint Studio Modal -->
+  <div id="blueprint-preview-modal" class="bp-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="bp-modal-title" aria-hidden="true" style="display: none;">
+    <div class="bp-modal-dialog">
+      <header class="bp-modal-header">
+        <div class="bp-modal-brand">
+          <div class="bp-modal-icon" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <path d="M3 9h18M9 21V9"/>
+            </svg>
+          </div>
+          <div class="bp-modal-titles">
+            <h2 id="bp-modal-title" class="bp-modal-title">2D Engineering Blueprint Studio</h2>
+            <span class="bp-modal-subtitle">ISO 5457 / ASME Y14.5 • A3 Landscape</span>
+          </div>
+        </div>
+
+        <div class="bp-modal-controls">
+          <div class="bp-control-group" role="group" aria-label="Projection Standard">
+            <span class="bp-control-label">PROJECTION</span>
+            <div class="bp-seg-group">
+              <button type="button" id="btn-bp-proj-first" class="bp-seg-btn active" data-projection="first" aria-pressed="true" title="ISO 128 First-Angle Projection">1st Angle (ISO)</button>
+              <button type="button" id="btn-bp-proj-third" class="bp-seg-btn" data-projection="third" aria-pressed="false" title="ASME Y14.5 Third-Angle Projection">3rd Angle (ASME)</button>
+            </div>
+          </div>
+
+          <div class="bp-control-group" role="group" aria-label="Hidden Line Removal">
+            <span class="bp-control-label">HIDDEN LINES</span>
+            <div class="bp-seg-group">
+              <button type="button" id="btn-bp-hlr-dashed" class="bp-seg-btn active" data-hidden="true" aria-pressed="true" title="Render occluded edges as ISO dashed lines">Dashed Hidden</button>
+              <button type="button" id="btn-bp-hlr-clean" class="bp-seg-btn" data-hidden="false" aria-pressed="false" title="Clean Hidden Line Removal (visible contours only)">Clean HLR</button>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" id="btn-close-blueprint-modal" class="bp-modal-close" title="Close Studio (Esc)" aria-label="Close Blueprint Studio">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </header>
+
+      <div class="bp-modal-body">
+        <div id="blueprint-preview-stage" class="bp-paper-stage" aria-live="polite"></div>
+      </div>
+
+      <footer class="bp-modal-footer">
+        <div class="bp-footer-meta">
+          <span class="bp-meta-pill">A3 (420 × 297 mm)</span>
+          <span class="bp-meta-hint">Esc to close</span>
+        </div>
+        <div class="bp-footer-actions">
+          <button type="button" id="btn-bp-export-svg" class="bp-export-btn" title="Export Vector SVG">Export SVG</button>
+          <button type="button" id="btn-bp-export-pdf" class="bp-export-btn" title="Export ISO A3 PDF Document">Export PDF (A3)</button>
+          <button type="button" id="btn-bp-export-png" class="bp-export-btn bp-export-primary" title="Export High-Resolution 300 DPI PNG">Export PNG (300 DPI)</button>
+        </div>
+      </footer>
+    </div>
+  </div>
 
   <!-- Scripts: 3D Graphics Core & Modular CAD Engines -->
   <script src="three.min.js"></script>
   <script src="OrbitControls.js"></script>
+  <script src="js/vendor/three-mesh-bvh.umd.js"></script>
+  <script src="js/vendor/fflate.min.js"></script>
+  <script src="js/solidworksLoader.js"></script>
+  <script src="js/vendor/3MFLoader.js"></script>
+  <script src="js/vendor/OBJLoader.js"></script>
+  <script src="js/vendor/MTLLoader.js"></script>
+  <script src="js/vendor/PLYLoader.js"></script>
+  <script src="js/vendor/GLTFLoader.js"></script>
+  <script src="js/vendor/STLExporter.js"></script>
+  <script src="js/vendor/OBJExporter.js"></script>
+  <script src="js/vendor/GLTFExporter.js"></script>
   <script src="js/cadState.js"></script>
   <script src="js/adminTwin.js"></script>
   <script src="js/materialsEngine.js"></script>
@@ -1042,6 +1202,8 @@
   <script src="js/blueprintSvgEngine.js"></script>
   <script src="js/stlLoader.js"></script>
   <script src="js/meshFeatureDetector.js"></script>
+  <script src="js/meshFormatLoader.js"></script>
+  <script src="js/modelExportEngine.js"></script>
   <script src="js/viewerApp.js"></script>
 </body>
 </html>

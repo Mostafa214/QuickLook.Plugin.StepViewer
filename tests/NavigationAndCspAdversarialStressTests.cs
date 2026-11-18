@@ -259,7 +259,7 @@ namespace QuickLook.Plugin.StepViewer.Tests
                         val.Equals("unsafe-eval", StringComparison.OrdinalIgnoreCase) ||
                         val.Equals("none", StringComparison.OrdinalIgnoreCase))
                     {
-                        Assert.False(true, $"CSP keyword {val} must be single-quoted (e.g. '{val}'). Found unquoted: '{val}'");
+                        Assert.Fail($"CSP keyword {val} must be single-quoted (e.g. '{val}'). Found unquoted: '{val}'");
                     }
                 }
             }

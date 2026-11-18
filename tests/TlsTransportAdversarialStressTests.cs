@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -10,10 +11,16 @@ using QuickLook.Plugin.StepViewer;
 
 namespace QuickLook.Plugin.StepViewer.Tests
 {
+    [CollectionDefinition("ServicePointManager", DisableParallelization = true)]
+    public class ServicePointManagerCollectionDefinition
+    {
+    }
+
     /// <summary>
     /// Adversarial stress tests for SEC-06 Transport Security Protocols.
     /// Stress-tests downgrade resistance, concurrency, and WebClient call-site guarantees.
     /// </summary>
+    [Collection("ServicePointManager")]
     public class TlsTransportAdversarialStressTests
     {
         [Fact]
@@ -166,38 +173,7 @@ namespace QuickLook.Plugin.StepViewer.Tests
                     var webClientOffsets = new List<int>();
                     var configProtocolsOffsets = new List<int>();
 
-                    for (int i = 0; i < il.Length; i++)
-                    {
-                        byte op = il[i];
-                        if (op == 0x73) // newobj
-                        {
-                            int token = BitConverter.ToInt32(il, i + 1);
-                            try
-                            {
-                                var callee = type.Module.ResolveMethod(token);
-                                if (callee != null && callee.DeclaringType == typeof(WebClient))
-                                {
-                                    webClientOffsets.Add(i);
-                                }
-                            }
-                            catch { }
-                            i += 4;
-                        }
-                        else if (op == 0x28 || op == 0x6f) // call or callvirt
-                        {
-                            int token = BitConverter.ToInt32(il, i + 1);
-                            try
-                            {
-                                var callee = type.Module.ResolveMethod(token);
-                                if (callee != null && callee.Name == "ConfigureSecurityProtocols")
-                                {
-                                    configProtocolsOffsets.Add(i);
-                                }
-                            }
-                            catch { }
-                            i += 4;
-                        }
-                    }
+                    DecodeMethodCalls(il, type.Module, webClientOffsets, configProtocolsOffsets);
 
                     if (webClientOffsets.Count > 0)
                     {
@@ -221,6 +197,103 @@ namespace QuickLook.Plugin.StepViewer.Tests
 
             Assert.True(totalWebClientSites > 0, "At least one WebClient call site must be identified in PluginUpdateService.");
             Assert.True(unhardenedSites == 0, string.Join("; ", failureDetails));
+        }
+
+        private static readonly OpCode[] s_singleByteOpCodes = BuildOpCodeTable(1);
+        private static readonly OpCode[] s_twoByteOpCodes = BuildOpCodeTable(2);
+
+        private static OpCode[] BuildOpCodeTable(int size)
+        {
+            var table = new OpCode[256];
+            foreach (var field in typeof(OpCodes).GetFields(BindingFlags.Public | BindingFlags.Static))
+            {
+                if (field.FieldType == typeof(OpCode))
+                {
+                    var op = (OpCode)field.GetValue(null);
+                    if (op.Size == size)
+                    {
+                        table[(ushort)op.Value & 0xFF] = op;
+                    }
+                }
+            }
+            return table;
+        }
+
+        private static void DecodeMethodCalls(
+            byte[] il,
+            Module module,
+            List<int> webClientOffsets,
+            List<int> configProtocolsOffsets)
+        {
+            int i = 0;
+            while (i < il.Length)
+            {
+                int offset = i;
+                byte code = il[i++];
+                OpCode opCode = code == 0xFE && i < il.Length
+                    ? s_twoByteOpCodes[il[i++]]
+                    : s_singleByteOpCodes[code];
+
+                if (opCode == OpCodes.Newobj && i + 4 <= il.Length)
+                {
+                    int token = BitConverter.ToInt32(il, i);
+                    try
+                    {
+                        var callee = module.ResolveMethod(token);
+                        if (callee != null && callee.DeclaringType == typeof(WebClient))
+                        {
+                            webClientOffsets.Add(offset);
+                        }
+                    }
+                    catch { }
+                }
+                else if ((opCode == OpCodes.Call || opCode == OpCodes.Callvirt) && i + 4 <= il.Length)
+                {
+                    int token = BitConverter.ToInt32(il, i);
+                    try
+                    {
+                        var callee = module.ResolveMethod(token);
+                        if (callee != null && callee.Name == "ConfigureSecurityProtocols")
+                        {
+                            configProtocolsOffsets.Add(offset);
+                        }
+                    }
+                    catch { }
+                }
+
+                switch (opCode.OperandType)
+                {
+                    case OperandType.InlineNone:
+                        break;
+                    case OperandType.ShortInlineBrTarget:
+                    case OperandType.ShortInlineI:
+                    case OperandType.ShortInlineVar:
+                        i += 1;
+                        break;
+                    case OperandType.InlineVar:
+                        i += 2;
+                        break;
+                    case OperandType.InlineBrTarget:
+                    case OperandType.InlineField:
+                    case OperandType.InlineI:
+                    case OperandType.InlineMethod:
+                    case OperandType.InlineSig:
+                    case OperandType.InlineString:
+                    case OperandType.InlineTok:
+                    case OperandType.InlineType:
+                    case OperandType.ShortInlineR:
+                        i += 4;
+                        break;
+                    case OperandType.InlineI8:
+                    case OperandType.InlineR:
+                        i += 8;
+                        break;
+                    case OperandType.InlineSwitch:
+                        int count = BitConverter.ToInt32(il, i);
+                        i += 4 + (count * 4);
+                        break;
+                }
+            }
         }
 
         [Fact]

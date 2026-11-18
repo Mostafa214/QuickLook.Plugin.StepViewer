@@ -4,20 +4,34 @@
  */
     // Phase 2: Cross-Section View Functions (SolidWorks-Grade Stencil Capping & 3D Glass Plane)
     // =============================================================
-    function updateSectionPlane() {
+    function getActiveSectionUnit() {
+      if (typeof currentUnit !== 'undefined' && (currentUnit === 'in' || currentUnit === 'mm')) {
+        return currentUnit;
+      }
+      if (typeof window !== 'undefined' && (window.currentUnit === 'in' || window.currentUnit === 'mm')) {
+        return window.currentUnit;
+      }
+      return 'mm';
+    }
+
+    function updateSectionPlane(options) {
       if (sectionBox.isEmpty()) return;
+      const opts = (options && typeof options === 'object') ? options : {};
       const min = sectionBox.min;
       const max = sectionBox.max;
       const center = sectionBox.getCenter(new THREE.Vector3());
       const slider = document.getElementById('sec-slider');
       const val = slider ? (parseFloat(slider.value) / 100) : 0.5;
+      const clampedVal = isFinite(val) ? Math.max(0, Math.min(1, val)) : 0.5;
 
       const normal = new THREE.Vector3();
       let pos = 0;
       let centerCoord = 0;
+      let rangeCoord = 0;
 
       if (sectionAxis === 'x') {
-        pos = min.x + (max.x - min.x) * val;
+        rangeCoord = max.x - min.x;
+        pos = min.x + rangeCoord * clampedVal;
         centerCoord = center.x;
         if (!sectionFlipped) {
           normal.set(-1, 0, 0);
@@ -27,7 +41,8 @@
           sectionPlane.constant = -pos;
         }
       } else if (sectionAxis === 'y') {
-        pos = min.y + (max.y - min.y) * val;
+        rangeCoord = max.y - min.y;
+        pos = min.y + rangeCoord * clampedVal;
         centerCoord = center.y;
         if (!sectionFlipped) {
           normal.set(0, -1, 0);
@@ -37,7 +52,8 @@
           sectionPlane.constant = -pos;
         }
       } else if (sectionAxis === 'z') {
-        pos = min.z + (max.z - min.z) * val;
+        rangeCoord = max.z - min.z;
+        pos = min.z + rangeCoord * clampedVal;
         centerCoord = center.z;
         if (!sectionFlipped) {
           normal.set(0, 0, -1);
@@ -49,16 +65,67 @@
       }
       sectionPlane.normal.copy(normal);
 
-      // Live Physical Offset Badge (relative to model center)
+      // Live Physical Offset Badge & Numeric Offset Input Sync (relative to model center)
       const offsetMm = pos - centerCoord;
+      const unit = getActiveSectionUnit();
+      const decimals = unit === 'in' ? 3 : 2;
+      const offsetUnit = unit === 'in' ? (offsetMm / 25.4) : offsetMm;
+      const halfRangeUnit = unit === 'in' ? ((rangeCoord / 2) / 25.4) : (rangeCoord / 2);
+
       const badge = document.getElementById('sec-offset-val');
       if (badge) {
-        const sign = offsetMm > 0.005 ? '+' : (offsetMm < -0.005 ? '' : '');
-        badge.innerText = `${sectionAxis.toUpperCase()}: ${sign}${formatDim(offsetMm)}`;
+        const sign = offsetMm > 0.005 ? '+' : '';
+        const formatted = (typeof formatDim === 'function')
+          ? formatDim(offsetMm)
+          : `${offsetUnit.toFixed(decimals)} ${unit}`;
+        badge.innerText = `${sectionAxis.toUpperCase()}: ${sign}${formatted}`;
+      }
+
+      const unitEl = document.getElementById('sec-offset-unit');
+      if (unitEl) {
+        unitEl.innerText = unit;
+      }
+
+      const offsetInput = document.getElementById('sec-offset-input');
+      if (offsetInput) {
+        offsetInput.min = (-halfRangeUnit).toFixed(decimals);
+        offsetInput.max = halfRangeUnit.toFixed(decimals);
+        offsetInput.step = unit === 'in' ? '0.01' : '0.5';
+        if (!opts.fromOffsetInput) {
+          offsetInput.value = offsetUnit.toFixed(decimals);
+        }
       }
 
       // Fast update of cap and helper transforms (60 FPS hardware accelerated)
       updateSectionGizmos();
+    }
+
+    function applySectionOffsetInput(rawVal, commit) {
+      if (sectionBox.isEmpty()) return false;
+      const offsetInput = document.getElementById('sec-offset-input');
+      const valueStr = (rawVal !== undefined) ? rawVal : (offsetInput ? offsetInput.value : '');
+      const parsed = parseFloat(valueStr);
+      if (isNaN(parsed) || !isFinite(parsed)) return false;
+
+      const unit = getActiveSectionUnit();
+      const offsetMm = unit === 'in' ? (parsed * 25.4) : parsed;
+      const min = sectionBox.min;
+      const max = sectionBox.max;
+      const center = sectionBox.getCenter(new THREE.Vector3());
+
+      const minCoord = min[sectionAxis];
+      const maxCoord = max[sectionAxis];
+      const centerCoord = center[sectionAxis];
+      const range = maxCoord - minCoord;
+      if (range <= 1e-6) return false;
+
+      const norm = Math.max(0, Math.min(1, (centerCoord + offsetMm - minCoord) / range));
+      const slider = document.getElementById('sec-slider');
+      if (slider) {
+        slider.value = (norm * 100).toFixed(2);
+      }
+      updateSectionPlane({ fromOffsetInput: !commit });
+      return true;
     }
 
     function updateSectionGizmos() {
@@ -225,8 +292,22 @@
       }
     }
 
-    function rebuildSectionStencilMeshes() {
+    function disposeSectionGroup() {
+      sectionStencilGroup.traverse((child) => {
+        if (child.geometry && !child.userData?.sharedBodyGeometry) {
+          const isShared = Array.isArray(modelBodies) && modelBodies.some(b => b.mesh && b.mesh.geometry === child.geometry);
+          if (!isShared) child.geometry.dispose();
+        }
+        if (child.material) {
+          if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+          else child.material.dispose();
+        }
+      });
       sectionStencilGroup.clear();
+    }
+
+    function rebuildSectionStencilMeshes() {
+      disposeSectionGroup();
       sectionCapMesh = null;
       sectionPlaneHelperMesh = null;
       sectionGizmoMesh = null;
@@ -259,6 +340,7 @@
           matBack.stencilZPass = THREE.IncrementWrapStencilOp;
 
           const meshBack = new THREE.Mesh(b.mesh.geometry, matBack);
+          meshBack.userData.sharedBodyGeometry = true;
           meshBack.position.copy(b.mesh.position);
           meshBack.rotation.copy(b.mesh.rotation);
           meshBack.scale.copy(b.mesh.scale);
@@ -274,6 +356,7 @@
           matFront.stencilZPass = THREE.DecrementWrapStencilOp;
 
           const meshFront = new THREE.Mesh(b.mesh.geometry, matFront);
+          meshFront.userData.sharedBodyGeometry = true;
           meshFront.position.copy(b.mesh.position);
           meshFront.rotation.copy(b.mesh.rotation);
           meshFront.scale.copy(b.mesh.scale);
@@ -282,6 +365,7 @@
 
           b.mesh.renderOrder = 2;
         });
+        baseStencilMat.dispose();
 
         // 2. SolidWorks-Style Solid Cut Cap Plane Mesh
         const capGeom = new THREE.PlaneGeometry(maxDim * 4, maxDim * 4);
@@ -359,7 +443,7 @@
       } else {
         if (btn) btn.classList.remove('active');
         if (panel) panel.style.display = 'none';
-        sectionStencilGroup.clear();
+        disposeSectionGroup();
         sectionCapMesh = null;
         sectionPlaneHelperMesh = null;
         sectionGizmoMesh = null;
@@ -386,6 +470,12 @@ function setupSectionListeners() {
       const secSlider = document.getElementById('sec-slider');
       if (secSlider) {
         secSlider.addEventListener('input', () => updateSectionPlane());
+      }
+
+      const secOffsetInput = document.getElementById('sec-offset-input');
+      if (secOffsetInput) {
+        secOffsetInput.addEventListener('input', () => applySectionOffsetInput(secOffsetInput.value, false));
+        secOffsetInput.addEventListener('change', () => applySectionOffsetInput(secOffsetInput.value, true));
       }
 
       const btnSecCenter = document.getElementById('btn-sec-center');
@@ -440,6 +530,7 @@ function setupSectionListeners() {
           btnSecPlane.classList.toggle('active', isSectionPlaneHelperActive);
           if (sectionPlaneHelperMesh) {
             sectionPlaneHelperMesh.visible = isSectionPlaneHelperActive;
+            if (sectionGizmoMesh) sectionGizmoMesh.visible = isSectionPlaneHelperActive;
           } else {
             rebuildSectionStencilMeshes();
           }
@@ -451,6 +542,7 @@ function setupSectionListeners() {
 
 // Window exports
 window.updateSectionPlane = updateSectionPlane;
+window.applySectionOffsetInput = applySectionOffsetInput;
 window.updateSectionGizmos = updateSectionGizmos;
 window.createSectionGizmoMesh = createSectionGizmoMesh;
 window.highlightSectionGizmo = highlightSectionGizmo;

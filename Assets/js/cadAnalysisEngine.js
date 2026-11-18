@@ -12,6 +12,7 @@
   let isCollisionActive = false;
   let collisionResults = [];
   let collisionHighlightMeshes = [];
+  let activeCollisionMat = null;
 
   let isComGizmoActive = false;
   let comGizmoGroup = null;
@@ -68,6 +69,35 @@
 
           // If overlap volume is non-negligible (> 0.05 mm^3)
           if (approxOverlapVolMm3 > 0.05) {
+            // Narrow-phase BVH triangle-triangle intersection test
+            if (window.MeshBVHLib && typeof window.MeshBVHLib.MeshBVH === 'function') {
+              const geomA = bA.mesh.geometry;
+              const geomB = bB.mesh.geometry;
+              const posA = geomA && geomA.attributes && geomA.attributes.position;
+              const posB = geomB && geomB.attributes && geomB.attributes.position;
+
+              if (posA && posB && posA.count > 0 && posB.count > 0) {
+                if (!geomA.boundsTree) {
+                  geomA.boundsTree = new window.MeshBVHLib.MeshBVH(geomA);
+                }
+                if (!geomB.boundsTree) {
+                  geomB.boundsTree = new window.MeshBVHLib.MeshBVH(geomB);
+                }
+
+                bA.mesh.updateMatrixWorld(true);
+                bB.mesh.updateMatrixWorld(true);
+
+                const matAtoB = new THREE.Matrix4()
+                  .copy(bA.mesh.matrixWorld)
+                  .invert()
+                  .multiply(bB.mesh.matrixWorld);
+
+                if (!geomA.boundsTree.intersectsGeometry(geomB, matAtoB)) {
+                  continue;
+                }
+              }
+            }
+
             collisionResults.push({
               bodyIndexA: bA.id !== undefined ? bA.id : (bA.bodyId !== undefined ? bA.bodyId : i),
               bodyIndexB: bB.id !== undefined ? bB.id : (bB.bodyId !== undefined ? bB.bodyId : j),
@@ -104,7 +134,7 @@
 
     if (!window.scene) return;
 
-    const collisionMat = new THREE.MeshStandardMaterial({
+    activeCollisionMat = new THREE.MeshStandardMaterial({
       color: 0xef4444,
       emissive: 0x991b1b,
       emissiveIntensity: 0.6,
@@ -143,7 +173,7 @@
           if (!b.mesh.userData._preCollisionMat) {
             b.mesh.userData._preCollisionMat = b.mesh.material;
           }
-          b.mesh.material = collisionMat;
+          b.mesh.material = activeCollisionMat;
         }
       });
     }
@@ -159,6 +189,11 @@
       });
     }
 
+    if (activeCollisionMat) {
+      activeCollisionMat.dispose();
+      activeCollisionMat = null;
+    }
+
     collisionHighlightMeshes.forEach(m => {
       if (window.scene) window.scene.remove(m);
       if (m.geometry) m.geometry.dispose();
@@ -169,7 +204,7 @@
   }
 
   function renderCollisionResultsUI() {
-    const container = document.getElementById('collision-results-list');
+    const container = document.getElementById('collision-results');
     if (!container) return;
 
     if (collisionResults.length === 0) {
@@ -181,6 +216,10 @@
       return;
     }
 
+    const esc = typeof window.escapeHtml === 'function'
+      ? window.escapeHtml
+      : (s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'));
+
     let html = `<div style="display: flex; flex-direction: column; gap: 6px;">`;
     collisionResults.forEach((c, idx) => {
       const volFormatted = typeof window.formatVol === 'function' ? window.formatVol(c.overlapVolMm3) : `${c.overlapVolMm3.toFixed(1)} mm³`;
@@ -191,7 +230,7 @@
             <span>Vol: ${volFormatted}</span>
           </div>
           <div style="font-size: 10.5px; color: #e2e8f0; margin-top: 3px;">
-            ${c.nameA} <span style="color:#ef4444;">⟷</span> ${c.nameB}
+            ${esc(c.nameA)} <span style="color:#ef4444;">⟷</span> ${esc(c.nameB)}
           </div>
         </div>
       `;
@@ -203,6 +242,102 @@
   // ---------------------------------------------------------------------------
   // 2. 3D Center of Mass (CoM) Coordinate Gizmo (V2-06)
   // ---------------------------------------------------------------------------
+  function computeGeometryCentroidAndVolume(mesh) {
+    const geom = mesh && mesh.geometry;
+    const pos = geom && geom.attributes && geom.attributes.position;
+    if (!pos || pos.count < 3) {
+      return null;
+    }
+
+    mesh.updateMatrixWorld(true);
+    const index = geom.index;
+    const triCount = index ? Math.floor(index.count / 3) : Math.floor(pos.count / 3);
+    if (triCount <= 0) {
+      return null;
+    }
+
+    // Shift coordinates relative to first vertex to preserve floating-point precision
+    const refIdx = index ? index.getX(0) : 0;
+    const p0x = pos.getX(refIdx);
+    const p0y = pos.getY(refIdx);
+    const p0z = pos.getZ(refIdx);
+
+    let signedVol6 = 0;
+    let sumVx = 0, sumVy = 0, sumVz = 0;
+    let totalArea2 = 0;
+    let sumAx = 0, sumAy = 0, sumAz = 0;
+
+    for (let t = 0; t < triCount; t++) {
+      const i0 = index ? index.getX(t * 3) : t * 3;
+      const i1 = index ? index.getX(t * 3 + 1) : t * 3 + 1;
+      const i2 = index ? index.getX(t * 3 + 2) : t * 3 + 2;
+
+      const ax = pos.getX(i0) - p0x;
+      const ay = pos.getY(i0) - p0y;
+      const az = pos.getZ(i0) - p0z;
+
+      const bx = pos.getX(i1) - p0x;
+      const by = pos.getY(i1) - p0y;
+      const bz = pos.getZ(i1) - p0z;
+
+      const cx = pos.getX(i2) - p0x;
+      const cy = pos.getY(i2) - p0y;
+      const cz = pos.getZ(i2) - p0z;
+
+      // Signed volume * 6 = a . (b x c)
+      const bxcx = by * cz - bz * cy;
+      const bxcy = bz * cx - bx * cz;
+      const bxcz = bx * cy - by * cx;
+      const v6 = ax * bxcx + ay * bxcy + az * bxcz;
+
+      signedVol6 += v6;
+      sumVx += v6 * (ax + bx + cx) * 0.25;
+      sumVy += v6 * (ay + by + cy) * 0.25;
+      sumVz += v6 * (az + bz + cz) * 0.25;
+
+      // Area-weighted fallback: 2 * Area = |(b - a) x (c - a)|
+      const e1x = bx - ax, e1y = by - ay, e1z = bz - az;
+      const e2x = cx - ax, e2y = cy - ay, e2z = cz - az;
+      const nx = e1y * e2z - e1z * e2y;
+      const ny = e1z * e2x - e1x * e2z;
+      const nz = e1x * e2y - e1y * e2x;
+      const area2 = Math.sqrt(nx * nx + ny * ny + nz * nz);
+
+      if (area2 > 0) {
+        totalArea2 += area2;
+        sumAx += area2 * (ax + bx + cx) / 3.0;
+        sumAy += area2 * (ay + by + cy) / 3.0;
+        sumAz += area2 * (az + bz + cz) / 3.0;
+      }
+    }
+
+    const localCentroid = new THREE.Vector3();
+    let volumeMm3 = 0;
+
+    if (Math.abs(signedVol6) > 1e-6) {
+      localCentroid.set(
+        p0x + sumVx / signedVol6,
+        p0y + sumVy / signedVol6,
+        p0z + sumVz / signedVol6
+      );
+      const scaleDet = Math.abs(mesh.matrixWorld.determinant());
+      volumeMm3 = (Math.abs(signedVol6) / 6.0) * (scaleDet > 0 ? scaleDet : 1.0);
+    } else if (totalArea2 > 1e-6) {
+      localCentroid.set(
+        p0x + sumAx / totalArea2,
+        p0y + sumAy / totalArea2,
+        p0z + sumAz / totalArea2
+      );
+    } else {
+      return null;
+    }
+
+    return {
+      centroidWorld: localCentroid.applyMatrix4(mesh.matrixWorld),
+      volumeMm3: volumeMm3
+    };
+  }
+
   function computeCenterOfMass() {
     if (!window.modelBodies || window.modelBodies.length === 0) {
       return { x: 0, y: 0, z: 0, totalMassKg: 0 };
@@ -211,19 +346,31 @@
     let sumMx = 0, sumMy = 0, sumMz = 0;
     let totalMass = 0;
 
+    const selectedMatDensity = window.MaterialsEngine && typeof window.MaterialsEngine.getSelectedMaterial === 'function'
+      ? window.MaterialsEngine.getSelectedMaterial()?.density
+      : null;
+
     window.modelBodies.forEach((b, idx) => {
       if (!b.mesh) return;
 
-      // Calculate volume using true B-Rep volume from OCCT WASM when available
       const box = new THREE.Box3().setFromObject(b.mesh);
-      const center = box.getCenter(new THREE.Vector3());
       const size = box.getSize(new THREE.Vector3());
-      let estVolMm3 = (b.data && typeof b.data.volumeMm3 === 'number' && b.data.volumeMm3 > 0)
-        ? Math.abs(b.data.volumeMm3)
-        : Math.max(size.x * size.y * size.z * 0.45, 1.0);
+      const geomProps = computeGeometryCentroidAndVolume(b.mesh);
+      const center = geomProps ? geomProps.centroidWorld : box.getCenter(new THREE.Vector3());
 
-      // Material density (default to Steel ~7.85 g/cm3 = 7.85e-6 kg/mm3 if not set)
-      let densityKgMm3 = (b.materialDensity && b.materialDensity > 0) ? (b.materialDensity * 1e-6) : 7.85e-6;
+      let estVolMm3;
+      if (b.data && typeof b.data.volumeMm3 === 'number' && b.data.volumeMm3 > 0) {
+        estVolMm3 = Math.abs(b.data.volumeMm3);
+      } else if (geomProps && geomProps.volumeMm3 > 0) {
+        estVolMm3 = geomProps.volumeMm3;
+      } else {
+        estVolMm3 = Math.max(size.x * size.y * size.z * 0.45, 1.0);
+      }
+
+      // Material density (default to selected material or Steel ~7.85 g/cm3 = 7.85e-6 kg/mm3)
+      let densityKgMm3 = (b.materialDensity && b.materialDensity > 0)
+        ? (b.materialDensity * 1e-6)
+        : ((selectedMatDensity && selectedMatDensity > 0) ? (selectedMatDensity * 1e-6) : 7.85e-6);
       if (window.MaterialsEngine && typeof window.MaterialsEngine.getBodyDensity === 'function') {
         const d = window.MaterialsEngine.getBodyDensity(b.id !== undefined ? b.id : (b.bodyId || idx));
         if (d && d > 0) densityKgMm3 = d;
@@ -346,20 +493,35 @@
     }
 
     // Update UI readout
-    const readout = document.getElementById('com-coords-readout');
-    if (readout) {
-      const u = (typeof window.currentUnits !== 'undefined' && window.currentUnits === 'in') ? 'in' : 'mm';
-      const factor = (u === 'in') ? 1 / 25.4 : 1.0;
-      readout.innerHTML = `
-        <span style="color:#ef4444;">X: ${(com.x * factor).toFixed(2)}</span>
-        <span style="color:#22c55e; margin-left: 6px;">Y: ${(com.y * factor).toFixed(2)}</span>
-        <span style="color:#38bdf8; margin-left: 6px;">Z: ${(com.z * factor).toFixed(2)} ${u}</span>
-      `;
-    }
+    updateComReadout(com);
 
     if (typeof window.showToast === 'function') {
       window.showToast(`CoM: X:${com.x.toFixed(1)}, Y:${com.y.toFixed(1)}, Z:${com.z.toFixed(1)} mm`);
     }
+  }
+
+  function updateComReadout(com) {
+    const readout = document.getElementById('com-coords-readout');
+    if (!readout || !com) return;
+    const unitVal = typeof currentUnit !== 'undefined' ? currentUnit : (window.currentUnit || 'mm');
+    const u = unitVal === 'in' ? 'in' : 'mm';
+    const factor = (u === 'in') ? 1 / 25.4 : 1.0;
+    const massKg = typeof com.totalMassKg === 'number' ? com.totalMassKg : 0;
+    const massText = massKg >= 1
+      ? `${massKg.toFixed(2)} kg`
+      : `${(massKg * 1000).toFixed(1)} g`;
+    readout.innerHTML = `
+      <span style="color:#ef4444;">X: ${(com.x * factor).toFixed(2)}</span>
+      <span style="color:#22c55e; margin-left: 6px;">Y: ${(com.y * factor).toFixed(2)}</span>
+      <span style="color:#38bdf8; margin-left: 6px;">Z: ${(com.z * factor).toFixed(2)} ${u}</span>
+      <span style="color:#eab308; margin-left: 8px;">M: ${massText}</span>
+    `;
+  }
+
+  function refreshComReadout() {
+    if (!isComGizmoActive) return;
+    const com = computeCenterOfMass();
+    updateComReadout(com);
   }
 
   // ---------------------------------------------------------------------------
@@ -957,14 +1119,464 @@
   }
 
   // ---------------------------------------------------------------------------
+  // 5. 3D Printability Diagnostics: Overhang Angle Heatmap & Manifold Edges
+  // ---------------------------------------------------------------------------
+  let isOverhangActive = false;
+  let overhangThresholdDeg = 45;
+  let overhangAxis = 'Y'; // 'Y' (+Y up) or 'Z' (+Z up)
+  let overhangStats = {
+    overhangTriangles: 0,
+    totalTriangles: 0,
+    overhangPercent: 0,
+    thresholdDeg: 45,
+    axis: 'Y'
+  };
+  const overhangOriginalStateMap = new Map();
+  let activeOverhangMaterial = null;
+
+  let isManifoldActive = false;
+  let manifoldStats = {
+    boundaryEdges: 0,
+    nonManifoldEdges: 0,
+    isWatertight: true,
+    isManifold: true
+  };
+  let manifoldOverlayGroup = null;
+
+  function collectTargetMeshes(explicitGroup) {
+    const meshes = [];
+    const seen = new Set();
+    const addMesh = (m) => {
+      if (!m || !m.isMesh || !m.visible || seen.has(m)) return;
+      if (m.name === 'solidworks_edges' || (m.userData && m.userData._isAnalysisOverlay)) return;
+      const pos = m.geometry && m.geometry.attributes && m.geometry.attributes.position;
+      if (!pos || pos.count < 3) return;
+      seen.add(m);
+      meshes.push(m);
+    };
+
+    const group = explicitGroup || window.cadGroup || window.modelGroup;
+    if (group && typeof group.traverse === 'function') {
+      group.traverse(child => addMesh(child));
+    }
+    if (meshes.length === 0 && Array.isArray(window.modelBodies)) {
+      window.modelBodies.forEach(b => {
+        if (b && b.mesh) addMesh(b.mesh);
+      });
+    }
+    return meshes;
+  }
+
+  function updateOverhangStatsUI() {
+    const el = document.getElementById('overhang-stats');
+    if (!el) return;
+    if (!isOverhangActive) {
+      el.textContent = 'Off';
+      return;
+    }
+    el.textContent = `${overhangStats.overhangTriangles} / ${overhangStats.totalTriangles} faces (${overhangStats.overhangPercent.toFixed(1)}%) | >${overhangStats.thresholdDeg}° (${overhangStats.axis}-up)`;
+  }
+
+  function restoreOverhangMeshes() {
+    overhangOriginalStateMap.forEach((orig, mesh) => {
+      if (!mesh) return;
+      if (orig.nonIndexedGeom) {
+        mesh.geometry = orig.geometry;
+        orig.nonIndexedGeom.dispose();
+      } else if (orig.geometry) {
+        if (orig.colorAttr) {
+          orig.geometry.setAttribute('color', orig.colorAttr);
+        } else {
+          orig.geometry.deleteAttribute('color');
+        }
+      }
+      mesh.material = orig.material;
+    });
+    overhangOriginalStateMap.clear();
+    if (activeOverhangMaterial) {
+      activeOverhangMaterial.dispose();
+      activeOverhangMaterial = null;
+    }
+  }
+
+  function applyOverhangHeatmap(explicitGroup) {
+    restoreOverhangMeshes();
+
+    const meshes = collectTargetMeshes(explicitGroup);
+    const upVec = overhangAxis === 'Z' ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
+    const warnThreshold = Math.max(0, overhangThresholdDeg - 10);
+
+    activeOverhangMaterial = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      roughness: 0.55,
+      metalness: 0.1,
+      side: THREE.DoubleSide
+    });
+
+    const v0 = new THREE.Vector3();
+    const v1 = new THREE.Vector3();
+    const v2 = new THREE.Vector3();
+    const e1 = new THREE.Vector3();
+    const e2 = new THREE.Vector3();
+    const faceNormal = new THREE.Vector3();
+    const normalMatrix = new THREE.Matrix3();
+
+    const colorCritical = new THREE.Color(0xef4444); // Red
+    const colorWarning = new THREE.Color(0xf59e0b);  // Amber
+    const defaultSafeColor = new THREE.Color(0x94a3b8); // Neutral slate
+
+    let totalTriangles = 0;
+    let overhangTriangles = 0;
+
+    meshes.forEach(mesh => {
+      mesh.updateMatrixWorld(true);
+      normalMatrix.getNormalMatrix(mesh.matrixWorld);
+
+      const origGeom = mesh.geometry;
+      const origMat = mesh.material;
+      const origColorAttr = origGeom.getAttribute('color') || null;
+
+      let safeColor = defaultSafeColor;
+      if (origMat && origMat.color && origMat.color.isColor) {
+        safeColor = origMat.color;
+      }
+
+      let workGeom = origGeom;
+      let nonIndexedGeom = null;
+      if (origGeom.index !== null) {
+        nonIndexedGeom = origGeom.toNonIndexed();
+        workGeom = nonIndexedGeom;
+        mesh.geometry = nonIndexedGeom;
+      }
+
+      overhangOriginalStateMap.set(mesh, {
+        material: origMat,
+        geometry: origGeom,
+        colorAttr: origColorAttr,
+        nonIndexedGeom: nonIndexedGeom
+      });
+
+      const pos = workGeom.getAttribute('position');
+      const vertCount = pos.count;
+      const colors = new Float32Array(vertCount * 3);
+
+      for (let i = 0; i + 2 < vertCount; i += 3) {
+        v0.fromBufferAttribute(pos, i);
+        v1.fromBufferAttribute(pos, i + 1);
+        v2.fromBufferAttribute(pos, i + 2);
+
+        e1.subVectors(v1, v0);
+        e2.subVectors(v2, v0);
+        faceNormal.crossVectors(e1, e2);
+
+        let overhangDeg = 0;
+        if (faceNormal.lengthSq() > 1e-16) {
+          faceNormal.applyMatrix3(normalMatrix).normalize();
+          const dot = faceNormal.dot(upVec);
+          if (dot < 0) {
+            const clampedDown = Math.min(1, Math.max(0, -dot));
+            overhangDeg = THREE.MathUtils.radToDeg(Math.asin(clampedDown));
+          }
+        }
+
+        totalTriangles++;
+        let c = safeColor;
+        if (overhangDeg > overhangThresholdDeg) {
+          c = colorCritical;
+          overhangTriangles++;
+        } else if (overhangDeg >= warnThreshold) {
+          c = colorWarning;
+        }
+
+        for (let k = 0; k < 3; k++) {
+          const idx = (i + k) * 3;
+          colors[idx] = c.r;
+          colors[idx + 1] = c.g;
+          colors[idx + 2] = c.b;
+        }
+      }
+
+      workGeom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      mesh.material = activeOverhangMaterial;
+    });
+
+    overhangStats = {
+      overhangTriangles: overhangTriangles,
+      totalTriangles: totalTriangles,
+      overhangPercent: totalTriangles > 0 ? (overhangTriangles / totalTriangles) * 100 : 0,
+      thresholdDeg: overhangThresholdDeg,
+      axis: overhangAxis
+    };
+
+    updateOverhangStatsUI();
+    if (typeof window.requestRender === 'function') window.requestRender();
+    return Object.assign({}, overhangStats);
+  }
+
+  function toggleOverhangHeatmap(enabled, explicitGroup) {
+    if (enabled !== undefined) {
+      isOverhangActive = Boolean(enabled);
+    } else {
+      isOverhangActive = !isOverhangActive;
+    }
+
+    if (!isOverhangActive) {
+      restoreOverhangMeshes();
+      overhangStats = {
+        overhangTriangles: 0,
+        totalTriangles: 0,
+        overhangPercent: 0,
+        thresholdDeg: overhangThresholdDeg,
+        axis: overhangAxis
+      };
+      updateOverhangStatsUI();
+      if (typeof window.requestRender === 'function') window.requestRender();
+      return Object.assign({}, overhangStats);
+    }
+
+    return applyOverhangHeatmap(explicitGroup);
+  }
+
+  function setOverhangThreshold(deg) {
+    const parsed = Number(deg);
+    const clamped = Math.max(15, Math.min(75, Number.isFinite(parsed) ? parsed : 45));
+    overhangThresholdDeg = clamped;
+    overhangStats.thresholdDeg = clamped;
+    if (isOverhangActive) {
+      return applyOverhangHeatmap();
+    }
+    updateOverhangStatsUI();
+    return Object.assign({}, overhangStats);
+  }
+
+  function setOverhangAxis(axis) {
+    const normalized = String(axis || 'Y').toUpperCase() === 'Z' ? 'Z' : 'Y';
+    overhangAxis = normalized;
+    overhangStats.axis = normalized;
+    if (isOverhangActive) {
+      return applyOverhangHeatmap();
+    }
+    updateOverhangStatsUI();
+    return Object.assign({}, overhangStats);
+  }
+
+  function updateManifoldStatsUI() {
+    const el = document.getElementById('manifold-stats');
+    if (!el) return;
+    if (!isManifoldActive) {
+      el.textContent = 'Off';
+      return;
+    }
+    const status = manifoldStats.isWatertight
+      ? 'Watertight'
+      : (manifoldStats.isManifold ? 'Open Boundary' : 'Non-Manifold');
+    el.textContent = `${status} | Open: ${manifoldStats.boundaryEdges}, Non-Manifold: ${manifoldStats.nonManifoldEdges}`;
+  }
+
+  function clearManifoldOverlay() {
+    if (manifoldOverlayGroup) {
+      manifoldOverlayGroup.traverse(child => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) child.material.dispose();
+      });
+      if (manifoldOverlayGroup.parent) {
+        manifoldOverlayGroup.parent.remove(manifoldOverlayGroup);
+      } else if (window.scene) {
+        window.scene.remove(manifoldOverlayGroup);
+      }
+      manifoldOverlayGroup = null;
+    }
+  }
+
+  function analyzeManifoldEdges(group, renderOverlay) {
+    const meshes = collectTargetMeshes(group);
+    const QUANT = 1e4;
+    const quantKey = (x, y, z) => `${Math.round(x * QUANT)},${Math.round(y * QUANT)},${Math.round(z * QUANT)}`;
+
+    let boundaryEdges = 0;
+    let nonManifoldEdges = 0;
+    let totalEdges = 0;
+
+    const boundaryPositions = [];
+    const nonManifoldPositions = [];
+
+    const pA = new THREE.Vector3();
+    const pB = new THREE.Vector3();
+    const pC = new THREE.Vector3();
+
+    meshes.forEach(mesh => {
+      mesh.updateMatrixWorld(true);
+      const geom = mesh.geometry;
+      const pos = geom.attributes.position;
+      const index = geom.index;
+      const triCount = index ? Math.floor(index.count / 3) : Math.floor(pos.count / 3);
+
+      const edgeMap = new Map();
+
+      const addEdge = (k1, k2, v1, v2) => {
+        if (k1 === k2) return;
+        const key = k1 < k2 ? `${k1}|${k2}` : `${k2}|${k1}`;
+        let entry = edgeMap.get(key);
+        if (!entry) {
+          entry = {
+            count: 1,
+            p1: v1.clone().applyMatrix4(mesh.matrixWorld),
+            p2: v2.clone().applyMatrix4(mesh.matrixWorld)
+          };
+          edgeMap.set(key, entry);
+        } else {
+          entry.count++;
+        }
+      };
+
+      for (let t = 0; t < triCount; t++) {
+        const i0 = index ? index.getX(t * 3) : t * 3;
+        const i1 = index ? index.getX(t * 3 + 1) : t * 3 + 1;
+        const i2 = index ? index.getX(t * 3 + 2) : t * 3 + 2;
+
+        pA.fromBufferAttribute(pos, i0);
+        pB.fromBufferAttribute(pos, i1);
+        pC.fromBufferAttribute(pos, i2);
+
+        const kA = quantKey(pA.x, pA.y, pA.z);
+        const kB = quantKey(pB.x, pB.y, pB.z);
+        const kC = quantKey(pC.x, pC.y, pC.z);
+
+        if (kA === kB || kB === kC || kA === kC) continue;
+
+        addEdge(kA, kB, pA, pB);
+        addEdge(kB, kC, pB, pC);
+        addEdge(kC, kA, pC, pA);
+      }
+
+      edgeMap.forEach(entry => {
+        totalEdges++;
+        if (entry.count === 1) {
+          boundaryEdges++;
+          boundaryPositions.push(
+            entry.p1.x, entry.p1.y, entry.p1.z,
+            entry.p2.x, entry.p2.y, entry.p2.z
+          );
+        } else if (entry.count > 2) {
+          nonManifoldEdges++;
+          nonManifoldPositions.push(
+            entry.p1.x, entry.p1.y, entry.p1.z,
+            entry.p2.x, entry.p2.y, entry.p2.z
+          );
+        }
+      });
+    });
+
+    manifoldStats = {
+      boundaryEdges: boundaryEdges,
+      nonManifoldEdges: nonManifoldEdges,
+      isWatertight: totalEdges > 0 && boundaryEdges === 0 && nonManifoldEdges === 0,
+      isManifold: totalEdges > 0 && nonManifoldEdges === 0
+    };
+
+    if (renderOverlay && window.scene) {
+      clearManifoldOverlay();
+      manifoldOverlayGroup = new THREE.Group();
+      manifoldOverlayGroup.name = 'manifoldEdgeOverlay';
+      manifoldOverlayGroup.userData._isAnalysisOverlay = true;
+
+      if (boundaryPositions.length > 0) {
+        const bGeom = new THREE.BufferGeometry();
+        bGeom.setAttribute('position', new THREE.Float32BufferAttribute(boundaryPositions, 3));
+        const bMat = new THREE.LineBasicMaterial({
+          color: 0xff00ff,
+          depthTest: true,
+          polygonOffset: true,
+          polygonOffsetFactor: -1,
+          polygonOffsetUnits: -1,
+          transparent: true,
+          opacity: 0.95
+        });
+        const bLines = new THREE.LineSegments(bGeom, bMat);
+        bLines.name = 'manifoldBoundaryEdges';
+        bLines.userData._isAnalysisOverlay = true;
+        bLines.renderOrder = 999;
+        manifoldOverlayGroup.add(bLines);
+      }
+
+      if (nonManifoldPositions.length > 0) {
+        const nmGeom = new THREE.BufferGeometry();
+        nmGeom.setAttribute('position', new THREE.Float32BufferAttribute(nonManifoldPositions, 3));
+        const nmMat = new THREE.LineBasicMaterial({
+          color: 0xff2222,
+          depthTest: true,
+          polygonOffset: true,
+          polygonOffsetFactor: -1,
+          polygonOffsetUnits: -1,
+          transparent: true,
+          opacity: 0.95
+        });
+        const nmLines = new THREE.LineSegments(nmGeom, nmMat);
+        nmLines.name = 'manifoldNonManifoldEdges';
+        nmLines.userData._isAnalysisOverlay = true;
+        nmLines.renderOrder = 1000;
+        manifoldOverlayGroup.add(nmLines);
+      }
+
+      window.scene.add(manifoldOverlayGroup);
+    }
+
+    updateManifoldStatsUI();
+    if (typeof window.requestRender === 'function') window.requestRender();
+    return Object.assign({}, manifoldStats);
+  }
+
+  function toggleManifoldEdges(enabled, group) {
+    if (enabled !== undefined) {
+      isManifoldActive = Boolean(enabled);
+    } else {
+      isManifoldActive = !isManifoldActive;
+    }
+
+    if (!isManifoldActive) {
+      clearManifoldOverlay();
+      updateManifoldStatsUI();
+      if (typeof window.requestRender === 'function') window.requestRender();
+      return Object.assign({}, manifoldStats);
+    }
+
+    return analyzeManifoldEdges(group, true);
+  }
+
+  function resetAnalysisState() {
+    clearCollisionHighlights();
+    collisionResults = [];
+    renderCollisionResultsUI();
+    if (isComGizmoActive) {
+      toggleCenterOfMassGizmo(false);
+    }
+    if (isDraftAngleActive) {
+      toggleDraftAngleHeatmap(false);
+    } else {
+      hideDraftLegend();
+    }
+    if (isOverhangActive) {
+      toggleOverhangHeatmap(false);
+    }
+    if (isManifoldActive) {
+      toggleManifoldEdges(false);
+    } else {
+      clearManifoldOverlay();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Public Namespace Export
   // ---------------------------------------------------------------------------
   window.CadAnalysis = {
+    resetAnalysisState: resetAnalysisState,
     checkCollisions: checkAssemblyInterferences,
     clearCollisions: clearCollisionHighlights,
     toggleCoM: toggleCenterOfMassGizmo,
     toggleCenterOfMass: toggleCenterOfMassGizmo,
     computeCoM: computeCenterOfMass,
+    isComActive: () => isComGizmoActive,
+    refreshCoM: refreshComReadout,
     toggleDraftHeatmap: toggleDraftAngleHeatmap,
     toggleDraftAngle: toggleDraftAngleHeatmap,
     setDraftThreshold: setDraftThreshold,
@@ -990,7 +1602,18 @@
     extractWorldNormalFromIntersection: extractWorldNormalFromIntersection,
     resolvePlaneNormal: resolvePlaneNormal,
     updateDraftPullArrow: updateDraftPullArrow,
-    REFERENCE_PLANES: REFERENCE_PLANES
+    REFERENCE_PLANES: REFERENCE_PLANES,
+    toggleOverhangHeatmap: toggleOverhangHeatmap,
+    setOverhangThreshold: setOverhangThreshold,
+    getOverhangThreshold: () => overhangThresholdDeg,
+    setOverhangAxis: setOverhangAxis,
+    getOverhangAxis: () => overhangAxis,
+    isOverhangActive: () => isOverhangActive,
+    getOverhangStats: () => Object.assign({}, overhangStats),
+    toggleManifoldEdges: toggleManifoldEdges,
+    analyzeManifoldEdges: analyzeManifoldEdges,
+    isManifoldActive: () => isManifoldActive,
+    getManifoldStats: () => Object.assign({}, manifoldStats)
   };
 
   window.checkAssemblyInterferences = checkAssemblyInterferences;
@@ -999,4 +1622,9 @@
   window.toggleDraftAngleHeatmap = toggleDraftAngleHeatmap;
   window.showDraftLegend = showDraftLegend;
   window.hideDraftLegend = hideDraftLegend;
+  window.toggleOverhangHeatmap = toggleOverhangHeatmap;
+  window.setOverhangThreshold = setOverhangThreshold;
+  window.setOverhangAxis = setOverhangAxis;
+  window.toggleManifoldEdges = toggleManifoldEdges;
+  window.analyzeManifoldEdges = analyzeManifoldEdges;
 })();

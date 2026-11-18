@@ -693,6 +693,7 @@
         centroid: finalCentroid,
         normal: finalNormal,
         triangles: new Uint32Array(cluster),
+        triangleCount: cluster.length,
         first: minTri,
         last: maxTri
       });

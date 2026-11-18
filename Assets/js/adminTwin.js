@@ -263,20 +263,31 @@
 
   function setupCachePurgeButton() {
     const btn = document.getElementById('btn-clearcache');
-    if (!btn) return;
-    btn.addEventListener('click', async () => {
-      const icon = document.getElementById('clearcache-icon');
-      const text = document.getElementById('clearcache-text');
-      if (text) text.innerText = 'Purging...';
-      const success = await clearAllCache();
-      if (text) text.innerText = success ? 'Cleaned!' : 'Error';
-      if (typeof window.showToast === 'function') {
-        window.showToast(success ? 'CAD cache database cleared (0 models).' : 'Failed to clear cache.');
-      }
-      setTimeout(() => {
-        if (text) text.innerText = 'Cache';
-      }, 1800);
-    });
+    if (btn && !btn.dataset.boundCachePurge) {
+      btn.dataset.boundCachePurge = '1';
+      btn.addEventListener('click', async () => {
+        const text = document.getElementById('clearcache-text');
+        if (text) text.innerText = 'Purging...';
+        const success = await clearAllCache();
+        if (text) text.innerText = success ? 'Cleaned!' : 'Error';
+        if (typeof window.showToast === 'function') {
+          window.showToast(success ? 'CAD cache database cleared (0 models).' : 'Failed to clear cache.');
+        }
+        setTimeout(() => {
+          if (text) text.innerText = 'Cache';
+        }, 1800);
+      });
+    }
+
+    if (!window._adminTwinShortcutBound) {
+      window._adminTwinShortcutBound = true;
+      document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
+          e.preventDefault();
+          toggleInspectionCard(window.renderer);
+        }
+      });
+    }
   }
 
   const AdminTwin = {

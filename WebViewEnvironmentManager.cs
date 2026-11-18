@@ -30,16 +30,24 @@ namespace QuickLook.Plugin.StepViewer
                 s_initEnvTask = CreateEnvironmentAsync();
             }
 
-            s_sharedEnvironment = await s_initEnvTask;
-            return s_sharedEnvironment;
+            try
+            {
+                s_sharedEnvironment = await s_initEnvTask;
+                return s_sharedEnvironment;
+            }
+            catch
+            {
+                s_initEnvTask = null;
+                throw;
+            }
         }
 
         private static async Task<CoreWebView2Environment> CreateEnvironmentAsync()
         {
+            int pid = Process.GetCurrentProcess().Id;
             try
             {
                 string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                int pid = Process.GetCurrentProcess().Id;
                 string profilesDir = Path.Combine(localAppData, "pooi.moe", "QuickLook", "WebView2_Profiles");
 
                 // Clean up orphaned profile directories from old closed processes
@@ -80,8 +88,10 @@ namespace QuickLook.Plugin.StepViewer
             }
             catch (Exception ex)
             {
-                StepViewerControl.Log($"Custom environment creation failed: {ex.Message}. Falling back to default...");
-                return await CoreWebView2Environment.CreateAsync(null, null);
+                StepViewerControl.Log($"Custom environment creation failed: {ex.Message}. Falling back to temp folder...");
+                string tempUserDataFolder = Path.Combine(Path.GetTempPath(), "QuickLook_StepViewer_WebView2", $"pid_{pid}");
+                Directory.CreateDirectory(tempUserDataFolder);
+                return await CoreWebView2Environment.CreateAsync(null, tempUserDataFolder);
             }
         }
 
@@ -239,56 +249,169 @@ namespace QuickLook.Plugin.StepViewer
             // 2. Intercept CAD file binary streaming
             if (uri.StartsWith("https://cad-stream.local/cad-file", StringComparison.OrdinalIgnoreCase))
             {
-                // Handle CORS preflight
-                if (string.Equals(e.Request.Method, "OPTIONS", StringComparison.OrdinalIgnoreCase))
+                if (HandleCorsPreflight(webView, e)) return;
+                StreamCadFileResponse(webView, e, currentFilePath, "CAD File Not Found");
+                return;
+            }
+
+            // 3. Intercept SolidWorks sibling assembly component streaming
+            if (uri.StartsWith("https://cad-stream.local/cad-sibling", StringComparison.OrdinalIgnoreCase))
+            {
+                if (HandleCorsPreflight(webView, e)) return;
+
+                string requestedName = ExtractQueryParam(uri, "name");
+                if (!TryResolveSiblingCadPath(currentFilePath, requestedName, out string targetPath))
                 {
-                    var emptyMs = new MemoryStream(new byte[0]);
+                    var forbiddenBytes = Encoding.UTF8.GetBytes("Forbidden Sibling CAD Path");
+                    var forbiddenStream = new MemoryStream(forbiddenBytes);
                     e.Response = webView.Environment.CreateWebResourceResponse(
-                        emptyMs,
-                        200,
-                        "OK",
-                        "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, OPTIONS\r\nAccess-Control-Allow-Headers: *\r\n"
+                        forbiddenStream,
+                        403,
+                        "Forbidden",
+                        "Content-Type: text/plain\r\nAccess-Control-Allow-Origin: *\r\n"
                     );
                     return;
                 }
 
-                string targetPath = currentFilePath;
-                if (!string.IsNullOrEmpty(targetPath) && File.Exists(targetPath))
+                StreamCadFileResponse(webView, e, targetPath, "Sibling CAD File Not Found");
+            }
+        }
+
+        /// <summary>
+        /// Resolves a requested sibling CAD component path strictly within the parent directory
+        /// of <paramref name="baseFilePath"/> (or a safe relative subdirectory) for .sldprt/.sldasm files.
+        /// </summary>
+        public static bool TryResolveSiblingCadPath(string baseFilePath, string requestedName, out string resolvedPath)
+        {
+            resolvedPath = null;
+            if (string.IsNullOrWhiteSpace(baseFilePath) || string.IsNullOrWhiteSpace(requestedName))
+                return false;
+
+            string trimmed = requestedName.Trim();
+            if (trimmed.IndexOf('\0') >= 0 ||
+                trimmed.Contains("..") ||
+                trimmed.Contains(":") ||
+                trimmed.Contains("\\\\") ||
+                trimmed.StartsWith("/") ||
+                trimmed.StartsWith("\\"))
+            {
+                return false;
+            }
+
+            string normalized = trimmed.Replace('/', Path.DirectorySeparatorChar);
+            if (normalized.IndexOfAny(Path.GetInvalidPathChars()) >= 0 || Path.IsPathRooted(normalized))
+                return false;
+
+            string ext = Path.GetExtension(normalized);
+            if (!string.Equals(ext, ".sldprt", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(ext, ".sldasm", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            try
+            {
+                string baseDir = Path.GetDirectoryName(Path.GetFullPath(baseFilePath));
+                if (string.IsNullOrEmpty(baseDir))
+                    return false;
+
+                string fullBaseDir = Path.GetFullPath(baseDir);
+                string baseDirWithSep = fullBaseDir.EndsWith(Path.DirectorySeparatorChar.ToString())
+                    ? fullBaseDir
+                    : fullBaseDir + Path.DirectorySeparatorChar;
+
+                string candidate = Path.GetFullPath(Path.Combine(fullBaseDir, normalized));
+                if (!candidate.StartsWith(baseDirWithSep, StringComparison.OrdinalIgnoreCase))
+                    return false;
+
+                resolvedPath = candidate;
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool HandleCorsPreflight(CoreWebView2 webView, CoreWebView2WebResourceRequestedEventArgs e)
+        {
+            if (!string.Equals(e.Request.Method, "OPTIONS", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            var emptyMs = new MemoryStream(new byte[0]);
+            e.Response = webView.Environment.CreateWebResourceResponse(
+                emptyMs,
+                200,
+                "OK",
+                "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, OPTIONS\r\nAccess-Control-Allow-Headers: *\r\n"
+            );
+            return true;
+        }
+
+        private static string ExtractQueryParam(string uri, string paramName)
+        {
+            try
+            {
+                var uriObj = new Uri(uri);
+                string query = uriObj.Query.TrimStart('?');
+                foreach (string part in query.Split('&'))
                 {
-                    try
+                    int eqIdx = part.IndexOf('=');
+                    if (eqIdx > 0)
                     {
-                        var fs = new FileStream(targetPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                        e.Response = webView.Environment.CreateWebResourceResponse(
-                            fs,
-                            200,
-                            "OK",
-                            "Content-Type: application/octet-stream\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, OPTIONS\r\nAccess-Control-Allow-Headers: *\r\nCache-Control: no-cache, no-store\r\n"
-                        );
-                        return;
-                    }
-                    catch (Exception ex)
-                    {
-                        var errBytes = Encoding.UTF8.GetBytes($"File stream error: {ex.Message}");
-                        var ms = new MemoryStream(errBytes);
-                        e.Response = webView.Environment.CreateWebResourceResponse(
-                            ms,
-                            500,
-                            "Internal Error",
-                            "Content-Type: text/plain\r\nAccess-Control-Allow-Origin: *\r\n"
-                        );
-                        return;
+                        string key = Uri.UnescapeDataString(part.Substring(0, eqIdx));
+                        if (string.Equals(key, paramName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return Uri.UnescapeDataString(part.Substring(eqIdx + 1));
+                        }
                     }
                 }
-
-                var notFoundBytes = Encoding.UTF8.GetBytes("CAD File Not Found");
-                var notFoundStream = new MemoryStream(notFoundBytes);
-                e.Response = webView.Environment.CreateWebResourceResponse(
-                    notFoundStream,
-                    404,
-                    "Not Found",
-                    "Content-Type: text/plain\r\nAccess-Control-Allow-Origin: *\r\n"
-                );
             }
+            catch { }
+            return null;
+        }
+
+        private static void StreamCadFileResponse(
+            CoreWebView2 webView,
+            CoreWebView2WebResourceRequestedEventArgs e,
+            string targetPath,
+            string notFoundMessage)
+        {
+            if (!string.IsNullOrEmpty(targetPath) && File.Exists(targetPath))
+            {
+                try
+                {
+                    var fs = new FileStream(targetPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                    e.Response = webView.Environment.CreateWebResourceResponse(
+                        fs,
+                        200,
+                        "OK",
+                        "Content-Type: application/octet-stream\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, OPTIONS\r\nAccess-Control-Allow-Headers: *\r\nCache-Control: no-cache, no-store\r\n"
+                    );
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    var errBytes = Encoding.UTF8.GetBytes($"File stream error: {ex.Message}");
+                    var ms = new MemoryStream(errBytes);
+                    e.Response = webView.Environment.CreateWebResourceResponse(
+                        ms,
+                        500,
+                        "Internal Error",
+                        "Content-Type: text/plain\r\nAccess-Control-Allow-Origin: *\r\n"
+                    );
+                    return;
+                }
+            }
+
+            var notFoundBytes = Encoding.UTF8.GetBytes(notFoundMessage);
+            var notFoundStream = new MemoryStream(notFoundBytes);
+            e.Response = webView.Environment.CreateWebResourceResponse(
+                notFoundStream,
+                404,
+                "Not Found",
+                "Content-Type: text/plain\r\nAccess-Control-Allow-Origin: *\r\n"
+            );
         }
     }
 }

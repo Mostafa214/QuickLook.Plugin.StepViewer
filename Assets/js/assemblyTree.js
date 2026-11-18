@@ -55,13 +55,8 @@ if (typeof window !== 'undefined') {
       // Initialize Exploded Assembly vectors and UI visibility
       initExplodeVectors();
       const explodeSec = document.getElementById('tree-explode-section');
-      const btnExplode = document.getElementById('btn-explode');
       if (explodeSec) {
         explodeSec.style.display = bodyCount > 1 ? 'block' : 'none';
-      }
-      if (btnExplode) {
-        btnExplode.style.opacity = bodyCount > 1 ? '1' : '0.45';
-        btnExplode.title = bodyCount > 1 ? 'Exploded Assembly View [X]' : 'Exploded View (Requires Assembly with 2+ parts)';
       }
 
       if (bodyCount === 0) {
@@ -78,7 +73,9 @@ if (typeof window !== 'undefined') {
         const volVal = b.data.volumeMm3 || 0;
         const volCm3 = (volVal / 1000.0).toFixed(1);
         const facesCount = (b.data.brepFaces && b.data.brepFaces.length) || 0;
-        const triCount = b.data.index ? Math.round(b.data.index.length / 3).toLocaleString() : '0';
+        const triCount = b.data.index
+          ? Math.round(b.data.index.length / 3).toLocaleString()
+          : (b.data.position ? Math.round(b.data.position.length / 9).toLocaleString() : '0');
         const safeName = escapeHtml(b.name);
 
         node.innerHTML = `
@@ -321,15 +318,26 @@ if (typeof window !== 'undefined') {
       if (box.isEmpty()) return;
       const center = box.getCenter(new THREE.Vector3());
       const size = box.getSize(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const vFovRad = THREE.MathUtils.degToRad(camera.fov);
-      let dist = (maxDim / 2) / Math.tan(vFovRad / 2);
-      dist = Math.max(dist * 1.6, 5);
+      const maxDim = Math.max(size.x, size.y, size.z, 0.001);
 
       const dir = camera.position.clone().sub(controls.target).normalize();
       if (dir.lengthSq() < 0.1) dir.set(1, 1, 1).normalize();
+
+      let dist;
+      let targetZoom = null;
+      if (camera.isOrthographicCamera) {
+        dist = Math.max(camera.position.distanceTo(controls.target), maxDim * 2, 10);
+        const frustumW = Math.abs(camera.right - camera.left) || 1;
+        const frustumH = Math.abs(camera.top - camera.bottom) || 1;
+        targetZoom = Math.max(0.05, Math.min(Math.min(frustumW, frustumH) / (maxDim * 1.6), 100));
+      } else {
+        const vFovRad = THREE.MathUtils.degToRad(camera.fov);
+        dist = (maxDim / 2) / Math.tan(vFovRad / 2);
+        dist = Math.max(dist * 1.6, 5);
+      }
+
       const newPos = center.clone().add(dir.multiplyScalar(dist));
-      tweenCamera(newPos, center, camera.up, 350);
+      tweenCamera(newPos, center, camera.up, 350, targetZoom);
     }
 
     function previewBodyInScene(bodyId) {
@@ -434,6 +442,27 @@ if (typeof window !== 'undefined') {
       });
     }
 
+    function forEachFaceTriangle(face, posAttr, idxAttr, callback) {
+      const numTris = idxAttr ? (idxAttr.count / 3) : (posAttr.count / 3);
+      if (face.triangles && face.triangles.length > 0) {
+        for (let k = 0; k < face.triangles.length; k++) {
+          const t = face.triangles[k];
+          if (t < 0 || t >= numTris) continue;
+          const i0 = idxAttr ? idxAttr.getX(t * 3) : t * 3;
+          const i1 = idxAttr ? idxAttr.getX(t * 3 + 1) : t * 3 + 1;
+          const i2 = idxAttr ? idxAttr.getX(t * 3 + 2) : t * 3 + 2;
+          callback(i0, i1, i2);
+        }
+      } else {
+        for (let t = face.first; t <= face.last && t < numTris; t++) {
+          const i0 = idxAttr ? idxAttr.getX(t * 3) : t * 3;
+          const i1 = idxAttr ? idxAttr.getX(t * 3 + 1) : t * 3 + 1;
+          const i2 = idxAttr ? idxAttr.getX(t * 3 + 2) : t * 3 + 2;
+          callback(i0, i1, i2);
+        }
+      }
+    }
+
     function createFaceHighlightGroup(bodyId, face, isPersistent) {
       const b = modelBodies.find(item => item.id === bodyId);
       if (!b || !b.mesh) return null;
@@ -441,9 +470,8 @@ if (typeof window !== 'undefined') {
       const fullGeom = b.mesh.geometry;
       const posAttr = fullGeom.attributes.position;
       const idxAttr = fullGeom.index;
-      if (!posAttr || !idxAttr) return null;
+      if (!posAttr) return null;
 
-      const numTris = idxAttr.count / 3;
       const subIdx = [];
       const edgeMap = new Map();
 
@@ -459,16 +487,12 @@ if (typeof window !== 'undefined') {
         }
       }
 
-      for (let t = face.first; t <= face.last && t < numTris; t++) {
-        const i0 = idxAttr.getX(t * 3);
-        const i1 = idxAttr.getX(t * 3 + 1);
-        const i2 = idxAttr.getX(t * 3 + 2);
+      forEachFaceTriangle(face, posAttr, idxAttr, (i0, i1, i2) => {
         subIdx.push(i0, i1, i2);
-
         addFaceEdge(i0, i1);
         addFaceEdge(i1, i2);
         addFaceEdge(i2, i0);
-      }
+      });
       if (subIdx.length === 0) return null;
 
       const group = new THREE.Group();
@@ -620,9 +644,8 @@ if (typeof window !== 'undefined') {
       const fullGeom = b.mesh.geometry;
       const posAttr = fullGeom.attributes.position;
       const idxAttr = fullGeom.index;
-      if (!posAttr || !idxAttr) return;
+      if (!posAttr) return;
 
-      const numTris = idxAttr.count / 3;
       let totalArea = 0;
       const centroidSum = new THREE.Vector3();
       const normalSum = new THREE.Vector3();
@@ -634,11 +657,7 @@ if (typeof window !== 'undefined') {
       const triNormal = new THREE.Vector3();
       const faceVertices = [];
 
-      for (let t = face.first; t <= face.last && t < numTris; t++) {
-        const i0 = idxAttr.getX(t * 3);
-        const i1 = idxAttr.getX(t * 3 + 1);
-        const i2 = idxAttr.getX(t * 3 + 2);
-
+      forEachFaceTriangle(face, posAttr, idxAttr, (i0, i1, i2) => {
         vA.fromBufferAttribute(posAttr, i0);
         vB.fromBufferAttribute(posAttr, i1);
         vC.fromBufferAttribute(posAttr, i2);
@@ -657,7 +676,7 @@ if (typeof window !== 'undefined') {
           const triCenter = vA.clone().add(vB).add(vC).multiplyScalar(1 / 3);
           centroidSum.add(triCenter.multiplyScalar(area));
         }
-      }
+      });
 
       let faceCenterLocal = new THREE.Vector3();
       if (totalArea > 1e-10) {
@@ -689,15 +708,27 @@ if (typeof window !== 'undefined') {
       }
       maxRadius = Math.max(maxRadius, 2.0); // minimum 2mm radius
 
-      // Framing distance: fit face nicely within camera FOV
-      const vFovRad = THREE.MathUtils.degToRad(camera.fov || 45);
-      const aspect = camera.aspect || (window.innerWidth / window.innerHeight) || 1.0;
-      const tanHalfFov = Math.tan(vFovRad / 2);
-      const effectiveTan = Math.min(tanHalfFov, tanHalfFov * aspect);
-      let dist = (maxRadius / effectiveTan) * 1.75;
-      dist = Math.max(dist, 12.0);
-      if (typeof currentModelDistance === 'number' && currentModelDistance > 0) {
-        dist = Math.min(dist, currentModelDistance * 2.0);
+      // Framing distance: fit face nicely within camera FOV or orthographic frustum
+      let dist;
+      let targetZoom = null;
+      if (camera.isOrthographicCamera) {
+        dist = Math.max(camera.position.distanceTo(controls.target), maxRadius * 3, 12.0);
+        if (typeof currentModelDistance === 'number' && currentModelDistance > 0) {
+          dist = Math.min(dist, currentModelDistance * 2.0);
+        }
+        const frustumW = Math.abs(camera.right - camera.left) || 1;
+        const frustumH = Math.abs(camera.top - camera.bottom) || 1;
+        targetZoom = Math.max(0.05, Math.min(Math.min(frustumW, frustumH) / (maxRadius * 2 * 1.4), 100));
+      } else {
+        const vFovRad = THREE.MathUtils.degToRad(camera.fov || 45);
+        const aspect = camera.aspect || (window.innerWidth / window.innerHeight) || 1.0;
+        const tanHalfFov = Math.tan(vFovRad / 2);
+        const effectiveTan = Math.min(tanHalfFov, tanHalfFov * aspect);
+        dist = (maxRadius / effectiveTan) * 1.75;
+        dist = Math.max(dist, 12.0);
+        if (typeof currentModelDistance === 'number' && currentModelDistance > 0) {
+          dist = Math.min(dist, currentModelDistance * 2.0);
+        }
       }
 
       // Camera target position along normal vector
@@ -723,7 +754,7 @@ if (typeof window !== 'undefined') {
         }
       }
 
-      tweenCamera(targetPos, worldCenter, targetUp, 450);
+      tweenCamera(targetPos, worldCenter, targetUp, 450, targetZoom);
     }
 
     function updateTreeItemState(bodyId) {

@@ -24,6 +24,14 @@ namespace QuickLook.Plugin.StepViewer
                 ".pdf"
             };
 
+        public static readonly HashSet<string> AllowedModelExportExtensions =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ".stl",
+                ".obj",
+                ".glb"
+            };
+
         public static readonly HashSet<string> DangerousFileExtensions =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -45,6 +53,16 @@ namespace QuickLook.Plugin.StepViewer
         }
 
         public static bool TryValidateSnapshotTargetPath(string rawPath, out string validatedPath)
+        {
+            return TryValidateTargetPath(rawPath, AllowedSnapshotExtensions, out validatedPath);
+        }
+
+        public static bool TryValidateModelExportTargetPath(string rawPath, out string validatedPath)
+        {
+            return TryValidateTargetPath(rawPath, AllowedModelExportExtensions, out validatedPath);
+        }
+
+        private static bool TryValidateTargetPath(string rawPath, HashSet<string> allowedExtensions, out string validatedPath)
         {
             validatedPath = null;
             if (string.IsNullOrWhiteSpace(rawPath))
@@ -105,7 +123,7 @@ namespace QuickLook.Plugin.StepViewer
                 return false;
 
             string ext = Path.GetExtension(fullPath);
-            if (string.IsNullOrEmpty(ext) || !AllowedSnapshotExtensions.Contains(ext))
+            if (string.IsNullOrEmpty(ext) || !allowedExtensions.Contains(ext))
                 return false;
 
             if (DangerousFileExtensions.Contains(ext))
@@ -127,12 +145,23 @@ namespace QuickLook.Plugin.StepViewer
 
         public static string SanitizeSnapshotDefaultName(string rawName)
         {
+            return SanitizeDefaultFileName(rawName, "CAD_Snapshot.png", AllowedSnapshotExtensions, ".png");
+        }
+
+        public static string SanitizeModelExportDefaultName(string rawName, string fallbackExtension = ".stl")
+        {
+            string ext = AllowedModelExportExtensions.Contains(fallbackExtension) ? fallbackExtension : ".stl";
+            return SanitizeDefaultFileName(rawName, $"CAD_Model{ext}", AllowedModelExportExtensions, ext);
+        }
+
+        private static string SanitizeDefaultFileName(string rawName, string fallbackName, HashSet<string> allowedExtensions, string fallbackExtension)
+        {
             if (string.IsNullOrWhiteSpace(rawName))
-                return "CAD_Snapshot.png";
+                return fallbackName;
 
             string fileName = Path.GetFileName(rawName.Trim());
             if (string.IsNullOrWhiteSpace(fileName))
-                return "CAD_Snapshot.png";
+                return fallbackName;
 
             char[] invalidChars = Path.GetInvalidFileNameChars();
             if (fileName.IndexOfAny(invalidChars) >= 0)
@@ -142,9 +171,9 @@ namespace QuickLook.Plugin.StepViewer
             }
 
             string ext = Path.GetExtension(fileName);
-            if (!AllowedSnapshotExtensions.Contains(ext))
+            if (!allowedExtensions.Contains(ext))
             {
-                fileName = Path.ChangeExtension(fileName, ".png");
+                fileName = Path.ChangeExtension(fileName, fallbackExtension);
             }
 
             string nameOnly = Path.GetFileNameWithoutExtension(fileName);
@@ -352,6 +381,148 @@ namespace QuickLook.Plugin.StepViewer
             catch (Exception ex)
             {
                 StepViewerControl.Log($"Clipboard copy error: {ex.Message}");
+            }
+        }
+
+        public static bool IsValidModelExportPayload(string formatOrExt, byte[] bytes)
+        {
+            if (bytes == null || bytes.Length == 0 || string.IsNullOrWhiteSpace(formatOrExt))
+                return false;
+
+            string fmt = formatOrExt.Trim().TrimStart('.').ToLowerInvariant();
+            if (fmt == "stl")
+            {
+                if (bytes.Length >= 84)
+                {
+                    uint count = (uint)(bytes[80] | (bytes[81] << 8) | (bytes[82] << 16) | (bytes[83] << 24));
+                    long expectedSize = 84L + 50L * count;
+                    if (expectedSize == bytes.Length)
+                        return true;
+                }
+
+                string head = System.Text.Encoding.ASCII.GetString(bytes, 0, Math.Min(bytes.Length, 64)).TrimStart();
+                return head.StartsWith("solid", StringComparison.OrdinalIgnoreCase);
+            }
+
+            if (fmt == "glb")
+            {
+                if (bytes.Length < 12)
+                    return false;
+
+                bool magicOk = bytes[0] == 0x67 && bytes[1] == 0x6C && bytes[2] == 0x54 && bytes[3] == 0x46;
+                uint version = (uint)(bytes[4] | (bytes[5] << 8) | (bytes[6] << 16) | (bytes[7] << 24));
+                return magicOk && version == 2;
+            }
+
+            if (fmt == "obj")
+            {
+                for (int i = 0; i < Math.Min(bytes.Length, 4096); i++)
+                {
+                    if (bytes[i] == 0)
+                        return false;
+                }
+                return true;
+            }
+
+            return false;
+        }
+
+        public static bool HandleExportModel(ExportModelMessage msg)
+        {
+            return HandleExportModel(null, null, msg);
+        }
+
+        public static bool HandleExportModel(Window ownerWindow, CoreWebView2 webView, ExportModelMessage msg)
+        {
+            if (msg == null || string.IsNullOrEmpty(msg.Data))
+                return false;
+
+            string format = (msg.Format ?? "stl").Trim().TrimStart('.').ToLowerInvariant();
+            string ext = "." + format;
+            if (!AllowedModelExportExtensions.Contains(ext))
+                return false;
+
+            try
+            {
+                string base64Data = Regex.Replace(msg.Data, @"^data:[^;]+;base64,", "");
+                byte[] modelBytes = Convert.FromBase64String(base64Data);
+
+                if (!IsValidModelExportPayload(format, modelBytes))
+                {
+                    StepViewerControl.Log($"[Security] Model export rejected: invalid {format.ToUpperInvariant()} payload signature.");
+                    _ = webView?.ExecuteScriptAsync(
+                        IpcScriptBuilder.BuildShowToastScript($"Error: Invalid {format.ToUpperInvariant()} export payload.")
+                    );
+                    return false;
+                }
+
+                if (!string.IsNullOrEmpty(msg.TargetPath))
+                {
+                    if (!TryValidateModelExportTargetPath(msg.TargetPath, out string safeTargetPath))
+                    {
+                        StepViewerControl.Log($"[Security] Model export target path rejected: {msg.TargetPath}");
+                        return false;
+                    }
+
+                    if (File.Exists(safeTargetPath))
+                    {
+                        StepViewerControl.Log($"[Security] Model export target path rejected: file already exists at {safeTargetPath}");
+                        _ = webView?.ExecuteScriptAsync(
+                            IpcScriptBuilder.BuildShowToastScript($"Error: File already exists: {Path.GetFileName(safeTargetPath)}")
+                        );
+                        return false;
+                    }
+
+                    var parent = Path.GetDirectoryName(safeTargetPath);
+                    if (!string.IsNullOrEmpty(parent) && !Directory.Exists(parent))
+                        Directory.CreateDirectory(parent);
+
+                    File.WriteAllBytes(safeTargetPath, modelBytes);
+                    _ = webView?.ExecuteScriptAsync(
+                        IpcScriptBuilder.BuildShowToastScript($"Exported: {Path.GetFileName(safeTargetPath)}")
+                    );
+                    return true;
+                }
+
+                string safeDefaultName = SanitizeModelExportDefaultName(msg.DefaultName, ext);
+                string title = format == "glb" ? "Export 3D Model as glTF Binary (GLB)" : (format == "obj" ? "Export 3D Model as Wavefront OBJ" : "Export 3D Model as Binary STL");
+                var sfd = new Microsoft.Win32.SaveFileDialog
+                {
+                    Title = title,
+                    Filter = "Binary STL (*.stl)|*.stl|Wavefront OBJ (*.obj)|*.obj|glTF 2.0 Binary (*.glb)|*.glb",
+                    FilterIndex = format == "obj" ? 2 : (format == "glb" ? 3 : 1),
+                    FileName = safeDefaultName,
+                    DefaultExt = ext,
+                    AddExtension = true
+                };
+
+                bool? dialogResult = ownerWindow != null ? sfd.ShowDialog(ownerWindow) : sfd.ShowDialog();
+                if (dialogResult == true)
+                {
+                    string savePath = sfd.FileName;
+                    string chosenExt = Path.GetExtension(savePath);
+                    if (!AllowedModelExportExtensions.Contains(chosenExt))
+                    {
+                        savePath = Path.ChangeExtension(savePath, ext);
+                    }
+
+                    File.WriteAllBytes(savePath, modelBytes);
+                    _ = webView?.ExecuteScriptAsync(
+                        IpcScriptBuilder.BuildShowToastScript($"Exported: {Path.GetFileName(savePath)}")
+                    );
+                    return true;
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                StepViewerControl.Log($"Failed to export 3D model: {ex.Message}");
+                if (ownerWindow != null)
+                {
+                    MessageBox.Show($"Failed to export 3D model:\n{ex.Message}", "QuickLook STEP Viewer", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                return false;
             }
         }
     }

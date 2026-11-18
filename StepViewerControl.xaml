@@ -42,7 +42,7 @@
             </Border>
         </Border>
 
-        <!-- Large File Guardrail Overlay (>35MB) -->
+        <!-- Large File Guardrail Overlay (>35MB for STEP/IGES/BREP, >150MB for STL) -->
         <Border x:Name="GuardrailOverlay" Background="#E61A1A1A" Visibility="Collapsed" Padding="32">
             <Border Background="#242424" BorderBrush="#3D3D3D" BorderThickness="1" CornerRadius="8" Padding="28" MaxWidth="520" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Border.Effect>
@@ -54,7 +54,8 @@
                         <TextBlock Text="Large CAD Model Notice" Foreground="#F8FAFC" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" FontFamily="Segoe UI"/>
                     </StackPanel>
 
-                    <TextBlock Text="This STEP file is larger than 35 MB. Tessellating large assemblies in WebAssembly may require high memory and take several seconds to compute." 
+                    <TextBlock x:Name="TxtGuardrailNotice"
+                               Text="This STEP file is larger than 35 MB. Tessellating large assemblies in WebAssembly may require high memory and take several seconds to compute." 
                                Foreground="#CBD5E1" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,18" LineHeight="20" FontFamily="Segoe UI"/>
 
                     <Border Background="#1E1E1E" BorderBrush="#333333" BorderThickness="1" CornerRadius="6" Padding="14" Margin="0,0,0,22">

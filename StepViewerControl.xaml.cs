@@ -17,7 +17,8 @@ namespace QuickLook.Plugin.StepViewer
         public event EventHandler<string> OnModelError;
         public event EventHandler OnReady;
 
-        private const long ThresholdBytes = 35 * 1024 * 1024; // 35 MB guardrail
+        private const long CadThresholdBytes = 35L * 1024 * 1024; // 35 MB guardrail for STEP/IGES/BREP (WebAssembly)
+        private const long StlThresholdBytes = 150L * 1024 * 1024; // 150 MB guardrail for STL (pure JS)
         private string _currentFilePath;
         private string _pendingFilePath;
         private bool _isInitialized;
@@ -145,6 +146,10 @@ namespace QuickLook.Plugin.StepViewer
                         Dispatcher.Invoke(() => SnapshotExportService.HandleCopySnapshot(copySnap));
                         break;
 
+                    case ExportModelMessage exportMsg:
+                        Dispatcher.Invoke(() => SnapshotExportService.HandleExportModel(Window.GetWindow(this), WebViewControl?.CoreWebView2, exportMsg));
+                        break;
+
                     case StartUpdateDownloadMessage updateMsg:
                         _ = _updateService.ExecuteAutoUpdateDownloadAsync(updateMsg.DownloadUrl, updateMsg.Version, WebViewControl?.CoreWebView2, Dispatcher.Invoke);
                         break;
@@ -171,7 +176,10 @@ namespace QuickLook.Plugin.StepViewer
 
             _currentFilePath = filePath;
             var fi = new FileInfo(filePath);
-            if (fi.Length > ThresholdBytes) ShowGuardrail(filePath, fi.Length);
+            string ext = Path.GetExtension(filePath)?.ToLowerInvariant() ?? string.Empty;
+            bool isMeshFormat = ext == ".stl" || ext == ".3mf" || ext == ".obj" || ext == ".ply" || ext == ".glb" || ext == ".gltf" || ext == ".sldprt" || ext == ".sldasm";
+            long threshold = isMeshFormat ? StlThresholdBytes : CadThresholdBytes;
+            if (fi.Length > threshold) ShowGuardrail(filePath, fi.Length);
             else
             {
                 GuardrailOverlay.Visibility = Visibility.Collapsed;
@@ -182,6 +190,20 @@ namespace QuickLook.Plugin.StepViewer
         private void ShowGuardrail(string filePath, long sizeBytes)
         {
             var meta = StepMetadataParser.ExtractMetadata(filePath);
+            string ext = Path.GetExtension(filePath)?.ToLowerInvariant() ?? string.Empty;
+            if (ext == ".stl" || ext == ".3mf" || ext == ".obj" || ext == ".ply" || ext == ".glb" || ext == ".gltf" || ext == ".sldprt" || ext == ".sldasm")
+            {
+                string meshLabel = ext.TrimStart('.').ToUpperInvariant();
+                TxtGuardrailNotice.Text = $"This {meshLabel} mesh is larger than 150 MB. Parsing and rendering large triangle meshes may require high memory and take several seconds to compute.";
+            }
+            else
+            {
+                string formatLabel = "STEP";
+                if (ext == ".iges" || ext == ".igs") formatLabel = "IGES";
+                else if (ext == ".brep") formatLabel = "BREP";
+                TxtGuardrailNotice.Text = $"This {formatLabel} file is larger than 35 MB. Tessellating large assemblies in WebAssembly may require high memory and take several seconds to compute.";
+            }
+
             TxtMetaFileName.Text = Path.GetFileName(filePath);
             TxtMetaFileSize.Text = $"{sizeBytes / (1024.0 * 1024.0):F1} MB ({sizeBytes:N0} bytes)";
             TxtMetaSchema.Text = string.IsNullOrEmpty(meta.Schema) ? "Unknown Schema" : meta.Schema;
@@ -245,6 +267,9 @@ namespace QuickLook.Plugin.StepViewer
             {
                 if (_isInitialized && WebViewControl?.CoreWebView2 != null)
                 {
+                    try { _ = WebViewControl.CoreWebView2.ExecuteScriptAsync("if (typeof window.__cleanupViewer === 'function') window.__cleanupViewer();"); }
+                    catch (Exception ex) { Log($"Dispose ExecuteScriptAsync error: {ex.Message}"); }
+
                     try { WebViewControl.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(ViewportActionCommand.Dispose, IpcJsonOptions.Default)); }
                     catch (Exception ex) { Log($"Dispose post message error: {ex.Message}"); }
                 }

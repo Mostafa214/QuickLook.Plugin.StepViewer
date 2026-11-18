@@ -800,7 +800,7 @@ test('T9.4: Token gating & load cancellation behavior validation', () => {
 
   // Verify guard on PARSE_SUCCESS in currentWorker.onmessage
   assert(viewerAppSrc.includes('if (msg.loadId && msg.loadId !== activeLoadId) return;'), 'PARSE_SUCCESS must check msg.loadId vs activeLoadId');
-  assert(viewerAppSrc.includes('if (workerDispatchedLoadId !== activeLoadId || activeCadFormat === \'STL\') return;'), 'PARSE_SUCCESS must reject stale worker messages when activeCadFormat is STL');
+  assert(viewerAppSrc.includes('if (workerDispatchedLoadId !== activeLoadId || activeCadFormat === \'STL\''), 'PARSE_SUCCESS must reject stale worker messages when activeCadFormat is STL');
 
   // Verify onTessellationComplete token guard
   assert(viewerAppSrc.includes('if (data.loadId && data.loadId !== activeLoadId) return;'), 'onTessellationComplete must check data.loadId vs activeLoadId');

@@ -53,6 +53,8 @@ foreach ($f in $requiredFiles) {
 $requiredAssets = @(
     "viewer.html",
     "stepWorker.js",
+    "stlWorker.js",
+    "solidworksWorker.js",
     "three.min.js",
     "OrbitControls.js",
     "occt-import-js.js",
@@ -60,7 +62,10 @@ $requiredAssets = @(
     "css\viewer.css",
     "js\viewerApp.js",
     "js\stlLoader.js",
-    "js\meshFeatureDetector.js"
+    "js\solidworksLoader.js",
+    "js\meshFeatureDetector.js",
+    "js\meshFormatLoader.js",
+    "js\modelExportEngine.js"
 )
 
 $assetsPath = Join-Path $binDir "Assets"

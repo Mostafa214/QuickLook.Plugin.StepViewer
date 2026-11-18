@@ -171,12 +171,15 @@
           activeMatName = matBody.materialPreset;
           const volMm3 = matBody.data.volumeMm3 || 0;
           if (volMm3 > 0) {
-            const massG = (volMm3 / 1000.0 * matBody.materialDensity).toFixed(1);
+            const printMetrics = (window.MaterialsEngine && typeof window.MaterialsEngine.getPrintMetrics === 'function')
+              ? window.MaterialsEngine.getPrintMetrics(volMm3, matBody.materialDensity)
+              : null;
+            const massG = printMetrics ? printMetrics.massGrams.toFixed(1) : (volMm3 / 1000.0 * matBody.materialDensity).toFixed(1);
             activeMatMass = `${massG} g`;
             if (matBody.materialPreset === 'UV Resin') {
               matLine = `Material: ${matBody.materialPreset} (${matBody.materialDensity} g/cm³)  •  ${activeMatMass}`;
             } else {
-              const filM = (volMm3 / 2405.28).toFixed(2);
+              const filM = printMetrics ? printMetrics.filamentLengthMeters.toFixed(2) : (volMm3 / 2405.28).toFixed(2);
               matLine = `Material: ${matBody.materialPreset} (${matBody.materialDensity} g/cm³)  •  Mass: ${activeMatMass}  •  Filament: ${filM} m`;
             }
           } else {
@@ -194,7 +197,11 @@
           let passportText = '';
           const matTag = activeMatName ? ` | Mat: ${activeMatName} (${activeMatMass})` : '';
 
-          const formatTag = activeCadFormat === 'IGES' ? 'USAF IGES 5.3' : (activeCadFormat === 'BREP' ? 'OpenCASCADE B-Rep' : 'ISO 10303-21');
+          const formatTag = activeCadFormat === 'IGES'
+            ? 'USAF IGES 5.3'
+            : (activeCadFormat === 'BREP'
+              ? 'OpenCASCADE B-Rep'
+              : (activeCadFormat === 'STL' ? 'STL 3D Mesh' : 'ISO 10303-21'));
           if (customNote.startsWith('http://') || customNote.startsWith('https://')) {
             // Direct pure URL allows instant 1-tap browser pill popup on all phone cameras
             passportText = customNote;
@@ -551,28 +558,6 @@
     window.executeEngineeringExport = executeEngineeringExport;
     window.toggleSnapshotModal = toggleSnapshotModal;
     window.initSnapshotSystem = initSnapshotSystem;
-
-    function toggleUnits() {
-      currentUnit = (currentUnit === 'mm') ? 'in' : 'mm';
-      const btn = document.getElementById('btn-units');
-      if (btn) {
-        const span = btn.querySelector('span');
-        if (span) {
-          span.innerText = currentUnit;
-          span.style.color = currentUnit === 'mm' ? '#38bdf8' : '#f59e0b';
-        }
-      }
-      updateBoundingBoxBadge();
-      updatePhysicalPropertiesCard();
-      if (selectedCadEntities.length > 0) {
-        const ents = [...selectedCadEntities];
-        clearMeasurement(false);
-        ents.forEach(e => handleUnifiedClick(e));
-      }
-      if (isSectionActive) {
-        updateSectionPlane();
-      }
-    }
 
     // =============================================================
 

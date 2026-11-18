@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -258,14 +259,303 @@ namespace QuickLook.Plugin.StepViewer
         }
 
         /// <summary>
-        /// Universal CAD &amp; 3D mesh format validator checking STEP, IGES, BREP, or STL.
+        /// Validates 3MF container files by checking ZIP local header (PK\x03\x04)
+        /// and verifying the presence of a .model entry (e.g. 3D/3dmodel.model).
+        /// </summary>
+        public static bool Is3mfFile(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                return false;
+
+            try
+            {
+                var fi = new FileInfo(path);
+                if (fi.Length < 30)
+                    return false;
+
+                using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                {
+                    byte[] magic = new byte[4];
+                    if (stream.Read(magic, 0, 4) != 4)
+                        return false;
+
+                    if (magic[0] != 0x50 || magic[1] != 0x4B || magic[2] != 0x03 || magic[3] != 0x04)
+                        return false;
+
+                    stream.Position = 0;
+                    using (var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true))
+                    {
+                        bool hasModel = false;
+                        foreach (var entry in archive.Entries)
+                        {
+                            string normalized = entry.FullName.Replace('\\', '/').TrimStart('/');
+                            if (normalized.Equals("3D/3dmodel.model", StringComparison.OrdinalIgnoreCase) ||
+                                normalized.EndsWith(".model", StringComparison.OrdinalIgnoreCase))
+                            {
+                                hasModel = true;
+                                break;
+                            }
+                        }
+                        return hasModel;
+                    }
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Validates binary glTF (.glb) files by checking 'glTF' magic and version 2 header.
+        /// </summary>
+        public static bool IsGlbFile(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                return false;
+
+            try
+            {
+                var fi = new FileInfo(path);
+                if (fi.Length < 12)
+                    return false;
+
+                using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                {
+                    byte[] header = new byte[12];
+                    if (stream.Read(header, 0, 12) != 12)
+                        return false;
+
+                    // Magic: "glTF" (0x67, 0x6C, 0x54, 0x46)
+                    if (header[0] != 0x67 || header[1] != 0x6C || header[2] != 0x54 || header[3] != 0x46)
+                        return false;
+
+                    // Version 2 (little-endian uint32)
+                    uint version = (uint)(header[4] | (header[5] << 8) | (header[6] << 16) | (header[7] << 24));
+                    uint totalLength = (uint)(header[8] | (header[9] << 8) | (header[10] << 16) | (header[11] << 24));
+                    return version == 2 && totalLength >= 12;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Validates JSON glTF (.gltf) files by scanning the UTF-8 preamble for "asset" and "version".
+        /// </summary>
+        public static bool IsGltfFile(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                return false;
+
+            try
+            {
+                using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                {
+                    byte[] buffer = new byte[8192];
+                    int bytesRead = stream.Read(buffer, 0, buffer.Length);
+                    if (bytesRead < 16)
+                        return false;
+
+                    for (int i = 0; i < bytesRead; i++)
+                    {
+                        if (buffer[i] == 0)
+                            return false;
+                    }
+
+                    string text = Encoding.UTF8.GetString(buffer, 0, bytesRead).TrimStart('\r', '\n', ' ', '\t', '\uFEFF');
+                    if (!text.StartsWith("{", StringComparison.Ordinal))
+                        return false;
+
+                    return text.IndexOf("\"asset\"", StringComparison.Ordinal) >= 0 &&
+                           text.IndexOf("\"version\"", StringComparison.Ordinal) >= 0;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Validates Polygon File Format (.ply) ASCII and binary headers.
+        /// </summary>
+        public static bool IsPlyFile(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                return false;
+
+            try
+            {
+                using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                {
+                    byte[] buffer = new byte[512];
+                    int bytesRead = stream.Read(buffer, 0, buffer.Length);
+                    if (bytesRead < 16)
+                        return false;
+
+                    string text = Encoding.ASCII.GetString(buffer, 0, bytesRead).TrimStart('\uFEFF', ' ', '\t');
+                    if (!(text.StartsWith("ply\n", StringComparison.OrdinalIgnoreCase) ||
+                          text.StartsWith("ply\r\n", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        return false;
+                    }
+
+                    return text.IndexOf("format ascii", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                           text.IndexOf("format binary_little_endian", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                           text.IndexOf("format binary_big_endian", StringComparison.OrdinalIgnoreCase) >= 0;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Validates Wavefront OBJ (.obj) text mesh files by rejecting binary null bytes
+        /// and scanning the preamble for standard OBJ geometry/material directives.
+        /// </summary>
+        public static bool IsObjFile(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                return false;
+
+            try
+            {
+                using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                {
+                    byte[] buffer = new byte[8192];
+                    int bytesRead = stream.Read(buffer, 0, buffer.Length);
+                    if (bytesRead < 3)
+                        return false;
+
+                    for (int i = 0; i < bytesRead; i++)
+                    {
+                        if (buffer[i] == 0)
+                            return false;
+                    }
+
+                    string text = Encoding.UTF8.GetString(buffer, 0, bytesRead).TrimStart('\uFEFF');
+                    string trimmed = text.TrimStart();
+                    if (trimmed.StartsWith("<", StringComparison.Ordinal) || trimmed.StartsWith("{", StringComparison.Ordinal))
+                        return false;
+
+                    string[] lines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var rawLine in lines)
+                    {
+                        string line = rawLine.TrimStart();
+                        if (line.Length == 0 || line[0] == '#')
+                            continue;
+
+                        if (line.StartsWith("v ", StringComparison.Ordinal) ||
+                            line.StartsWith("vt ", StringComparison.Ordinal) ||
+                            line.StartsWith("vn ", StringComparison.Ordinal) ||
+                            line.StartsWith("vp ", StringComparison.Ordinal) ||
+                            line.StartsWith("f ", StringComparison.Ordinal) ||
+                            line.StartsWith("l ", StringComparison.Ordinal) ||
+                            line.StartsWith("p ", StringComparison.Ordinal) ||
+                            line.StartsWith("o ", StringComparison.Ordinal) ||
+                            line.StartsWith("g ", StringComparison.Ordinal) ||
+                            line.StartsWith("s ", StringComparison.Ordinal) ||
+                            line.StartsWith("mtllib ", StringComparison.Ordinal) ||
+                            line.StartsWith("usemtl ", StringComparison.Ordinal))
+                        {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Instantly verifies if a file conforms to SolidWorks Gen 1 (OLE2 &lt;=2014) or Gen 2 (2015+ binary) format.
+        /// </summary>
+        public static bool IsSolidWorksFile(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                return false;
+
+            try
+            {
+                var fi = new FileInfo(path);
+                if (fi.Length < 8)
+                    return false;
+
+                using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                {
+                    int toRead = (int)Math.Min(fi.Length, 65536);
+                    byte[] header = new byte[toRead];
+                    int totalRead = 0;
+                    while (totalRead < toRead)
+                    {
+                        int read = stream.Read(header, totalRead, toRead - totalRead);
+                        if (read <= 0) break;
+                        totalRead += read;
+                    }
+
+                    if (totalRead < 8)
+                        return false;
+
+                    // Gen 1 (OLE2 <= 2014): D0 CF 11 E0 A1 B1 1A E1
+                    if (header[0] == 0xD0 && header[1] == 0xCF && header[2] == 0x11 && header[3] == 0xE0 &&
+                        header[4] == 0xA1 && header[5] == 0xB1 && header[6] == 0x1A && header[7] == 0xE1)
+                    {
+                        string ext = Path.GetExtension(path);
+                        return string.Equals(ext, ".sldprt", StringComparison.OrdinalIgnoreCase) ||
+                               string.Equals(ext, ".sldasm", StringComparison.OrdinalIgnoreCase);
+                    }
+
+                    // Gen 2 (Modern 2015+): length >= 64, bytes 4..7 == 00 00 00 04, and block marker 14 00 06 00 08 00 in first 64KB
+                    if (fi.Length >= 64 && totalRead >= 64 &&
+                        header[4] == 0x00 && header[5] == 0x00 && header[6] == 0x00 && header[7] == 0x04)
+                    {
+                        for (int i = 0; i <= totalRead - 6; i++)
+                        {
+                            if (header[i] == 0x14 && header[i + 1] == 0x00 &&
+                                header[i + 2] == 0x06 && header[i + 3] == 0x00 &&
+                                header[i + 4] == 0x08 && header[i + 5] == 0x00)
+                            {
+                                return true;
+                            }
+                        }
+                    }
+
+                    return false;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Universal CAD &amp; 3D mesh format validator checking STEP, IGES, BREP, STL, 3MF, OBJ, PLY, GLB, GLTF, or SolidWorks.
         /// </summary>
         public static bool IsValidCadFile(string path)
         {
             if (string.IsNullOrEmpty(path) || !File.Exists(path))
                 return false;
 
-            return IsStepFile(path) || IsIgesFile(path) || IsBrepFile(path) || IsStlFile(path);
+            return IsStepFile(path) ||
+                   IsIgesFile(path) ||
+                   IsBrepFile(path) ||
+                   IsStlFile(path) ||
+                   Is3mfFile(path) ||
+                   IsGlbFile(path) ||
+                   IsGltfFile(path) ||
+                   IsPlyFile(path) ||
+                   IsObjFile(path) ||
+                   IsSolidWorksFile(path);
         }
 
         /// <summary>
@@ -326,6 +616,62 @@ namespace QuickLook.Plugin.StepViewer
                     metadata.Schema = "ASCII STL";
                     metadata.OriginatingSystem = !string.IsNullOrWhiteSpace(solidName) ? solidName : "3D Mesh Model";
                     metadata.LengthUnit = "MILLIMETRE";
+                    return metadata;
+                }
+
+                if (Is3mfFile(path))
+                {
+                    metadata.Format = "3MF";
+                    metadata.Schema = "3D Manufacturing Format";
+                    metadata.OriginatingSystem = "3MF Consortium";
+                    metadata.LengthUnit = "MILLIMETRE";
+                    return metadata;
+                }
+
+                if (IsGlbFile(path))
+                {
+                    metadata.Format = "GLB";
+                    metadata.Schema = "glTF 2.0 Binary";
+                    metadata.OriginatingSystem = "Khronos glTF 2.0";
+                    metadata.LengthUnit = "METRE";
+                    return metadata;
+                }
+
+                if (IsGltfFile(path))
+                {
+                    metadata.Format = "GLTF";
+                    metadata.Schema = "glTF 2.0 JSON";
+                    metadata.OriginatingSystem = "Khronos glTF 2.0";
+                    metadata.LengthUnit = "METRE";
+                    return metadata;
+                }
+
+                if (IsPlyFile(path))
+                {
+                    metadata.Format = "PLY";
+                    metadata.Schema = "Polygon File Format";
+                    metadata.OriginatingSystem = "3D Mesh Model";
+                    metadata.LengthUnit = "MILLIMETRE";
+                    return metadata;
+                }
+
+                if (IsObjFile(path))
+                {
+                    metadata.Format = "OBJ";
+                    metadata.Schema = "Wavefront OBJ";
+                    metadata.OriginatingSystem = "3D Mesh Model";
+                    metadata.LengthUnit = "MILLIMETRE";
+                    return metadata;
+                }
+
+                if (IsSolidWorksFile(path))
+                {
+                    string ext = Path.GetExtension(path);
+                    bool isAsm = string.Equals(ext, ".sldasm", StringComparison.OrdinalIgnoreCase);
+                    metadata.Format = isAsm ? "SLDASM" : "SLDPRT";
+                    metadata.Schema = isAsm ? "SolidWorks Assembly" : "SolidWorks Part";
+                    metadata.OriginatingSystem = "Dassault Systèmes SolidWorks";
+                    metadata.LengthUnit = "METRE";
                     return metadata;
                 }
 
