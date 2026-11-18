@@ -325,9 +325,47 @@
       </svg>
       <span>Box</span>
     </button>
-    <button class="btn hud-btn" id="btn-units" title="Cycle Units (mm / cm / m / in / ft) [U]">
-      <span id="unit-indicator" class="unit-indicator">MM</span>
-    </button>
+    <div class="unit-selector-wrap" id="unit-selector-wrap">
+      <button class="btn hud-btn" id="btn-units" title="Select Display Units (mm / cm / m / in / ft) [U]" aria-haspopup="true" aria-expanded="false" aria-controls="unit-menu-popover">
+        <span id="unit-indicator" class="unit-indicator">MM</span>
+        <svg class="unit-chevron" viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="3 4.5 6 7.5 9 4.5"/>
+        </svg>
+      </button>
+      <div id="unit-menu-popover" class="unit-menu-popover" role="menu" aria-label="Display Units" aria-hidden="true">
+        <div class="unit-menu-section">
+          <div class="unit-menu-section-label">METRIC</div>
+          <button type="button" class="unit-menu-item active" data-unit="mm" role="menuitemradio" aria-checked="true">
+            <span class="unit-menu-code">mm</span>
+            <span class="unit-menu-name">Millimetre</span>
+            <span class="unit-menu-check" aria-hidden="true">✓</span>
+          </button>
+          <button type="button" class="unit-menu-item" data-unit="cm" role="menuitemradio" aria-checked="false">
+            <span class="unit-menu-code">cm</span>
+            <span class="unit-menu-name">Centimetre</span>
+            <span class="unit-menu-check" aria-hidden="true">✓</span>
+          </button>
+          <button type="button" class="unit-menu-item" data-unit="m" role="menuitemradio" aria-checked="false">
+            <span class="unit-menu-code">m</span>
+            <span class="unit-menu-name">Metre</span>
+            <span class="unit-menu-check" aria-hidden="true">✓</span>
+          </button>
+        </div>
+        <div class="unit-menu-section">
+          <div class="unit-menu-section-label">IMPERIAL</div>
+          <button type="button" class="unit-menu-item" data-unit="in" role="menuitemradio" aria-checked="false">
+            <span class="unit-menu-code">in</span>
+            <span class="unit-menu-name">Inch</span>
+            <span class="unit-menu-check" aria-hidden="true">✓</span>
+          </button>
+          <button type="button" class="unit-menu-item" data-unit="ft" role="menuitemradio" aria-checked="false">
+            <span class="unit-menu-code">ft</span>
+            <span class="unit-menu-name">Foot</span>
+            <span class="unit-menu-check" aria-hidden="true">✓</span>
+          </button>
+        </div>
+      </div>
+    </div>
     <button class="btn hud-btn" id="btn-theme-switch" title="Toggle Theme (Dark / Light)">
       <svg id="theme-icon-sun" class="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
@@ -600,7 +638,7 @@
       <!-- Tab 5: CAD Analysis -->
       <div id="drawer-tab-analysis" class="drawer-tab-content drawer-tab-pane" data-tab="analysis" style="display: none;">
         <div class="analysis-panel" id="analysis-panel">
-          <div class="analysis-section-title">ENGINEERING CAD ANALYSIS (v3.0.0)</div>
+          <div class="analysis-section-title">ENGINEERING CAD ANALYSIS (v3.0.1)</div>
           <div class="analysis-card">
             <div class="analysis-row">
               <span class="analysis-label">Interference Check</span>
@@ -1102,7 +1140,7 @@
       <svg class="hud-pill-svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
       </svg>
-      <span id="hint-version-text" class="hud-pill-text">v3.0.0</span>
+      <span id="hint-version-text" class="hud-pill-text">v3.0.1</span>
     </button>
 
     <!-- Shortcuts Toggle Button -->

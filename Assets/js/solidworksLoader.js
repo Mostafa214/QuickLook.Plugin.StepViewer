@@ -732,11 +732,17 @@
     [0.788, 0.608, 0.565]
   ];
 
+  var MO_VISUAL_PROPS_MARKER = [
+    0x6D, 0x6F, 0x56, 0x69, 0x73, 0x75, 0x61, 0x6C, 0x50, 0x72,
+    0x6F, 0x70, 0x65, 0x72, 0x74, 0x69, 0x65, 0x73, 0x5F, 0x63
+  ]; // 'moVisualProperties_c' (20 ASCII bytes)
+
   /**
    * Extract body appearance RGB [0..1, 0..1, 0..1] from SolidWorks VisualStates / DisplayStates blocks.
    */
   function extractAppearanceColor(blocks) {
     if (!blocks || !blocks.length) return null;
+    var textFallback = null;
     for (var i = 0; i < blocks.length; i++) {
       var nm = (blocks[i].name || '').toLowerCase();
       if (nm.indexOf('visualstates') === -1 && nm.indexOf('displaystates') === -1 && nm.indexOf('material') === -1) {
@@ -745,24 +751,42 @@
       try {
         var bytes = blocks[i].inflate();
         if (!bytes || bytes.length < 8) continue;
-        var text = decodeStreamText(bytes);
-        var m = text.match(/(?:rgb|diffuse|color)\s*[:=]\s*["']?\s*([01](?:\.\d+)?)\s*,\s*([01](?:\.\d+)?)\s*,\s*([01](?:\.\d+)?)/i);
-        if (m) {
-          var r = parseFloat(m[1]), g = parseFloat(m[2]), b = parseFloat(m[3]);
-          if (r >= 0 && r <= 1 && g >= 0 && g <= 1 && b >= 0 && b <= 1) {
-            return [r, g, b];
+
+        // Primary: binary ThirdPtyStore/VisualStates 'moVisualProperties_c' + Windows COLORREF (R, G, B, 0x00)
+        for (var pos = 0; pos + 24 <= bytes.length; pos++) {
+          if (bytes[pos] === 0x6D && matchesBytesAt(bytes, pos, MO_VISUAL_PROPS_MARKER)) {
+            var rByte = bytes[pos + 20];
+            var gByte = bytes[pos + 21];
+            var bByte = bytes[pos + 22];
+            var aByte = bytes[pos + 23];
+            if (aByte === 0 && rByte >= 0 && rByte <= 255 && gByte >= 0 && gByte <= 255 && bByte >= 0 && bByte <= 255) {
+              return [rByte / 255, gByte / 255, bByte / 255];
+            }
           }
         }
-        var m255 = text.match(/(?:rgb|diffuse|color)\s*[:=]\s*["']?\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
-        if (m255) {
-          var r2 = Math.min(255, parseInt(m255[1], 10)) / 255;
-          var g2 = Math.min(255, parseInt(m255[2], 10)) / 255;
-          var b2 = Math.min(255, parseInt(m255[3], 10)) / 255;
-          return [r2, g2, b2];
+
+        // Secondary fallback: text-based rgb/diffuse/color properties
+        if (!textFallback) {
+          var text = decodeStreamText(bytes);
+          var m = text.match(/(?:rgb|diffuse|color)\s*[:=]\s*["']?\s*([01](?:\.\d+)?)\s*,\s*([01](?:\.\d+)?)\s*,\s*([01](?:\.\d+)?)/i);
+          if (m) {
+            var r = parseFloat(m[1]), g = parseFloat(m[2]), b = parseFloat(m[3]);
+            if (r >= 0 && r <= 1 && g >= 0 && g <= 1 && b >= 0 && b <= 1) {
+              textFallback = [r, g, b];
+            }
+          } else {
+            var m255 = text.match(/(?:rgb|diffuse|color)\s*[:=]\s*["']?\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
+            if (m255) {
+              var r2 = Math.min(255, parseInt(m255[1], 10)) / 255;
+              var g2 = Math.min(255, parseInt(m255[2], 10)) / 255;
+              var b2 = Math.min(255, parseInt(m255[3], 10)) / 255;
+              textFallback = [r2, g2, b2];
+            }
+          }
         }
       } catch (e) {}
     }
-    return null;
+    return textFallback;
   }
 
   /**
@@ -1226,9 +1250,121 @@
     }
     var storedMeshes = dirBlock ? decodeComponentMeshes(blocks, entries) : new Map();
 
-    // Index embedded/virtual component blocks (e.g. ImportedComp/..., <name>^<asm>)
-    var embeddedPartCache = new Map();
-    var siblingPartCache = new Map();
+    // Index embedded/virtual component blocks (e.g. VirtualComp/<name>-sldprt, ImportedComp/..., <name>^<asm>)
+    var asmDocColor = extractAppearanceColor(blocks);
+    var embeddedDataCache = new Map();
+    var siblingDataCache = new Map();
+    var partColorCache = new Map();
+    var virtualCompByKey = new Map();
+
+    function normalizePartKey(name) {
+      if (!name) return '';
+      var base = baseFileName(name);
+      base = base.replace(/\.(sldprt|sldasm)$/i, '');
+      base = base.replace(/-(sldprt|sldasm)$/i, '');
+      var caret = base.indexOf('^');
+      if (caret > 0) base = base.slice(0, caret);
+      return base.trim().toLowerCase();
+    }
+
+    for (var bi = 0; bi < blocks.length; bi++) {
+      var bName = blocks[bi].name || '';
+      if (bName.toLowerCase().indexOf('virtualcomp/') === 0) {
+        var vKey = normalizePartKey(bName);
+        if (vKey && !virtualCompByKey.has(vKey)) {
+          virtualCompByKey.set(vKey, blocks[bi]);
+        }
+      }
+    }
+
+    function findEmbeddedComponentBlock(fName, stepName, partKey) {
+      if (partKey && virtualCompByKey.has(partKey)) {
+        return virtualCompByKey.get(partKey);
+      }
+      var asmBase = baseFileName(fileName || '').replace(/\.[^.]+$/, '');
+      var stem = fName ? fName.replace(/\.[^.]+$/, '') : '';
+      var virtualCandidates = [
+        fName,
+        stem ? ('VirtualComp/' + stem + '-sldprt') : '',
+        'ImportedComp/' + fName,
+        stem ? (stem + '^' + asmBase + '.SLDPRT') : '',
+        stepName
+      ];
+      for (var vc = 0; vc < virtualCandidates.length; vc++) {
+        if (!virtualCandidates[vc]) continue;
+        var candBlock = findBlock(blocks, virtualCandidates[vc]);
+        if (candBlock) return candBlock;
+      }
+      return null;
+    }
+
+    function loadEmbeddedComponent(candBlock) {
+      if (embeddedDataCache.has(candBlock.name)) {
+        return embeddedDataCache.get(candBlock.name);
+      }
+      var result = { mesh: null, color: null };
+      try {
+        var innerBytes = candBlock.inflate();
+        var innerBlocks = readBlocks(innerBytes);
+        result.color = extractAppearanceColor(innerBlocks);
+        result.mesh = extractRawMeshFromBlocks(innerBlocks);
+        if (result.mesh && result.color && !result.mesh.color) {
+          result.mesh.color = result.color;
+        }
+      } catch (e) {}
+      embeddedDataCache.set(candBlock.name, result);
+      return result;
+    }
+
+    async function loadSiblingComponent(fName) {
+      var cacheKey = fName.toLowerCase();
+      if (siblingDataCache.has(cacheKey)) {
+        return siblingDataCache.get(cacheKey);
+      }
+      var result = { mesh: null, color: null };
+      if (typeof siblingResolver === 'function') {
+        try {
+          var sibBuf = await siblingResolver(fName);
+          if (sibBuf) {
+            var sibBytes = toUint8Array(sibBuf);
+            var sibBlocks = readBlocks(sibBytes);
+            result.color = extractAppearanceColor(sibBlocks);
+            result.mesh = extractRawMeshFromBlocks(sibBlocks);
+            if (result.mesh && result.color && !result.mesh.color) {
+              result.mesh.color = result.color;
+            }
+          }
+        } catch (e) {}
+      }
+      siblingDataCache.set(cacheKey, result);
+      return result;
+    }
+
+    async function resolvePartColor(childModel, stepName) {
+      var fileRec = files.get(childModel.attrs.swFileRef);
+      var swPath = fileRec ? (fileRec.attrs.swPath || '') : '';
+      var fName = baseFileName(swPath);
+      var partKey = normalizePartKey(fName || stepName);
+      if (partKey && partColorCache.has(partKey)) {
+        return partColorCache.get(partKey);
+      }
+
+      var color = null;
+      var candBlock = findEmbeddedComponentBlock(fName, stepName, partKey);
+      if (candBlock) {
+        color = loadEmbeddedComponent(candBlock).color;
+      }
+
+      if (!color && fName && typeof siblingResolver === 'function') {
+        var sibData = await loadSiblingComponent(fName);
+        color = sibData.color;
+      }
+
+      if (partKey) {
+        partColorCache.set(partKey, color || null);
+      }
+      return color || null;
+    }
 
     async function resolvePartMesh(childModel, stepName) {
       var fileRec = files.get(childModel.attrs.swFileRef);
@@ -1236,50 +1372,25 @@
       var fName = baseFileName(swPath);
       if (!fName) return null;
 
+      var partKey = normalizePartKey(fName || stepName);
+
       // 1. Check virtual / embedded component streams inside this .SLDASM
-      var asmBase = baseFileName(fileName || '').replace(/\.[^.]+$/, '');
-      var virtualCandidates = [
-        fName,
-        'ImportedComp/' + fName,
-        fName.replace(/\.[^.]+$/, '') + '^' + asmBase + '.SLDPRT',
-        stepName
-      ];
-      for (var vc = 0; vc < virtualCandidates.length; vc++) {
-        var candBlock = findBlock(blocks, virtualCandidates[vc]);
-        if (candBlock) {
-          if (embeddedPartCache.has(candBlock.name)) {
-            return embeddedPartCache.get(candBlock.name);
-          }
-          try {
-            var innerBytes = candBlock.inflate();
-            var innerBlocks = readBlocks(innerBytes);
-            var innerMesh = extractRawMeshFromBlocks(innerBlocks);
-            embeddedPartCache.set(candBlock.name, innerMesh);
-            if (innerMesh && innerMesh.triangles > 0) return innerMesh;
-          } catch (e) {
-            embeddedPartCache.set(candBlock.name, null);
-          }
+      var candBlock = findEmbeddedComponentBlock(fName, stepName, partKey);
+      if (candBlock) {
+        var emb = loadEmbeddedComponent(candBlock);
+        if (partKey && emb.color && !partColorCache.has(partKey)) {
+          partColorCache.set(partKey, emb.color);
         }
+        if (emb.mesh && emb.mesh.triangles > 0) return emb.mesh;
       }
 
       // 2. Check external siblingResolver callback
       if (typeof siblingResolver === 'function') {
-        if (siblingPartCache.has(fName)) {
-          return siblingPartCache.get(fName);
+        var sib = await loadSiblingComponent(fName);
+        if (partKey && sib.color && !partColorCache.has(partKey)) {
+          partColorCache.set(partKey, sib.color);
         }
-        var sibMesh = null;
-        try {
-          var sibBuf = await siblingResolver(fName);
-          if (sibBuf) {
-            var sibBytes = toUint8Array(sibBuf);
-            var sibBlocks = readBlocks(sibBytes);
-            sibMesh = extractRawMeshFromBlocks(sibBlocks);
-          }
-        } catch (e) {
-          sibMesh = null;
-        }
-        siblingPartCache.set(fName, sibMesh);
-        if (sibMesh && sibMesh.triangles > 0) return sibMesh;
+        if (sib.mesh && sib.mesh.triangles > 0) return sib.mesh;
       }
 
       return null;
@@ -1341,7 +1452,8 @@
 
         var transformed = transformRawMesh(rawMesh, world, isMirrored);
         var meshName = a.swName ? (a.swName + '-' + (a.swReferenceNumber || '1')) : fullPath;
-        var partColor = rawMesh.color || SW_ASM_PALETTE[placedMeshes.length % SW_ASM_PALETTE.length];
+        var extractedColor = rawMesh.color || (await resolvePartColor(child, a.swName || ''));
+        var partColor = extractedColor || asmDocColor || DEFAULT_COLOR.slice();
         placedMeshes.push(buildMeshObject(meshName, transformed.position, transformed.normal, partColor));
       }
     }

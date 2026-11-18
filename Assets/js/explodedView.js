@@ -38,14 +38,7 @@
       }
       explodeTrailsGroup.visible = false;
 
-      const slider = document.getElementById('explode-slider');
-      const label = document.getElementById('explode-percent-label');
-      const btnToggle = document.getElementById('btn-explode-toggle');
-      const btnToolbar = document.getElementById('btn-explode');
-      if (slider) slider.value = 0;
-      if (label) label.innerText = '0%';
-      if (btnToggle) btnToggle.innerText = 'Explode ⏵';
-      if (btnToolbar) btnToolbar.classList.remove('active');
+      syncExplodeUI(0);
 
       if (!modelBodies || modelBodies.length <= 1) {
         return;
@@ -191,6 +184,35 @@
       isExplodeInitialized = true;
     }
 
+    function syncExplodeUI(percent) {
+      const pct = Math.max(0, Math.min(100, percent));
+      const factor = pct / 100.0;
+      const slider = document.getElementById('explode-slider');
+      const label = document.getElementById('explode-percent-label');
+      const btnToggle = document.getElementById('btn-explode-toggle');
+      const btnToolbar = document.getElementById('btn-explode');
+
+      if (slider && parseInt(slider.value, 10) !== Math.round(pct)) {
+        slider.value = Math.round(pct);
+      }
+      if (label) {
+        label.innerText = Math.round(pct) + '%';
+      }
+      if (btnToggle) {
+        if (factor < 0.20) {
+          btnToggle.innerText = 'Explode 25%';
+        } else if (factor < 0.90) {
+          btnToggle.innerText = 'Explode 100%';
+        } else {
+          btnToggle.innerText = 'Collapse 0%';
+        }
+        btnToggle.classList.toggle('active', pct > 0);
+      }
+      if (btnToolbar) {
+        btnToolbar.classList.toggle('active', pct > 0);
+      }
+    }
+
     function setExplodeProgress(percent, updateUI = true, adaptCamera = true) {
       currentExplodePercent = Math.max(0, Math.min(100, percent));
       const factor = currentExplodePercent / 100.0;
@@ -226,23 +248,7 @@
       explodeTrailsGroup.visible = (currentExplodePercent > 3 && isExplodeTrailsActive);
 
       if (updateUI) {
-        const slider = document.getElementById('explode-slider');
-        const label = document.getElementById('explode-percent-label');
-        const btnToggle = document.getElementById('btn-explode-toggle');
-        const btnToolbar = document.getElementById('btn-explode');
-
-        if (slider && parseInt(slider.value, 10) !== Math.round(currentExplodePercent)) {
-          slider.value = Math.round(currentExplodePercent);
-        }
-        if (label) {
-          label.innerText = Math.round(currentExplodePercent) + '%';
-        }
-        if (btnToggle) {
-          btnToggle.innerText = currentExplodePercent >= 50 ? 'Collapse ⏴' : 'Explode ⏵';
-        }
-        if (btnToolbar) {
-          btnToolbar.classList.toggle('active', currentExplodePercent > 0);
-        }
+        syncExplodeUI(currentExplodePercent);
       }
 
       // Dynamic camera auto-centering & adaptive zoom (Zero-Clipping Invariant)
@@ -333,7 +339,10 @@
       } else if (!isTreeActive) {
         toggleTreePanel(true);
       }
-      if (currentExplodePercent < 50) {
+      const factor = currentExplodePercent / 100.0;
+      if (factor < 0.20) {
+        animateExplodeTo(25);
+      } else if (factor < 0.90) {
         animateExplodeTo(100);
       } else {
         animateExplodeTo(0);
@@ -347,14 +356,7 @@
       }
       currentExplodePercent = 0;
       setExplodeProgress(0);
-      const slider = document.getElementById('explode-slider');
-      const label = document.getElementById('explode-percent-label');
-      const btnToggle = document.getElementById('btn-explode-toggle');
-      const btnToolbar = document.getElementById('btn-explode');
-      if (slider) slider.value = 0;
-      if (label) label.innerText = '0%';
-      if (btnToggle) btnToggle.innerText = 'Explode ⏵';
-      if (btnToolbar) btnToolbar.classList.remove('active');
+      syncExplodeUI(0);
     }
 
     // =============================================================
@@ -414,6 +416,7 @@ function setupExplodedViewListeners() {
 // Window exports
 window.initExplodeVectors = initExplodeVectors;
 window.setExplodeProgress = setExplodeProgress;
+window.syncExplodeUI = syncExplodeUI;
 window.animateExplodeTo = animateExplodeTo;
 window.toggleExplode = toggleExplode;
 window.resetExplodedView = resetExplodedView;

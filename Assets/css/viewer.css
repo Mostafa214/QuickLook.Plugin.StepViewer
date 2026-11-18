@@ -388,6 +388,118 @@ body.drawer-open .toolbar {
   color: var(--token-text-accent);
   font-variant-numeric: tabular-nums;
 }
+.unit-selector-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+#btn-units {
+  flex-direction: row;
+  gap: 4px;
+  padding: 5px 8px;
+}
+#btn-units .unit-chevron {
+  width: 10px;
+  height: 10px;
+  color: var(--token-text-muted);
+  transition: transform 0.16s ease, color 0.15s ease;
+}
+#btn-units[aria-expanded="true"] {
+  background: var(--token-bg-item-active);
+  border-color: var(--token-border-active);
+}
+#btn-units[aria-expanded="true"] .unit-chevron {
+  transform: rotate(180deg);
+  color: var(--token-text-accent);
+}
+.unit-menu-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 196px;
+  padding: 6px;
+  background: var(--token-bg-panel-elevated);
+  border: 1px solid var(--token-border-medium);
+  border-radius: 10px;
+  box-shadow: var(--token-shadow-card);
+  backdrop-filter: blur(18px);
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 900;
+}
+.unit-menu-popover.open {
+  display: flex;
+}
+.unit-menu-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.unit-menu-section + .unit-menu-section {
+  padding-top: 6px;
+  border-top: 1px solid var(--token-divider);
+}
+.unit-menu-section-label {
+  padding: 2px 8px 3px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--token-text-muted);
+  text-transform: uppercase;
+  user-select: none;
+}
+.unit-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--token-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.unit-menu-item:hover {
+  background: var(--token-bg-item-hover);
+  color: var(--token-text-primary);
+}
+.unit-menu-item:focus-visible {
+  outline: none;
+  box-shadow: var(--token-focus-ring);
+}
+.unit-menu-item.active {
+  background: var(--token-bg-item-active);
+  color: var(--token-text-accent);
+  border-color: var(--token-border-active);
+}
+.unit-menu-code {
+  min-width: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--token-text-primary);
+}
+.unit-menu-item.active .unit-menu-code {
+  color: var(--token-text-accent);
+}
+.unit-menu-name {
+  flex: 1;
+  color: inherit;
+}
+.unit-menu-check {
+  opacity: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--token-text-accent);
+}
+.unit-menu-item.active .unit-menu-check {
+  opacity: 1;
+}
 .btn:focus-visible,
 .btn-sm:focus-visible,
 .btn-xs:focus-visible,
@@ -428,11 +540,16 @@ body.drawer-open .toolbar {
   color: var(--token-text-primary);
 }
 /* Active (Selected) button with SolidWorks / Linear Blue Accent Pill & Underline */
-.btn.active {
+.btn.active,
+#btn-realview.active {
   background: var(--token-bg-item-active);
   color: var(--token-text-accent);
   border: 1px solid var(--token-border-active);
   box-shadow: var(--token-shadow-inset-active);
+}
+.btn.active svg,
+#btn-realview.active svg {
+  stroke: var(--token-icon-stroke-active);
 }
 .btn.active::after {
   content: '';

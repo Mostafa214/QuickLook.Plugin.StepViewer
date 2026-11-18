@@ -340,6 +340,74 @@ async function run() {
     assertValidMesh(res.meshes[0], 'modern2015');
   });
 
+  await test('VisualStates moVisualProperties_c COLORREF extraction for SLDPRT & SLDASM (VirtualComp + siblingResolver)', async () => {
+    const makeVisualStates = (r, g, b) => {
+      const marker = Buffer.from('moVisualProperties_c', 'ascii');
+      const pad = Buffer.alloc(16, 0);
+      const colorref = Buffer.from([r, g, b, 0x00]);
+      const tail = Buffer.alloc(12, 0);
+      return Buffer.concat([pad, marker, colorref, tail]);
+    };
+
+    const tableBuf = buildMinimalTableBuffer();
+    const redPart = buildSynthetic2015Container([
+      { name: 'Contents/DisplayLists', payload: tableBuf },
+      { name: 'ThirdPtyStore/VisualStates', payload: makeVisualStates(127, 29, 29) }
+    ]);
+    const bluePart = buildSynthetic2015Container([
+      { name: 'Contents/DisplayLists', payload: tableBuf },
+      { name: 'ThirdPtyStore/VisualStates', payload: makeVisualStates(203, 212, 239) }
+    ]);
+
+    const partRes = await SolidWorksLoader.parse(redPart, 'Roof.SLDPRT');
+    assert.strictEqual(partRes.meshCount, 1);
+    assert.ok(Math.abs(partRes.meshes[0].color[0] - 127 / 255) < 1e-6);
+    assert.ok(Math.abs(partRes.meshes[0].color[1] - 29 / 255) < 1e-6);
+    assert.ok(Math.abs(partRes.meshes[0].color[2] - 29 / 255) < 1e-6);
+
+    // Synthetic assembly with one VirtualComp part and two instances of an external sibling part
+    const compTreeXml = [
+      '<?xml version="1.0" encoding="utf-8"?>',
+      '<swSolidWorks swVersion="17000">',
+      '  <swHeader>',
+      '    <swFile id="1" swDocType="ASSEMBLY" swPath="TestAsm.SLDASM"/>',
+      '    <swFile id="2" swDocType="PART" swPath="C:\\Temp\\Copy of Roof^TestAsm.SLDPRT"/>',
+      '    <swFile id="3" swDocType="PART" swPath="C:\\Parts\\Base.SLDPRT"/>',
+      '  </swHeader>',
+      '  <swModelList>',
+      '    <swModel id="10" swName="TestAsm" swFileRef="1">',
+      '      <swReference id="11" swName="Copy of Roof^TestAsm" swReferenceNumber="1" swModelRef="2" swSuppressed="NO" swHidden="NO" swTransform="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1"/>',
+      '      <swReference id="12" swName="Base" swReferenceNumber="1" swModelRef="3" swSuppressed="NO" swHidden="NO" swTransform="1 0 0 0 0 1 0 0 0 0 1 0 0.1 0 0 1"/>',
+      '      <swReference id="13" swName="Base" swReferenceNumber="2" swModelRef="3" swSuppressed="NO" swHidden="NO" swTransform="1 0 0 0 0 1 0 0 0 0 1 0 0.2 0 0 1"/>',
+      '    </swModel>',
+      '    <swModel id="2" swName="TestAsm" swFileRef="2"/>',
+      '    <swModel id="3" swName="TestAsm" swFileRef="3"/>',
+      '  </swModelList>',
+      '  <swConfigurationList>',
+      '    <swConfiguration id="20" swName="Default" swMostRecentConfiguration="YES" swModelRef="10"/>',
+      '  </swConfigurationList>',
+      '</swSolidWorks>'
+    ].join('\n');
+
+    const asmBuf = buildSynthetic2015Container([
+      { name: 'swXmlContents/COMPINSTANCETREE', payload: Buffer.from(compTreeXml, 'utf8') },
+      { name: 'VirtualComp/Copy of Roof-sldprt', payload: redPart }
+    ]);
+
+    let siblingFetches = 0;
+    const asmRes = await SolidWorksLoader.parse(asmBuf, 'TestAsm.SLDASM', async (fName) => {
+      siblingFetches++;
+      if (fName === 'Base.SLDPRT') return bluePart;
+      return null;
+    });
+
+    assert.strictEqual(asmRes.meshCount, 3);
+    assert.strictEqual(siblingFetches, 1, 'Expected Base.SLDPRT sibling to be fetched only once');
+    assert.ok(Math.abs(asmRes.meshes[0].color[0] - 127 / 255) < 1e-6);
+    assert.ok(Math.abs(asmRes.meshes[1].color[0] - 203 / 255) < 1e-6);
+    assert.ok(Math.abs(asmRes.meshes[2].color[0] - 203 / 255) < 1e-6);
+  });
+
   await test('Web Worker (Assets/solidworksWorker.js) parses SolidWorks & deduplicates transferables', async () => {
     const harness = createMockWorkerHarness(swDir);
     const asmPath = path.join(SAMPLES_DIR, 'Mk.2', 'MARK 2 ASM.SLDASM');

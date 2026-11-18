@@ -61,31 +61,143 @@
 
     let isWireframeActive = false;
     let isRealViewActive = false;
+    let groundShadowPlane = null;
+    let realViewFloorDisc = null;
+    let realViewEnvTexture = null;
+    let realViewSavedLights = null;
+
+    function updateRealViewFloor(active) {
+      if (!scene || typeof THREE === 'undefined') return;
+      if (!active) {
+        if (groundShadowPlane) groundShadowPlane.visible = false;
+        if (realViewFloorDisc) realViewFloorDisc.visible = false;
+        return;
+      }
+      if (!modelGroup || modelGroup.children.length === 0) return;
+
+      const box = new THREE.Box3().setFromObject(modelGroup);
+      if (box.isEmpty()) return;
+
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z, 10);
+
+      if (groundShadowPlane) {
+        scene.remove(groundShadowPlane);
+        if (groundShadowPlane.geometry) groundShadowPlane.geometry.dispose();
+        if (groundShadowPlane.material) groundShadowPlane.material.dispose();
+        groundShadowPlane = null;
+      }
+
+      const planeSize = Math.max(maxDim * 3.0, 20);
+      const planeGeom = new THREE.PlaneGeometry(planeSize, planeSize);
+      planeGeom.rotateX(-Math.PI / 2);
+      const planeMat = new THREE.ShadowMaterial({
+        opacity: 0.36,
+        transparent: true,
+        depthWrite: false
+      });
+      groundShadowPlane = new THREE.Mesh(planeGeom, planeMat);
+      groundShadowPlane.position.set(center.x, box.min.y - 0.005, center.z);
+      groundShadowPlane.receiveShadow = true;
+      groundShadowPlane.name = 'realview_ground_shadow_plane';
+      groundShadowPlane.visible = true;
+      scene.add(groundShadowPlane);
+
+      if (realViewFloorDisc) {
+        scene.remove(realViewFloorDisc);
+        if (realViewFloorDisc.geometry) realViewFloorDisc.geometry.dispose();
+        if (realViewFloorDisc.material) realViewFloorDisc.material.dispose();
+        realViewFloorDisc = null;
+      }
+
+      const discRadius = Math.max(maxDim * 1.35, 12);
+      const discGeom = new THREE.CircleGeometry(discRadius, 64);
+      discGeom.rotateX(-Math.PI / 2);
+      const discMat = new THREE.MeshStandardMaterial({
+        color: 0x1e2430,
+        metalness: 0.75,
+        roughness: 0.25,
+        envMapIntensity: 1.4,
+        transparent: true,
+        opacity: 0.42,
+        depthWrite: false
+      });
+      realViewFloorDisc = new THREE.Mesh(discGeom, discMat);
+      realViewFloorDisc.position.set(center.x, box.min.y - 0.008, center.z);
+      realViewFloorDisc.receiveShadow = true;
+      realViewFloorDisc.name = 'realview_floor_disc';
+      realViewFloorDisc.visible = true;
+      scene.add(realViewFloorDisc);
+    }
 
     function toggleRealViewMode(forceState) {
-      isRealViewActive = (typeof forceState === 'boolean') ? forceState : !isRealViewActive;
-      if (renderer) {
-        renderer.toneMappingExposure = isRealViewActive ? 1.24 : 1.05;
-      }
-      if (groundShadowPlane && groundShadowPlane.material) {
-        groundShadowPlane.material.opacity = isRealViewActive ? 0.34 : 0.18;
-      }
-      if (modelGroup) {
-        modelGroup.traverse((child) => {
-          if (child.isMesh && child.material && !child.userData?.isGhosted) {
-            child.material.envMapIntensity = isRealViewActive ? 1.85 : 1.0;
-            if (!child.userData?.hasCustomMaterial) {
-              child.material.metalness = isRealViewActive ? 0.55 : 0.35;
-              child.material.roughness = isRealViewActive ? 0.22 : 0.34;
-            }
-            child.material.needsUpdate = true;
+      try {
+        isRealViewActive = (typeof forceState === 'boolean') ? forceState : !isRealViewActive;
+
+        if (isRealViewActive && !realViewEnvTexture && renderer) {
+          initRealViewEnvironment(renderer);
+        }
+
+        if (scene) {
+          scene.environment = isRealViewActive
+            ? (realViewEnvTexture || studioEnvTexture || null)
+            : (studioEnvTexture || null);
+        }
+
+        if (renderer) {
+          renderer.toneMappingExposure = isRealViewActive ? 1.28 : 1.05;
+        }
+
+        if (isRealViewActive) {
+          if (!realViewSavedLights) {
+            realViewSavedLights = {
+              key: keyLight ? keyLight.intensity : 0.95,
+              rim: rimLight ? rimLight.intensity : 0.30
+            };
           }
-        });
+          if (keyLight) keyLight.intensity = realViewSavedLights.key * 1.45;
+          if (rimLight) rimLight.intensity = realViewSavedLights.rim * 2.2;
+        } else if (realViewSavedLights) {
+          if (keyLight) keyLight.intensity = realViewSavedLights.key;
+          if (rimLight) rimLight.intensity = realViewSavedLights.rim;
+          realViewSavedLights = null;
+        }
+
+        updateRealViewFloor(isRealViewActive);
+
+        if (modelGroup) {
+          modelGroup.traverse((child) => {
+            if (!child.isMesh || !child.material || child.userData?.isGhosted) return;
+            const mats = Array.isArray(child.material) ? child.material : [child.material];
+            const isCustom = !!child.userData?.hasCustomMaterial;
+            mats.forEach((mat) => {
+              if (!mat) return;
+              if (isRealViewActive) {
+                mat.envMapIntensity = isCustom ? 2.2 : 2.5;
+                if (!isCustom) {
+                  mat.metalness = 0.65;
+                  mat.roughness = 0.18;
+                }
+              } else {
+                mat.envMapIntensity = 1.0;
+                if (!isCustom) {
+                  mat.metalness = 0.35;
+                  mat.roughness = 0.34;
+                }
+              }
+              mat.needsUpdate = true;
+            });
+          });
+        }
+      } catch (e) {
+        console.warn('toggleRealViewMode error:', e);
       }
+
       if (typeof window !== 'undefined') {
         window.isRealViewActive = isRealViewActive;
       }
-      return isRealViewActive;
+      return Boolean(isRealViewActive);
     }
     if (typeof window !== 'undefined') {
       window.toggleRealViewMode = toggleRealViewMode;
@@ -144,6 +256,107 @@
       }
     }
 
+    function initRealViewEnvironment(renderer) {
+      try {
+        if (!renderer || typeof THREE.PMREMGenerator !== 'function') return;
+        const width = 256;
+        const height = 128;
+        const data = new Uint8Array(width * height * 4);
+
+        for (let y = 0; y < height; y++) {
+          const v = y / (height - 1); // 0 = nadir (floor), 1 = zenith (ceiling)
+          for (let x = 0; x < width; x++) {
+            const u = x / (width - 1);
+            const phi = u * Math.PI * 2;
+
+            // Base dark floor contrast -> warm-cool horizon gradient -> dark studio dome
+            let r = 14;
+            let g = 17;
+            let b = 24;
+
+            if (v < 0.44) {
+              // Dark floor contrast with subtle radial sheen near horizon
+              const t = Math.pow(v / 0.44, 2.0);
+              r = 10 + t * 22;
+              g = 12 + t * 26;
+              b = 18 + t * 34;
+            } else if (v <= 0.58) {
+              // Warm-cool horizon gradient band
+              const band = 1.0 - Math.abs((v - 0.50) / 0.08);
+              const warmFactor = 0.5 + 0.5 * Math.cos(phi - 0.6);
+              const warmR = 145, warmG = 118, warmB = 92;
+              const coolR = 82, coolG = 122, coolB = 165;
+              const hr = coolR + (warmR - coolR) * warmFactor;
+              const hg = coolG + (warmG - coolG) * warmFactor;
+              const hb = coolB + (warmB - coolB) * warmFactor;
+              r = 22 + hr * band * 0.72;
+              g = 26 + hg * band * 0.72;
+              b = 36 + hb * band * 0.72;
+            } else {
+              // Upper studio dome
+              const domeT = (v - 0.58) / 0.42;
+              r = 22 + domeT * 16;
+              g = 26 + domeT * 18;
+              b = 36 + domeT * 24;
+            }
+
+            // Bright overhead softbox panels
+            if (v > 0.74 && v < 0.92 && ((u > 0.08 && u < 0.34) || (u > 0.56 && u < 0.82))) {
+              r = 255;
+              g = 252;
+              b = 246;
+            }
+
+            // Crisp key studio light strip (warm-white)
+            if (v > 0.54 && v < 0.82 && u > 0.13 && u < 0.19) {
+              r = 255;
+              g = 248;
+              b = 238;
+            }
+
+            // Crisp rim studio light strip (cool ice-blue)
+            if (v > 0.56 && v < 0.85 && u > 0.61 && u < 0.66) {
+              r = 222;
+              g = 242;
+              b = 255;
+            }
+
+            // Secondary specular accent strip
+            if (v > 0.58 && v < 0.76 && u > 0.85 && u < 0.89) {
+              r = 242;
+              g = 248;
+              b = 255;
+            }
+
+            const idx = (y * width + x) * 4;
+            data[idx] = Math.max(0, Math.min(255, Math.round(r)));
+            data[idx + 1] = Math.max(0, Math.min(255, Math.round(g)));
+            data[idx + 2] = Math.max(0, Math.min(255, Math.round(b)));
+            data[idx + 3] = 255;
+          }
+        }
+
+        const tex = new THREE.DataTexture(data, width, height, THREE.RGBAFormat, THREE.UnsignedByteType);
+        tex.mapping = THREE.EquirectangularReflectionMapping;
+        tex.magFilter = THREE.LinearFilter;
+        tex.minFilter = THREE.LinearFilter;
+        tex.encoding = THREE.sRGBEncoding;
+        tex.needsUpdate = true;
+
+        const pmrem = new THREE.PMREMGenerator(renderer);
+        pmrem.compileEquirectangularShader();
+        const target = pmrem.fromEquirectangular(tex);
+        if (realViewEnvTexture) {
+          realViewEnvTexture.dispose();
+        }
+        realViewEnvTexture = target.texture;
+        tex.dispose();
+        pmrem.dispose();
+      } catch (e) {
+        console.warn('RealView PMREM environment fallback:', e);
+      }
+    }
+
 function initViewport() {
       const container = document.getElementById('canvas-container');
       scene = new THREE.Scene();
@@ -172,6 +385,7 @@ function initViewport() {
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       container.appendChild(renderer.domElement);
       initStudioEnvironment(renderer);
+      initRealViewEnvironment(renderer);
 
       // Snap Indicator for Smart Measurement
       const snapGeom = new THREE.SphereGeometry(1, 16, 16);
@@ -1660,6 +1874,15 @@ function initViewport() {
         }
         groundShadowPlane = null;
       }
+      if (typeof realViewFloorDisc !== 'undefined' && realViewFloorDisc) {
+        if (scene) scene.remove(realViewFloorDisc);
+        if (realViewFloorDisc.geometry) realViewFloorDisc.geometry.dispose();
+        if (realViewFloorDisc.material) {
+          if (Array.isArray(realViewFloorDisc.material)) realViewFloorDisc.material.forEach(m => m.dispose());
+          else realViewFloorDisc.material.dispose();
+        }
+        realViewFloorDisc = null;
+      }
       if (typeof deselectFace === 'function') deselectFace();
       if (typeof deselectBody === 'function') deselectBody();
       if (faceHighlightMesh) {
@@ -2317,6 +2540,10 @@ window.__cleanupViewer = function() {
   if (typeof studioEnvTexture !== 'undefined' && studioEnvTexture) {
     studioEnvTexture.dispose();
     studioEnvTexture = null;
+  }
+  if (typeof realViewEnvTexture !== 'undefined' && realViewEnvTexture) {
+    realViewEnvTexture.dispose();
+    realViewEnvTexture = null;
   }
   if (typeof scene !== 'undefined' && scene) {
     scene.environment = null;

@@ -33,12 +33,14 @@
     // =============================================================
     function formatDim(mmVal) {
       if (typeof mmVal !== 'number' || isNaN(mmVal)) return '0.00 mm';
+      if (typeof window !== 'undefined' && window.CadState && typeof window.CadState.formatLength === 'function') {
+        return window.CadState.formatLength(mmVal);
+      }
       if (currentUnit === 'in') {
         return `${(mmVal / 25.4).toFixed(3)} in`;
       }
       return `${mmVal.toFixed(2)} mm`;
     }
-    const formatLength = formatDim;
 
     function formatCoord(mmVal) {
       if (typeof mmVal !== 'number' || isNaN(mmVal)) return '0.00';

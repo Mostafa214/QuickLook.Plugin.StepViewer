@@ -2,6 +2,20 @@
 
 All notable changes to **QuickLook.Plugin.StepViewer** are documented in this file.
 
+## [3.0.1] - 2026-11-18
+
+### Added & Improved
+- **SolidWorks Color Fidelity (`moVisualProperties_c`):** Decodes binary `ThirdPtyStore/VisualStates` RGB appearance colors (`COLORREF`) for both `.SLDPRT` parts and `.SLDASM` assemblies (including `VirtualComp` and external sibling parts), preserving exact SolidWorks colors without palette overrides.
+- **Upgraded RealView Studio Mode:** Procedural HDR-style studio equirectangular `PMREM` environment, boosted key/rim directional lighting, grounded contact shadow & subtle studio floor sheen (`groundShadowPlane` + `realViewFloorDisc`), machined PBR response, and synced `#btn-realview` active state.
+- **Two-Stage Exploded Assembly View:** Clicking `Explode` smoothly animates `0% → 25%` on the first click, `25% → 100%` on the second click, and `Collapse` smoothly returns to `0%`.
+- **1-Click Metric & Imperial Unit Selector Popover:** Replaced 5-click cycling with a compact popover menu under `#btn-units` offering instant 1-click switching across **Metric (`mm`, `cm`, `m`)** and **Imperial (`in`, `ft`)** in Measure, Section, CoM, and 2D Blueprints.
+- **RAM Optimization:** Idle `occt-import-js.wasm` worker termination (`2.5s` after STEP/IGES/BREP load) freeing 40–200 MB WASM heap, HiDPI `devicePixelRatio` cap (`1.75`), GPU/PMREM disposal on `clearModel`/`Dispose`, and `about:blank` navigation before `WebView2.Dispose()`.
+- **Version Drift Prevention:** Added automatic `[0/5]` version consistency gate in `pack-plugin.ps1` and `tests/test_version_sync.js` ensuring `.csproj`, `QuickLook.Plugin.Metadata.config`, and `APP_CURRENT_VERSION` stay synchronized.
+
+### Fixed
+- Fixed `APP_CURRENT_VERSION` (`v2.0.0` → `v3.0.1`) so the updater no longer prompts self-updates.
+- Fixed `const formatLength` duplicate global declaration in `Assets/js/materialsEngine.js` and undeclared `groundShadowPlane` `ReferenceError` in `Assets/js/viewerApp.js`.
+
 ## [3.0.0] - 2026-11-18
 
 ### Added

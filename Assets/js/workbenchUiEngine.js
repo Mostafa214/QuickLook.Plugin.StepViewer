@@ -69,6 +69,20 @@
       secUnitEl.innerText = meta.label;
     }
 
+    const unitItems = document.querySelectorAll ? document.querySelectorAll('.unit-menu-item[data-unit]') : [];
+    if (unitItems && typeof unitItems.forEach === 'function') {
+      unitItems.forEach((item) => {
+        const itemUnit = item.dataset ? item.dataset.unit : (typeof item.getAttribute === 'function' ? item.getAttribute('data-unit') : '');
+        const isActive = itemUnit === meta.id;
+        if (item.classList && typeof item.classList.toggle === 'function') {
+          item.classList.toggle('active', isActive);
+        }
+        if (typeof item.setAttribute === 'function') {
+          item.setAttribute('aria-checked', isActive ? 'true' : 'false');
+        }
+      });
+    }
+
     if (typeof window.updateBoundingBoxBadge === 'function') {
       window.updateBoundingBoxBadge();
     }
@@ -138,10 +152,44 @@
       window.toggleUnits = hookedToggleUnits;
     }
 
+    const setUnitPopoverOpen = (isOpen) => {
+      const popover = document.getElementById('unit-menu-popover');
+      const btn = document.getElementById('btn-units');
+      if (!popover) return false;
+      const open = !!isOpen;
+      if (popover.classList && typeof popover.classList.toggle === 'function') {
+        popover.classList.toggle('open', open);
+      }
+      if (typeof popover.setAttribute === 'function') {
+        popover.setAttribute('aria-hidden', open ? 'false' : 'true');
+      }
+      if (btn && typeof btn.setAttribute === 'function') {
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      }
+      return open;
+    };
+
+    const applyUnitSelection = (unit) => {
+      const next = (window.CadState && typeof window.CadState.setCurrentUnit === 'function')
+        ? window.CadState.setCurrentUnit(unit)
+        : (window.currentUnit = unit);
+      syncUnitUi(next);
+      savePreferences({ defaultUnit: next });
+      return next;
+    };
+
     const btnUnits = document.getElementById('btn-units');
+    const unitPopover = document.getElementById('unit-menu-popover');
     if (btnUnits && !btnUnits._isPrefsBound) {
       btnUnits._isPrefsBound = true;
-      btnUnits.addEventListener('click', () => {
+      btnUnits.addEventListener('click', (e) => {
+        const pop = document.getElementById('unit-menu-popover');
+        if (pop) {
+          if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+          const isOpen = pop.classList ? pop.classList.contains('open') : false;
+          setUnitPopoverOpen(!isOpen);
+          return;
+        }
         if (typeof window.updatePhysicalPropertiesCard !== 'function' && typeof window.toggleUnits === 'function') {
           window.toggleUnits();
         } else {
@@ -152,6 +200,40 @@
       });
     }
 
+    if (unitPopover && !unitPopover._isUnitMenuBound) {
+      unitPopover._isUnitMenuBound = true;
+      const unitItems = document.querySelectorAll ? document.querySelectorAll('.unit-menu-item[data-unit]') : [];
+      if (unitItems && typeof unitItems.forEach === 'function') {
+        unitItems.forEach((item) => {
+          item.addEventListener('click', (e) => {
+            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+            const selectedUnit = item.dataset ? item.dataset.unit : (typeof item.getAttribute === 'function' ? item.getAttribute('data-unit') : 'mm');
+            applyUnitSelection(selectedUnit);
+            setUnitPopoverOpen(false);
+          });
+        });
+      }
+      if (!document._isUnitPopoverGlobalBound && typeof document.addEventListener === 'function') {
+        document._isUnitPopoverGlobalBound = true;
+        document.addEventListener('click', (e) => {
+          const pop = document.getElementById('unit-menu-popover');
+          if (!pop || !pop.classList || !pop.classList.contains('open')) return;
+          const wrap = document.getElementById('unit-selector-wrap');
+          const target = e ? e.target : null;
+          if (wrap && typeof wrap.contains === 'function' && target && wrap.contains(target)) return;
+          if (target && (target === btnUnits || target === pop || (typeof pop.contains === 'function' && pop.contains(target)))) return;
+          setUnitPopoverOpen(false);
+        });
+        document.addEventListener('keydown', (e) => {
+          if (!e || e.key !== 'Escape') return;
+          const pop = document.getElementById('unit-menu-popover');
+          if (!pop || !pop.classList || !pop.classList.contains('open')) return;
+          setUnitPopoverOpen(false);
+          if (btnUnits && typeof btnUnits.focus === 'function') btnUnits.focus();
+        });
+      }
+    }
+
     const btnEdges = document.getElementById('btn-edges');
     if (btnEdges && !btnEdges._isPrefsBound) {
       btnEdges._isPrefsBound = true;
@@ -160,18 +242,44 @@
       });
     }
 
+    const syncRealViewBtn = (active) => {
+      const btn = document.getElementById('btn-realview');
+      if (!btn) return;
+      const isOn = !!active;
+      if (btn.classList && typeof btn.classList.toggle === 'function') {
+        btn.classList.toggle('active', isOn);
+      }
+      if (typeof btn.setAttribute === 'function') {
+        btn.setAttribute('aria-pressed', isOn ? 'true' : 'false');
+      }
+    };
+
+    if (typeof window.toggleRealViewMode === 'function' && !window.toggleRealViewMode._isRealViewSynced) {
+      const origToggleRealView = window.toggleRealViewMode;
+      const syncedToggleRealView = function () {
+        const active = origToggleRealView.apply(this, arguments);
+        syncRealViewBtn(active);
+        return active;
+      };
+      syncedToggleRealView._isRealViewSynced = true;
+      window.toggleRealViewMode = syncedToggleRealView;
+    }
+
     const btnRealView = document.getElementById('btn-realview');
-    if (btnRealView && !btnRealView._isRealViewBound) {
-      btnRealView._isRealViewBound = true;
-      btnRealView.addEventListener('click', () => {
-        if (typeof window.toggleRealViewMode === 'function') {
-          const active = window.toggleRealViewMode();
-          btnRealView.classList.toggle('active', active);
-          if (typeof showToast === 'function') {
-            showToast(active ? 'RealView Studio: ON (PBR Reflections & Shadows)' : 'RealView Studio: OFF');
+    if (btnRealView) {
+      syncRealViewBtn(!!window.isRealViewActive);
+      if (!btnRealView._isRealViewBound) {
+        btnRealView._isRealViewBound = true;
+        btnRealView.addEventListener('click', () => {
+          if (typeof window.toggleRealViewMode === 'function') {
+            const active = window.toggleRealViewMode();
+            syncRealViewBtn(active);
+            if (typeof showToast === 'function') {
+              showToast(active ? 'RealView Studio: ON (PBR Reflections & Shadows)' : 'RealView Studio: OFF');
+            }
           }
-        }
-      });
+        });
+      }
     }
 
     if (typeof window.switchCamera === 'function' && !window.switchCamera._isPrefsHooked) {

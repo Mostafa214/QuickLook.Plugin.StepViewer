@@ -16,6 +16,35 @@ $binDir = Join-Path $baseDir "bin\Release\net48"
 $outputZip = Join-Path $baseDir "QuickLook.Plugin.StepViewer.qlplugin"
 
 # ------------------------------------------------------------------------------
+# 0. Version Consistency Check (.csproj, Metadata.config, cadState.js)
+# ------------------------------------------------------------------------------
+Write-Host "`n[0/5] Verifying version consistency across project files..." -ForegroundColor Yellow
+$csprojPath = Join-Path $baseDir "QuickLook.Plugin.StepViewer.csproj"
+$metadataPath = Join-Path $baseDir "QuickLook.Plugin.Metadata.config"
+$cadStatePath = Join-Path $baseDir "Assets\js\cadState.js"
+
+[xml]$csprojXml = Get-Content -Path $csprojPath -Raw
+$csprojVersion = ($csprojXml.Project.PropertyGroup | ForEach-Object { $_.Version } | Where-Object { $_ } | Select-Object -First 1).Trim()
+
+[xml]$metadataXml = Get-Content -Path $metadataPath -Raw
+$metadataVersion = $metadataXml.Metadata.Version.Trim()
+
+$cadStateRaw = Get-Content -Path $cadStatePath -Raw
+$cadMatch = [regex]::Match($cadStateRaw, 'APP_CURRENT_VERSION\s*=\s*["'']v?([^"'']+)["'']')
+if (-not $cadMatch.Success) {
+    throw "Could not parse APP_CURRENT_VERSION from $cadStatePath"
+}
+$cadStateVersion = $cadMatch.Groups[1].Value.Trim()
+
+if ([string]::IsNullOrWhiteSpace($csprojVersion) -or [string]::IsNullOrWhiteSpace($metadataVersion) -or [string]::IsNullOrWhiteSpace($cadStateVersion)) {
+    throw "One or more version fields are empty: csproj='$csprojVersion', metadata='$metadataVersion', cadState='$cadStateVersion'"
+}
+if ($csprojVersion -ne $metadataVersion -or $csprojVersion -ne $cadStateVersion) {
+    throw "Version mismatch detected! csproj='$csprojVersion', QuickLook.Plugin.Metadata.config='$metadataVersion', cadState.js='$cadStateVersion'"
+}
+Write-Host "  -> Version consistency verified: v$csprojVersion" -ForegroundColor Green
+
+# ------------------------------------------------------------------------------
 # 1. Clean Rebuild in Release Mode
 # ------------------------------------------------------------------------------
 Write-Host "`n[1/5] Compiling project in Release mode (net48)..." -ForegroundColor Yellow
