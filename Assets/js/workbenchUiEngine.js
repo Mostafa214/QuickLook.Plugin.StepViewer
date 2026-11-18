@@ -79,6 +79,20 @@
       });
     }
 
+    const btnRealView = document.getElementById('btn-realview');
+    if (btnRealView && !btnRealView._isRealViewBound) {
+      btnRealView._isRealViewBound = true;
+      btnRealView.addEventListener('click', () => {
+        if (typeof window.toggleRealViewMode === 'function') {
+          const active = window.toggleRealViewMode();
+          btnRealView.classList.toggle('active', active);
+          if (typeof showToast === 'function') {
+            showToast(active ? 'RealView Studio: ON (PBR Reflections & Shadows)' : 'RealView Studio: OFF');
+          }
+        }
+      });
+    }
+
     if (typeof window.switchCamera === 'function' && !window.switchCamera._isPrefsHooked) {
       const origSwitchCamera = window.switchCamera;
       const hookedSwitchCamera = function () {

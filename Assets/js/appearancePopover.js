@@ -140,10 +140,12 @@
       const b = modelBodies.find(item => item.id === bodyId);
       if (!b || !b.mesh || !b.mesh.material) return;
 
+      b.mesh.material.vertexColors = false;
       b.mesh.material.color.set(hexColor);
       if (metalness !== undefined) b.mesh.material.metalness = metalness;
       if (roughness !== undefined) b.mesh.material.roughness = roughness;
       b.mesh.material.needsUpdate = true;
+      if (b.mesh.userData) b.mesh.userData.hasCustomMaterial = true;
       b.customColor = hexColor;
 
       updateTreeItemState(bodyId);
@@ -159,13 +161,16 @@
       if (!b || !b.mesh || !b.mesh.material) return;
 
       const origColor = b.originalColor || (b.mesh.userData && b.mesh.userData.originalColor) || new THREE.Color(0xb8c0cc);
-      b.mesh.material.color.copy(origColor);
-      b.mesh.material.metalness = 0.35;
-      b.mesh.material.roughness = 0.34;
+      const hasFaceColors = Boolean(b.mesh.userData && b.mesh.userData.hasOriginalFaceColors && b.mesh.geometry && b.mesh.geometry.attributes && b.mesh.geometry.attributes.color);
+      b.mesh.material.vertexColors = hasFaceColors;
+      b.mesh.material.color.copy(hasFaceColors ? new THREE.Color(0xffffff) : origColor);
+      b.mesh.material.metalness = (typeof window !== 'undefined' && window.isRealViewActive) ? 0.55 : 0.35;
+      b.mesh.material.roughness = (typeof window !== 'undefined' && window.isRealViewActive) ? 0.22 : 0.34;
       b.mesh.material.opacity = 1.0;
       b.mesh.material.transparent = false;
       b.mesh.material.depthWrite = true;
       b.mesh.material.needsUpdate = true;
+      if (b.mesh.userData) b.mesh.userData.hasCustomMaterial = false;
 
       b.customColor = null;
       b.materialPreset = null;

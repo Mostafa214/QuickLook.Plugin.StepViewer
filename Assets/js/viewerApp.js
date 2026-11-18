@@ -59,6 +59,36 @@
     }
 
     let isWireframeActive = false;
+    let isRealViewActive = false;
+
+    function toggleRealViewMode(forceState) {
+      isRealViewActive = (typeof forceState === 'boolean') ? forceState : !isRealViewActive;
+      if (renderer) {
+        renderer.toneMappingExposure = isRealViewActive ? 1.24 : 1.05;
+      }
+      if (groundShadowPlane && groundShadowPlane.material) {
+        groundShadowPlane.material.opacity = isRealViewActive ? 0.34 : 0.18;
+      }
+      if (modelGroup) {
+        modelGroup.traverse((child) => {
+          if (child.isMesh && child.material && !child.userData?.isGhosted) {
+            child.material.envMapIntensity = isRealViewActive ? 1.85 : 1.0;
+            if (!child.userData?.hasCustomMaterial) {
+              child.material.metalness = isRealViewActive ? 0.55 : 0.35;
+              child.material.roughness = isRealViewActive ? 0.22 : 0.34;
+            }
+            child.material.needsUpdate = true;
+          }
+        });
+      }
+      if (typeof window !== 'undefined') {
+        window.isRealViewActive = isRealViewActive;
+      }
+      return isRealViewActive;
+    }
+    if (typeof window !== 'undefined') {
+      window.toggleRealViewMode = toggleRealViewMode;
+    }
     let isAutoRotateActive = false;
     let isEdgesActive = true; // SolidWorks Shaded with Edges (Default ON)
     let currentModelCenter = new THREE.Vector3();
@@ -1177,7 +1207,7 @@ function initViewport() {
           }
         }
 
-        // Color handling
+        // Color handling (Body-level + STEP AP214/AP242 per-face brepFaces colors)
         let meshColor = new THREE.Color(0xb8c0cc);
         if (m.color && Array.isArray(m.color) && m.color.length >= 3) {
           const r = m.color[0] > 1 ? m.color[0] / 255 : m.color[0];
@@ -1186,11 +1216,47 @@ function initViewport() {
           meshColor = new THREE.Color(r, g, b);
         }
 
+        let hasOriginalFaceColors = false;
+        if (Array.isArray(m.brepFaces) && m.brepFaces.length > 0 && geometry.attributes && geometry.attributes.position) {
+          const coloredFaces = m.brepFaces.filter(bf => bf && Array.isArray(bf.color) && bf.color.length >= 3);
+          if (coloredFaces.length > 0) {
+            const posCount = geometry.attributes.position.count;
+            const idxAttr = geometry.index;
+            const vertColors = new Float32Array(posCount * 3);
+            for (let v = 0; v < posCount; v++) {
+              vertColors[v * 3] = meshColor.r;
+              vertColors[v * 3 + 1] = meshColor.g;
+              vertColors[v * 3 + 2] = meshColor.b;
+            }
+            for (let f = 0; f < coloredFaces.length; f++) {
+              const bf = coloredFaces[f];
+              const fr = bf.color[0] > 1 ? bf.color[0] / 255 : bf.color[0];
+              const fg = bf.color[1] > 1 ? bf.color[1] / 255 : bf.color[1];
+              const fb = bf.color[2] > 1 ? bf.color[2] / 255 : bf.color[2];
+              const firstTri = Math.max(0, bf.first | 0);
+              const lastTri = bf.last | 0;
+              for (let t = firstTri; t <= lastTri; t++) {
+                for (let k = 0; k < 3; k++) {
+                  const vi = idxAttr ? idxAttr.getX(t * 3 + k) : (t * 3 + k);
+                  if (vi >= 0 && vi < posCount) {
+                    vertColors[vi * 3] = fr;
+                    vertColors[vi * 3 + 1] = fg;
+                    vertColors[vi * 3 + 2] = fb;
+                  }
+                }
+              }
+            }
+            geometry.setAttribute('color', new THREE.BufferAttribute(vertColors, 3));
+            hasOriginalFaceColors = true;
+          }
+        }
+
         const material = new THREE.MeshStandardMaterial({
-          color: meshColor,
-          metalness: 0.35,
-          roughness: 0.34,
-          envMapIntensity: 1.0,
+          color: hasOriginalFaceColors ? new THREE.Color(0xffffff) : meshColor,
+          vertexColors: hasOriginalFaceColors,
+          metalness: isRealViewActive ? 0.55 : 0.35,
+          roughness: isRealViewActive ? 0.22 : 0.34,
+          envMapIntensity: isRealViewActive ? 1.85 : 1.0,
           side: THREE.DoubleSide,
           wireframe: isWireframeActive,
           polygonOffset: true,
@@ -1207,6 +1273,7 @@ function initViewport() {
           bodyId: i,
           name: m.name,
           originalColor: meshColor.clone(),
+          hasOriginalFaceColors: hasOriginalFaceColors,
           isGhosted: false,
           isHidden: false,
           brepFaces: m.brepFaces || [],

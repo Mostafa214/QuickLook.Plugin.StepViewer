@@ -723,6 +723,48 @@
     };
   }
 
+  var SW_ASM_PALETTE = [
+    [0.722, 0.753, 0.800],
+    [0.545, 0.659, 0.784],
+    [0.804, 0.729, 0.569],
+    [0.576, 0.690, 0.635],
+    [0.694, 0.620, 0.745],
+    [0.788, 0.608, 0.565]
+  ];
+
+  /**
+   * Extract body appearance RGB [0..1, 0..1, 0..1] from SolidWorks VisualStates / DisplayStates blocks.
+   */
+  function extractAppearanceColor(blocks) {
+    if (!blocks || !blocks.length) return null;
+    for (var i = 0; i < blocks.length; i++) {
+      var nm = (blocks[i].name || '').toLowerCase();
+      if (nm.indexOf('visualstates') === -1 && nm.indexOf('displaystates') === -1 && nm.indexOf('material') === -1) {
+        continue;
+      }
+      try {
+        var bytes = blocks[i].inflate();
+        if (!bytes || bytes.length < 8) continue;
+        var text = decodeStreamText(bytes);
+        var m = text.match(/(?:rgb|diffuse|color)\s*[:=]\s*["']?\s*([01](?:\.\d+)?)\s*,\s*([01](?:\.\d+)?)\s*,\s*([01](?:\.\d+)?)/i);
+        if (m) {
+          var r = parseFloat(m[1]), g = parseFloat(m[2]), b = parseFloat(m[3]);
+          if (r >= 0 && r <= 1 && g >= 0 && g <= 1 && b >= 0 && b <= 1) {
+            return [r, g, b];
+          }
+        }
+        var m255 = text.match(/(?:rgb|diffuse|color)\s*[:=]\s*["']?\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
+        if (m255) {
+          var r2 = Math.min(255, parseInt(m255[1], 10)) / 255;
+          var g2 = Math.min(255, parseInt(m255[2], 10)) / 255;
+          var b2 = Math.min(255, parseInt(m255[3], 10)) / 255;
+          return [r2, g2, b2];
+        }
+      } catch (e) {}
+    }
+    return null;
+  }
+
   /**
    * Compute surface area, signed volume, bounding box, and watertight/manifold topology.
    */
@@ -1299,7 +1341,8 @@
 
         var transformed = transformRawMesh(rawMesh, world, isMirrored);
         var meshName = a.swName ? (a.swName + '-' + (a.swReferenceNumber || '1')) : fullPath;
-        placedMeshes.push(buildMeshObject(meshName, transformed.position, transformed.normal));
+        var partColor = rawMesh.color || SW_ASM_PALETTE[placedMeshes.length % SW_ASM_PALETTE.length];
+        placedMeshes.push(buildMeshObject(meshName, transformed.position, transformed.normal, partColor));
       }
     }
 
@@ -1321,6 +1364,7 @@
     var bytes = toUint8Array(buffer);
     var blocks = readBlocks(bytes);
     var format = detectFormat(fileName, blocks);
+    var docColor = extractAppearanceColor(blocks);
 
     var meshes = [];
     if (format === 'SLDASM') {
@@ -1332,7 +1376,7 @@
       var rawMesh = extractRawMeshFromBlocks(blocks);
       if (rawMesh && rawMesh.triangles > 0) {
         var partName = baseFileName(fileName) || 'SolidBody_1';
-        meshes.push(buildMeshObject(partName, rawMesh.position, rawMesh.normal));
+        meshes.push(buildMeshObject(partName, rawMesh.position, rawMesh.normal, rawMesh.color || docColor));
       }
     }
 
