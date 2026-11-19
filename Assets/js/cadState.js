@@ -1,4 +1,4 @@
-var APP_CURRENT_VERSION = "v3.0.1";
+var APP_CURRENT_VERSION = "v3.0.2";
 /**
  * QuickLook CAD Studio - Shared Global Workbench State (v2.0.0)
  * Global namespace definitions providing zero-friction inter-module communication.

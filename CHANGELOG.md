@@ -2,6 +2,12 @@
 
 All notable changes to **QuickLook.Plugin.StepViewer** are documented in this file.
 
+## [3.0.2] - 2026-11-19
+
+### Added & Improved
+- **SolidWorks Per-Face Appearance Colors (`brepFaces`):** Decodes `DisplayLists` descriptor tables and maps face-level `COLORREF` overrides in `ThirdPtyStore/VisualStates` (e.g., multi-color `.SLDPRT` parts and `.SLDASM` assemblies), preserving per-face vertex colors across `solidworksWorker.js` and `MeshFeatureDetector`.
+- **RealView Studio Overhaul:** Seamless planar floor reflection (`THREE.Reflector`) with radial gradient falloff blending into the studio floor (`#F8FAFC` light / `#181F2C` dark), soft studio horizon backdrop, automatic debug grid suppression, and `#btn-realview` active state synchronization.
+
 ## [3.0.1] - 2026-11-18
 
 ### Added & Improved

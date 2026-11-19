@@ -540,16 +540,27 @@ body.drawer-open .toolbar {
   color: var(--token-text-primary);
 }
 /* Active (Selected) button with SolidWorks / Linear Blue Accent Pill & Underline */
-.btn.active,
-#btn-realview.active {
+.btn.active {
   background: var(--token-bg-item-active);
   color: var(--token-text-accent);
   border: 1px solid var(--token-border-active);
   box-shadow: var(--token-shadow-inset-active);
 }
-.btn.active svg,
-#btn-realview.active svg {
+.btn.active svg {
   stroke: var(--token-icon-stroke-active);
+}
+#btn-realview.active {
+  background: var(--token-accent-primary) !important;
+  color: #ffffff !important;
+  border: 1px solid var(--token-accent-primary) !important;
+  box-shadow: 0 0 14px var(--token-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+}
+#btn-realview.active svg {
+  stroke: #ffffff !important;
+}
+#btn-realview.active span {
+  color: #ffffff !important;
+  font-weight: 700 !important;
 }
 .btn.active::after {
   content: '';

@@ -63,14 +63,91 @@
     let isRealViewActive = false;
     let groundShadowPlane = null;
     let realViewFloorDisc = null;
+    let realViewReflector = null;
+    let realViewBackdropTex = null;
+    let realViewSavedBackground = null;
     let realViewEnvTexture = null;
     let realViewSavedLights = null;
+
+    function createRealViewBackdropTexture(isLight) {
+      if (typeof document === 'undefined') return null;
+      const canvas = document.createElement('canvas');
+      canvas.width = 4;
+      canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      const grad = ctx.createLinearGradient(0, 0, 0, 512);
+      if (isLight) {
+        grad.addColorStop(0.0, '#cad7e8');
+        grad.addColorStop(0.50, '#e6edf5');
+        grad.addColorStop(0.80, '#f8fafc');
+        grad.addColorStop(1.0, '#f8fafc');
+      } else {
+        grad.addColorStop(0.0, '#0a0d14');
+        grad.addColorStop(0.50, '#141a26');
+        grad.addColorStop(0.80, '#181f2c');
+        grad.addColorStop(1.0, '#181f2c');
+      }
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 4, 512);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.encoding = THREE.sRGBEncoding;
+      return tex;
+    }
+
+    function createFloorFadeTexture(isLight) {
+      if (typeof document === 'undefined') return null;
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      const grad = ctx.createRadialGradient(256, 256, 10, 256, 256, 256);
+      const rgb = isLight ? '248, 250, 252' : '24, 31, 44';
+      grad.addColorStop(0.0, `rgba(${rgb}, 0.0)`);
+      grad.addColorStop(0.25, `rgba(${rgb}, 0.0)`);
+      grad.addColorStop(0.45, `rgba(${rgb}, 0.15)`);
+      grad.addColorStop(0.65, `rgba(${rgb}, 0.48)`);
+      grad.addColorStop(0.85, `rgba(${rgb}, 0.88)`);
+      grad.addColorStop(1.0, `rgba(${rgb}, 1.0)`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 512, 512);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.encoding = THREE.sRGBEncoding;
+      return tex;
+    }
+
+    function disposeRealViewFloor() {
+      if (groundShadowPlane) {
+        if (scene) scene.remove(groundShadowPlane);
+        if (groundShadowPlane.geometry) groundShadowPlane.geometry.dispose();
+        if (groundShadowPlane.material) groundShadowPlane.material.dispose();
+        groundShadowPlane = null;
+      }
+      if (realViewFloorDisc) {
+        if (scene) scene.remove(realViewFloorDisc);
+        if (realViewFloorDisc.geometry) realViewFloorDisc.geometry.dispose();
+        if (realViewFloorDisc.material) {
+          if (realViewFloorDisc.material.map) realViewFloorDisc.material.map.dispose();
+          realViewFloorDisc.material.dispose();
+        }
+        realViewFloorDisc = null;
+      }
+      if (realViewReflector) {
+        if (scene) scene.remove(realViewReflector);
+        if (realViewReflector.geometry) realViewReflector.geometry.dispose();
+        if (realViewReflector.material) realViewReflector.material.dispose();
+        if (typeof realViewReflector.dispose === 'function') realViewReflector.dispose();
+        realViewReflector = null;
+      }
+    }
 
     function updateRealViewFloor(active) {
       if (!scene || typeof THREE === 'undefined') return;
       if (!active) {
         if (groundShadowPlane) groundShadowPlane.visible = false;
         if (realViewFloorDisc) realViewFloorDisc.visible = false;
+        if (realViewReflector) realViewReflector.visible = false;
         return;
       }
       if (!modelGroup || modelGroup.children.length === 0) return;
@@ -81,19 +158,50 @@
       const center = box.getCenter(new THREE.Vector3());
       const size = box.getSize(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z, 10);
+      const isLight = typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'light';
 
-      if (groundShadowPlane) {
-        scene.remove(groundShadowPlane);
-        if (groundShadowPlane.geometry) groundShadowPlane.geometry.dispose();
-        if (groundShadowPlane.material) groundShadowPlane.material.dispose();
-        groundShadowPlane = null;
+      disposeRealViewFloor();
+
+      const floorRadius = Math.max(maxDim * 5.5, 60);
+
+      // 1. Real-Time Planar Floor Reflection (SolidWorks RealView signature mirror floor)
+      if (typeof THREE.Reflector === 'function') {
+        try {
+          const refGeom = new THREE.CircleGeometry(floorRadius, 64);
+          realViewReflector = new THREE.Reflector(refGeom, {
+            clipBias: 0.002,
+            textureWidth: 1024,
+            textureHeight: 1024,
+            color: isLight ? 0xf4f7fb : 0x4a5568
+          });
+          realViewReflector.rotation.x = -Math.PI / 2;
+          realViewReflector.position.set(center.x, box.min.y - 0.015, center.z);
+          realViewReflector.name = 'realview_floor_reflector';
+          scene.add(realViewReflector);
+        } catch (e) {
+          realViewReflector = null;
+        }
       }
 
-      const planeSize = Math.max(maxDim * 3.0, 20);
-      const planeGeom = new THREE.PlaneGeometry(planeSize, planeSize);
+      // 2. Soft Radial Studio Fade Overlay above Reflector (seamlessly dissolves reflection into studio floor)
+      const discGeom = new THREE.CircleGeometry(floorRadius, 64);
+      discGeom.rotateX(-Math.PI / 2);
+      const fadeTex = createFloorFadeTexture(isLight);
+      const discMat = new THREE.MeshBasicMaterial({
+        map: fadeTex,
+        transparent: true,
+        depthWrite: false
+      });
+      realViewFloorDisc = new THREE.Mesh(discGeom, discMat);
+      realViewFloorDisc.position.set(center.x, box.min.y - 0.010, center.z);
+      realViewFloorDisc.name = 'realview_floor_disc';
+      scene.add(realViewFloorDisc);
+
+      // 3. Soft Ground Contact Shadow receiving directional keyLight
+      const planeGeom = new THREE.PlaneGeometry(floorRadius * 1.8, floorRadius * 1.8);
       planeGeom.rotateX(-Math.PI / 2);
       const planeMat = new THREE.ShadowMaterial({
-        opacity: 0.36,
+        opacity: isLight ? 0.28 : 0.42,
         transparent: true,
         depthWrite: false
       });
@@ -101,34 +209,7 @@
       groundShadowPlane.position.set(center.x, box.min.y - 0.005, center.z);
       groundShadowPlane.receiveShadow = true;
       groundShadowPlane.name = 'realview_ground_shadow_plane';
-      groundShadowPlane.visible = true;
       scene.add(groundShadowPlane);
-
-      if (realViewFloorDisc) {
-        scene.remove(realViewFloorDisc);
-        if (realViewFloorDisc.geometry) realViewFloorDisc.geometry.dispose();
-        if (realViewFloorDisc.material) realViewFloorDisc.material.dispose();
-        realViewFloorDisc = null;
-      }
-
-      const discRadius = Math.max(maxDim * 1.35, 12);
-      const discGeom = new THREE.CircleGeometry(discRadius, 64);
-      discGeom.rotateX(-Math.PI / 2);
-      const discMat = new THREE.MeshStandardMaterial({
-        color: 0x1e2430,
-        metalness: 0.75,
-        roughness: 0.25,
-        envMapIntensity: 1.4,
-        transparent: true,
-        opacity: 0.42,
-        depthWrite: false
-      });
-      realViewFloorDisc = new THREE.Mesh(discGeom, discMat);
-      realViewFloorDisc.position.set(center.x, box.min.y - 0.008, center.z);
-      realViewFloorDisc.receiveShadow = true;
-      realViewFloorDisc.name = 'realview_floor_disc';
-      realViewFloorDisc.visible = true;
-      scene.add(realViewFloorDisc);
     }
 
     function toggleRealViewMode(forceState) {
@@ -139,14 +220,35 @@
           initRealViewEnvironment(renderer);
         }
 
+        const isLight = typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'light';
         if (scene) {
           scene.environment = isRealViewActive
             ? (realViewEnvTexture || studioEnvTexture || null)
             : (studioEnvTexture || null);
+
+          if (isRealViewActive) {
+            if (!realViewSavedBackground) realViewSavedBackground = scene.background;
+            if (realViewBackdropTex) realViewBackdropTex.dispose();
+            realViewBackdropTex = createRealViewBackdropTexture(isLight);
+            if (realViewBackdropTex) scene.background = realViewBackdropTex;
+          } else {
+            if (realViewSavedBackground) {
+              scene.background = realViewSavedBackground;
+              realViewSavedBackground = null;
+            }
+            if (realViewBackdropTex) {
+              realViewBackdropTex.dispose();
+              realViewBackdropTex = null;
+            }
+          }
+        }
+
+        if (typeof gridHelper !== 'undefined' && gridHelper) {
+          gridHelper.visible = !isRealViewActive;
         }
 
         if (renderer) {
-          renderer.toneMappingExposure = isRealViewActive ? 1.28 : 1.05;
+          renderer.toneMappingExposure = isRealViewActive ? 1.24 : 1.05;
         }
 
         if (isRealViewActive) {
@@ -196,6 +298,11 @@
 
       if (typeof window !== 'undefined') {
         window.isRealViewActive = isRealViewActive;
+      }
+      const rvBtn = document.getElementById('btn-realview');
+      if (rvBtn) {
+        rvBtn.classList.toggle('active', Boolean(isRealViewActive));
+        rvBtn.setAttribute('aria-pressed', isRealViewActive ? 'true' : 'false');
       }
       return Boolean(isRealViewActive);
     }
@@ -1080,11 +1187,16 @@ function initViewport() {
           if (detector && typeof detector.detectFeatures === 'function' && result.meshes) {
             for (let i = 0; i < result.meshes.length; i++) {
               const m = result.meshes[i];
+              const existingBrepFaces = m.brepFaces;
               const features = detector.detectFeatures(m);
               if (features) {
                 m.edgeFeatures = features.edgeFeatures || [];
-                m.brepFaces = features.brepFaces || [];
                 m.edgeIndices = features.edgeIndices || null;
+                if (existingBrepFaces && existingBrepFaces.length > 0 && existingBrepFaces.some(bf => bf && bf.color)) {
+                  m.brepFaces = existingBrepFaces;
+                } else {
+                  m.brepFaces = features.brepFaces || [];
+                }
               }
               m._featuresDetected = true;
             }
@@ -1160,11 +1272,16 @@ function initViewport() {
           if (detector && typeof detector.detectFeatures === 'function' && result.meshes) {
             for (let i = 0; i < result.meshes.length; i++) {
               const m = result.meshes[i];
+              const existingBrepFaces = m.brepFaces;
               const features = detector.detectFeatures(m);
               if (features) {
                 m.edgeFeatures = features.edgeFeatures || [];
-                m.brepFaces = features.brepFaces || [];
                 m.edgeIndices = features.edgeIndices || null;
+                if (existingBrepFaces && existingBrepFaces.length > 0 && existingBrepFaces.some(bf => bf && bf.color)) {
+                  m.brepFaces = existingBrepFaces;
+                } else {
+                  m.brepFaces = features.brepFaces || [];
+                }
               }
               m._featuresDetected = true;
             }
@@ -1435,13 +1552,13 @@ function initViewport() {
           }
         }
 
-        // Color handling (Body-level + STEP AP214/AP242 per-face brepFaces colors)
-        let meshColor = new THREE.Color(0xb8c0cc);
+        // Color handling (Body-level + STEP AP214/AP242 per-face brepFaces colors, sRGB -> Linear for outputEncoding=sRGBEncoding)
+        let meshColor = new THREE.Color(0xb8c0cc).convertSRGBToLinear();
         if (m.color && Array.isArray(m.color) && m.color.length >= 3) {
           const r = m.color[0] > 1 ? m.color[0] / 255 : m.color[0];
           const g = m.color[1] > 1 ? m.color[1] / 255 : m.color[1];
           const b = m.color[2] > 1 ? m.color[2] / 255 : m.color[2];
-          meshColor = new THREE.Color(r, g, b);
+          meshColor = new THREE.Color(r, g, b).convertSRGBToLinear();
         }
 
         let hasOriginalFaceColors = false;
@@ -1456,20 +1573,22 @@ function initViewport() {
               vertColors[v * 3 + 1] = meshColor.g;
               vertColors[v * 3 + 2] = meshColor.b;
             }
+            const tmpFaceColor = new THREE.Color();
             for (let f = 0; f < coloredFaces.length; f++) {
               const bf = coloredFaces[f];
               const fr = bf.color[0] > 1 ? bf.color[0] / 255 : bf.color[0];
               const fg = bf.color[1] > 1 ? bf.color[1] / 255 : bf.color[1];
               const fb = bf.color[2] > 1 ? bf.color[2] / 255 : bf.color[2];
+              tmpFaceColor.setRGB(fr, fg, fb).convertSRGBToLinear();
               const firstTri = Math.max(0, bf.first | 0);
               const lastTri = bf.last | 0;
               for (let t = firstTri; t <= lastTri; t++) {
                 for (let k = 0; k < 3; k++) {
                   const vi = idxAttr ? idxAttr.getX(t * 3 + k) : (t * 3 + k);
                   if (vi >= 0 && vi < posCount) {
-                    vertColors[vi * 3] = fr;
-                    vertColors[vi * 3 + 1] = fg;
-                    vertColors[vi * 3 + 2] = fb;
+                    vertColors[vi * 3] = tmpFaceColor.r;
+                    vertColors[vi * 3 + 1] = tmpFaceColor.g;
+                    vertColors[vi * 3 + 2] = tmpFaceColor.b;
                   }
                 }
               }
@@ -1803,11 +1922,18 @@ function initViewport() {
       const gridSize = Math.max(maxDim * 2.5, 20);
       gridHelper = new THREE.GridHelper(gridSize, 20, 0x2d3340, 0x1f232c);
       gridHelper.position.set(center.x, box.min.y - 0.02, center.z);
+      if (typeof isRealViewActive !== 'undefined' && isRealViewActive) {
+        gridHelper.visible = false;
+      }
       scene.add(gridHelper);
       window.gridHelper = gridHelper;
 
-      // Studio Ground Contact Shadow
-      updateGroundContactShadow(box, center, size);
+      // Studio Ground Contact Shadow & RealView floor
+      if (typeof isRealViewActive !== 'undefined' && isRealViewActive) {
+        updateRealViewFloor(true);
+      } else {
+        updateGroundContactShadow(box, center, size);
+      }
 
       // KeyLight shadow frustum and adaptive controls limits
       if (keyLight && keyLight.shadow) {

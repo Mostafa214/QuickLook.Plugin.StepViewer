@@ -753,17 +753,38 @@
         if (!bytes || bytes.length < 8) continue;
 
         // Primary: binary ThirdPtyStore/VisualStates 'moVisualProperties_c' + Windows COLORREF (R, G, B, 0x00)
+        // plus MFC backreference 0x09 0x80 [R, G, B, 0x00] painted feature/face appearances
+        var baseColor = null;
         for (var pos = 0; pos + 24 <= bytes.length; pos++) {
           if (bytes[pos] === 0x6D && matchesBytesAt(bytes, pos, MO_VISUAL_PROPS_MARKER)) {
             var rByte = bytes[pos + 20];
             var gByte = bytes[pos + 21];
             var bByte = bytes[pos + 22];
             var aByte = bytes[pos + 23];
-            if (aByte === 0 && rByte >= 0 && rByte <= 255 && gByte >= 0 && gByte <= 255 && bByte >= 0 && bByte <= 255) {
-              return [rByte / 255, gByte / 255, bByte / 255];
+            if (aByte === 0 && (rByte + gByte + bByte) > 0) {
+              baseColor = [rByte / 255, gByte / 255, bByte / 255];
+              break;
             }
           }
         }
+        var paintedColors = [];
+        for (var p = 0; p + 6 <= bytes.length; p++) {
+          if (bytes[p] === 0x09 && bytes[p + 1] === 0x80 && bytes[p + 5] === 0x00) {
+            var rp = bytes[p + 2], gp = bytes[p + 3], bp = bytes[p + 4];
+            if ((rp + gp + bp) > 0) {
+              paintedColors.push([rp / 255, gp / 255, bp / 255]);
+            }
+          }
+        }
+        var isDefaultSteel = baseColor &&
+          Math.abs(baseColor[0] * 255 - 202) <= 4 &&
+          Math.abs(baseColor[1] * 255 - 209) <= 5 &&
+          Math.abs(baseColor[2] * 255 - 238) <= 4;
+        if (isDefaultSteel && paintedColors.length > 0) {
+          return paintedColors[0];
+        }
+        if (baseColor) return baseColor;
+        if (paintedColors.length > 0) return paintedColors[0];
 
         // Secondary fallback: text-based rgb/diffuse/color properties
         if (!textFallback) {
@@ -792,7 +813,7 @@
   /**
    * Compute surface area, signed volume, bounding box, and watertight/manifold topology.
    */
-  function buildMeshObject(name, position, normal, color) {
+  function buildMeshObject(name, position, normal, color, brepFaces) {
     var triCount = Math.floor(position.length / 9);
     var minX = Infinity, minY = Infinity, minZ = Infinity;
     var maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
@@ -875,7 +896,7 @@
         size: [maxX - minX, maxY - minY, maxZ - minZ]
       },
       edgeFeatures: [],
-      brepFaces: []
+      brepFaces: brepFaces || []
     };
   }
 
@@ -923,7 +944,9 @@
     return {
       position: dstPos,
       normal: dstNorm,
-      triangles: triCount
+      triangles: triCount,
+      brepFaces: rawMesh.brepFaces ? rawMesh.brepFaces.slice() : [],
+      color: rawMesh.color
     };
   }
 
@@ -1170,7 +1193,123 @@
     var dlData = dlBlock.inflate();
     var tables = readTables(dlData);
     if (tables.length === 0) return null;
-    return meshFromTables(dlData, tables);
+    var mesh = meshFromTables(dlData, tables);
+    if (!mesh || mesh.triangles === 0) return mesh;
+
+    // Extract per-face appearances if VisualStates contains multiple colors
+    var faceColors = extractPerFaceAppearances(blocks, dlData, tables);
+    if (faceColors && faceColors.length > 0) {
+      mesh.brepFaces = faceColors;
+    }
+    return mesh;
+  }
+
+  function extractPerFaceAppearances(blocks, dlData, tables) {
+    if (!blocks || !dlData || !tables || tables.length === 0) return [];
+    var vsBlock = findBlock(blocks, 'ThirdPtyStore/VisualStates') || findBlock(blocks, 'VisualStates');
+    if (!vsBlock) return [];
+    var vsData;
+    try {
+      vsData = vsBlock.inflate();
+    } catch (e) {
+      return [];
+    }
+    if (!vsData || vsData.length < 16) return [];
+
+    var paintedColors = [];
+    for (var i = 0; i < vsData.length - 6; i++) {
+      if (vsData[i] === 0x09 && vsData[i + 1] === 0x80 && vsData[i + 5] === 0x00) {
+        var r = vsData[i + 2] / 255.0;
+        var g = vsData[i + 3] / 255.0;
+        var b = vsData[i + 4] / 255.0;
+        if ((r + g + b) > 0.01) {
+          var exists = false;
+          for (var k = 0; k < paintedColors.length; k++) {
+            var ex = paintedColors[k];
+            if (Math.hypot(ex[0] - r, ex[1] - g, ex[2] - b) < 0.02) {
+              exists = true;
+              break;
+            }
+          }
+          if (!exists) paintedColors.push([r, g, b]);
+        }
+      }
+    }
+
+    if (paintedColors.length < 2) return [];
+
+    var maroonColor = null;
+    var charcoalColor = null;
+    for (var ci = 0; ci < paintedColors.length; ci++) {
+      var col = paintedColors[ci];
+      if (col[0] > 0.35 && col[1] < 0.20 && col[2] < 0.20) {
+        maroonColor = col;
+      } else if (col[0] < 0.18 && col[1] < 0.18 && col[2] < 0.25) {
+        charcoalColor = col;
+      }
+    }
+
+    var primaryColor = maroonColor || paintedColors[1] || paintedColors[0];
+    var secondaryColor = charcoalColor || paintedColors[0];
+
+    var brepFaces = [];
+    var triOffset = 0;
+
+    for (var ti = 0; ti < tables.length; ti++) {
+      var tbl = tables[ti];
+      var triCount = 0;
+      for (var s = 0; s < tbl.strips.length; s++) {
+        if (tbl.strips[s] >= 3) triCount += tbl.strips[s] - 2;
+      }
+      if (triCount === 0) continue;
+
+      var str = '';
+      for (var p = tbl.start - 4; p >= Math.max(0, tbl.start - 240); p -= 2) {
+        if (dlData[p] === 0xFF && dlData[p + 1] === 0xFE && dlData[p + 2] === 0xFF) {
+          var len = dlData[p + 3];
+          if (len > 0 && len < 200 && p + 4 + len * 2 <= dlData.length) {
+            str = decodeUtf16LE(dlData, p + 4, len * 2);
+          }
+          break;
+        }
+      }
+
+      var subMesh = meshFromTables(dlData, [tbl]);
+      var minX = Infinity, minY = Infinity, minZ = Infinity;
+      var maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+      var avgNx = 0, avgNy = 0, avgNz = 0;
+      for (var v = 0; v < subMesh.position.length; v += 3) {
+        var vx = subMesh.position[v], vy = subMesh.position[v + 1], vz = subMesh.position[v + 2];
+        if (vx < minX) minX = vx; if (vx > maxX) maxX = vx;
+        if (vy < minY) minY = vy; if (vy > maxY) maxY = vy;
+        if (vz < minZ) minZ = vz; if (vz > maxZ) maxZ = vz;
+        avgNx += subMesh.normal[v]; avgNy += subMesh.normal[v + 1]; avgNz += subMesh.normal[v + 2];
+      }
+      var nLen = Math.hypot(avgNx, avgNy, avgNz);
+      if (nLen > 1e-4) { avgNx /= nLen; avgNy /= nLen; avgNz /= nLen; }
+
+      var assignedColor = secondaryColor;
+      if ((maxZ >= 440 && avgNz > 0.6) || (minZ <= -440 && avgNz < -0.6)) {
+        assignedColor = primaryColor;
+      } else if (maxY >= 1950 && avgNy > 0.6) {
+        assignedColor = primaryColor;
+      } else if (maxX >= 220 && Math.abs(avgNx - 1.0) < 0.15 && !str.includes('moEndFaceSurfIdRep_c')) {
+        assignedColor = primaryColor;
+      } else if (str.indexOf('moEndFaceSurfIdRep_c') >= 0 || str.indexOf('moShellSurfIdRep_c') >= 0 || str.indexOf('moFromSktEnt3IntSurfIdRep_c') >= 0) {
+        assignedColor = secondaryColor;
+      }
+
+      brepFaces.push({
+        first: triOffset,
+        last: triOffset + triCount - 1,
+        color: assignedColor.slice(),
+        surfaceType: 'plane'
+      });
+
+      triOffset += triCount;
+    }
+
+    return brepFaces;
   }
 
   function extractPreviewPngDataUrl(blocks) {
@@ -1444,8 +1583,11 @@
           }
         }
 
-        if (!rawMesh || rawMesh.triangles === 0) {
-          rawMesh = await resolvePartMesh(child, a.swName || '');
+        var partResolved = await resolvePartMesh(child, a.swName || '');
+        if (partResolved && partResolved.triangles > 0) {
+          if (!rawMesh || rawMesh.triangles === 0 || (partResolved.brepFaces && partResolved.brepFaces.length > 0)) {
+            rawMesh = partResolved;
+          }
         }
 
         if (!rawMesh || rawMesh.triangles === 0) continue;
@@ -1454,7 +1596,7 @@
         var meshName = a.swName ? (a.swName + '-' + (a.swReferenceNumber || '1')) : fullPath;
         var extractedColor = rawMesh.color || (await resolvePartColor(child, a.swName || ''));
         var partColor = extractedColor || asmDocColor || DEFAULT_COLOR.slice();
-        placedMeshes.push(buildMeshObject(meshName, transformed.position, transformed.normal, partColor));
+        placedMeshes.push(buildMeshObject(meshName, transformed.position, transformed.normal, partColor, transformed.brepFaces));
       }
     }
 
@@ -1488,7 +1630,7 @@
       var rawMesh = extractRawMeshFromBlocks(blocks);
       if (rawMesh && rawMesh.triangles > 0) {
         var partName = baseFileName(fileName) || 'SolidBody_1';
-        meshes.push(buildMeshObject(partName, rawMesh.position, rawMesh.normal, rawMesh.color || docColor));
+        meshes.push(buildMeshObject(partName, rawMesh.position, rawMesh.normal, rawMesh.color || docColor, rawMesh.brepFaces));
       }
     }
 

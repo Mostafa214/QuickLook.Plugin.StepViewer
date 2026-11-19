@@ -42,11 +42,16 @@ self.onmessage = async function (e) {
       for (let i = 0; i < result.meshes.length; i++) {
         const m = result.meshes[i];
         if (hasDetector && m.position && m.position.length > 0) {
+          const existingBrepFaces = m.brepFaces;
           const features = MeshFeatureDetector.detectFeatures(m);
           if (features) {
             m.edgeFeatures = features.edgeFeatures || [];
-            m.brepFaces = features.brepFaces || [];
             m.edgeIndices = features.edgeIndices || null;
+            if (existingBrepFaces && existingBrepFaces.length > 0 && existingBrepFaces.some(bf => bf && bf.color)) {
+              m.brepFaces = existingBrepFaces;
+            } else {
+              m.brepFaces = features.brepFaces || [];
+            }
           }
           m._featuresDetected = true;
         }
